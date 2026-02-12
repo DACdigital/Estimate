@@ -1,0 +1,417 @@
+defmodule EstimateWeb.ProjectLive.Index do
+  use EstimateWeb, :live_view
+
+  alias Estimate.Portfolio
+  alias Estimate.Portfolio.Project
+  alias Estimate.CRM
+  alias Estimate.Accounts
+
+  @impl true
+  def render(assigns) do
+    ~H"""
+    <div class="max-w-4xl mx-auto">
+      <%!-- Page Header --%>
+      <div class="flex items-center justify-between mb-8">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900">Projects</h1>
+          <p class="mt-1 text-gray-500">Manage your project portfolio</p>
+        </div>
+        <.link
+          patch={~p"/org/#{@org_id}/projects/new"}
+          class="px-4 py-2 bg-gray-900 text-white text-sm rounded-lg hover:bg-gray-800 transition-colors font-medium"
+        >
+          New Project
+        </.link>
+      </div>
+
+      <%!-- Project List --%>
+      <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+        <%= if @projects == [] do %>
+          <div class="px-6 py-16 text-center">
+            <div class="w-12 h-12 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+              <.icon name="hero-folder" class="w-6 h-6 text-gray-400" />
+            </div>
+            <p class="text-sm font-medium text-gray-900">No projects yet</p>
+            <p class="text-sm text-gray-500 mt-1">Create your first project to get started.</p>
+          </div>
+        <% else %>
+          <div
+            :for={project <- @projects}
+            class="px-6 py-5 flex items-center gap-4 border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors"
+          >
+            <.link
+              navigate={~p"/org/#{@org_id}/projects/#{project.id}"}
+              class="flex items-center gap-4 flex-1 min-w-0"
+            >
+              <div class="w-11 h-11 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-medium flex-shrink-0">
+                {String.first(project.name) |> String.upcase()}
+              </div>
+              <span
+                :if={project.key && project.customer}
+                class="text-xs font-mono text-gray-400 w-20 flex-shrink-0"
+              >
+                {Project.composite_key(project)}
+              </span>
+              <div class="min-w-0 flex-1">
+                <h3 class="text-sm font-medium text-gray-900 truncate">{project.name}</h3>
+                <p :if={project.customer} class="text-sm text-gray-500 truncate">
+                  {project.customer.name}
+                </p>
+              </div>
+            </.link>
+            <div class="flex items-center gap-3 flex-shrink-0">
+              <span :if={project.currency} class="text-xs text-gray-400 font-mono">
+                {project.currency.code}
+              </span>
+              <span class={"text-xs px-2 py-0.5 rounded-full #{status_class(project.status)}"}>
+                {project.status}
+              </span>
+              <.link
+                patch={~p"/org/#{@org_id}/projects/#{project.id}/edit"}
+                class="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <.icon name="hero-pencil-square" class="w-5 h-5" />
+              </.link>
+            </div>
+          </div>
+        <% end %>
+      </div>
+
+      <%!-- Modal --%>
+      <.modal
+        :if={@live_action in [:new, :edit]}
+        id="project-modal"
+        show
+        on_cancel={
+          JS.patch(
+            if @live_action == :new,
+              do: ~p"/org/#{@org_id}/projects",
+              else: ~p"/org/#{@org_id}/projects/#{@project.id}"
+          )
+        }
+      >
+        <h2 class="text-xl font-semibold text-gray-900 mb-6">
+          {if @live_action == :new, do: "New Project", else: "Edit Project"}
+        </h2>
+
+        <.form for={@form} id="project-form" phx-submit="save" phx-change="validate">
+          <div class="space-y-4">
+            <%!-- Customer Selection --%>
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1.5">Customer *</label>
+              <select
+                name={@form[:customer_id].name}
+                phx-change="customer_changed"
+                required
+                disabled={@live_action == :edit}
+                class={"w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm #{if @live_action == :edit, do: "bg-gray-50 text-gray-500"}"}
+              >
+                <option value="">Select a customer</option>
+                <%= for customer <- @customers do %>
+                  <option
+                    value={customer.id}
+                    selected={to_string(customer.id) == to_string(@form[:customer_id].value)}
+                  >
+                    {customer.key} - {customer.name}
+                  </option>
+                <% end %>
+              </select>
+            </div>
+
+            <%!-- Project Key (composite display) --%>
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1.5">Project Key</label>
+              <div class="flex items-center gap-1">
+                <span class="px-3 py-2 bg-gray-100 border border-gray-300 rounded-l-lg text-sm text-gray-500 font-mono">
+                  {@customer_key || "---"}
+                </span>
+                <span class="text-gray-400">-</span>
+                <input
+                  type="text"
+                  name={@form[:key].name}
+                  value={@form[:key].value}
+                  placeholder="PROJ"
+                  maxlength="10"
+                  class="flex-1 px-3 py-2 border border-gray-300 rounded-r-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm font-mono uppercase"
+                />
+              </div>
+              <p
+                :if={@customer_key && @form[:key].value && @form[:key].value != ""}
+                class="mt-1 text-xs text-gray-500"
+              >
+                Full key:
+                <span class="font-mono">
+                  {@customer_key}-{String.upcase(@form[:key].value || "")}
+                </span>
+              </p>
+            </div>
+
+            <%!-- Currency --%>
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1.5">Currency</label>
+              <select
+                name={@form[:currency_id].name}
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
+              >
+                <option value="">None</option>
+                <%= for currency <- @currencies do %>
+                  <option
+                    value={currency.id}
+                    selected={to_string(currency.id) == to_string(@form[:currency_id].value)}
+                  >
+                    {currency.code} - {currency.name}
+                  </option>
+                <% end %>
+              </select>
+            </div>
+
+            <%!-- Project Name --%>
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1.5">Project Name *</label>
+              <input
+                type="text"
+                name={@form[:name].name}
+                value={@form[:name].value}
+                placeholder="Website Redesign"
+                required
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
+              />
+            </div>
+
+            <%!-- Short Description --%>
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1.5">Short Description</label>
+              <input
+                type="text"
+                name={@form[:short_description].name}
+                value={@form[:short_description].value}
+                placeholder="One-liner about the project"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
+              />
+            </div>
+
+            <%!-- Detailed Description --%>
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1.5">
+                Detailed Description
+              </label>
+              <textarea
+                name={@form[:detailed_description].name}
+                rows="4"
+                placeholder="Comprehensive scope and details..."
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm resize-none"
+              ><%= @form[:detailed_description].value %></textarea>
+            </div>
+
+            <%!-- Repository URL --%>
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1.5">Repository URL</label>
+              <input
+                type="url"
+                name={@form[:repository_url].name}
+                value={@form[:repository_url].value}
+                placeholder="https://github.com/org/repo"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
+              />
+            </div>
+
+            <%!-- Status (edit only) --%>
+            <div :if={@live_action == :edit}>
+              <label class="block text-xs font-medium text-gray-500 mb-1.5">Status</label>
+              <select
+                name={@form[:status].name}
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
+              >
+                <option value="active" selected={@form[:status].value == "active"}>Active</option>
+                <option value="completed" selected={@form[:status].value == "completed"}>
+                  Completed
+                </option>
+                <option value="archived" selected={@form[:status].value == "archived"}>
+                  Archived
+                </option>
+              </select>
+            </div>
+          </div>
+
+          <div class="mt-6 flex justify-end gap-3">
+            <.link
+              patch={
+                if @live_action == :new,
+                  do: ~p"/org/#{@org_id}/projects",
+                  else: ~p"/org/#{@org_id}/projects/#{@project.id}"
+              }
+              class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              Cancel
+            </.link>
+            <button
+              type="submit"
+              phx-disable-with="Saving..."
+              class="px-4 py-2 bg-gray-900 text-white text-sm rounded-lg hover:bg-gray-800 transition-colors font-medium"
+            >
+              {if @live_action == :new, do: "Create Project", else: "Save Changes"}
+            </button>
+          </div>
+        </.form>
+      </.modal>
+    </div>
+    """
+  end
+
+  @impl true
+  def mount(_params, _session, socket) do
+    org_id = socket.assigns.org_id
+    user = socket.assigns.current_user
+    role = socket.assigns.current_membership.role
+    projects = Portfolio.list_projects(org_id, user.id, role)
+    customers = CRM.list_customers(org_id)
+    currencies = Accounts.list_currencies(org_id)
+
+    {:ok,
+     socket
+     |> assign(:page_title, "Projects")
+     |> assign(:active_tab, :projects)
+     |> assign(:projects, projects)
+     |> assign(:customers, customers)
+     |> assign(:currencies, currencies)
+     |> assign(:customer_key, nil)
+     |> assign(:project, nil)
+     |> assign(:form, nil)}
+  end
+
+  @impl true
+  def handle_params(params, _url, socket) do
+    {:noreply, apply_action(socket, socket.assigns.live_action, params)}
+  end
+
+  defp apply_action(socket, :new, _params) do
+    changeset = Portfolio.change_project(%Project{})
+
+    socket
+    |> assign(:page_title, "New Project")
+    |> assign(:project, %Project{})
+    |> assign(:customer_key, nil)
+    |> assign(:form, to_form(changeset))
+  end
+
+  defp apply_action(socket, :edit, %{"id" => id}) do
+    role = socket.assigns.current_membership.role
+    user_id = socket.assigns.current_user.id
+    is_admin = role in ["owner", "admin"]
+    is_collaborator = is_admin || Portfolio.get_collaborator(id, user_id) != nil
+
+    unless is_collaborator do
+      socket
+      |> put_flash(:error, "Not authorized")
+      |> push_patch(to: ~p"/org/#{socket.assigns.org_id}/projects")
+    else
+      project = Portfolio.get_project!(id, socket.assigns.org_id)
+      changeset = Portfolio.change_project(project)
+      customer_key = if project.customer, do: project.customer.key
+
+      socket
+      |> assign(:page_title, "Edit Project")
+      |> assign(:project, project)
+      |> assign(:customer_key, customer_key)
+      |> assign(:form, to_form(changeset))
+    end
+  end
+
+  defp apply_action(socket, :index, _params) do
+    socket
+    |> assign(:page_title, "Projects")
+    |> assign(:project, nil)
+    |> assign(:customer_key, nil)
+    |> assign(:form, nil)
+  end
+
+  @impl true
+  def handle_event("customer_changed", %{"project" => %{"customer_id" => customer_id}}, socket) do
+    customer = Enum.find(socket.assigns.customers, &(to_string(&1.id) == customer_id))
+
+    {customer_key, currency_id} =
+      if customer do
+        {customer.key, customer.default_currency_id}
+      else
+        {nil, nil}
+      end
+
+    # Update form with inherited currency
+    params = %{
+      "customer_id" => customer_id,
+      "currency_id" => currency_id
+    }
+
+    changeset =
+      (socket.assigns.project || %Project{})
+      |> Portfolio.change_project(params)
+      |> Map.put(:action, :validate)
+
+    {:noreply,
+     socket
+     |> assign(:customer_key, customer_key)
+     |> assign(:form, to_form(changeset))}
+  end
+
+  def handle_event("validate", %{"project" => project_params}, socket) do
+    # Update customer key if customer changed
+    customer_id = project_params["customer_id"]
+    customer = Enum.find(socket.assigns.customers, &(to_string(&1.id) == customer_id))
+    customer_key = if customer, do: customer.key, else: socket.assigns.customer_key
+
+    changeset =
+      (socket.assigns.project || %Project{})
+      |> Portfolio.change_project(project_params)
+      |> Map.put(:action, :validate)
+
+    {:noreply,
+     socket
+     |> assign(:customer_key, customer_key)
+     |> assign(:form, to_form(changeset))}
+  end
+
+  def handle_event("save", %{"project" => project_params}, socket) do
+    save_project(socket, socket.assigns.live_action, project_params)
+  end
+
+  defp save_project(socket, :new, project_params) do
+    customer_id = project_params["customer_id"]
+    user_id = socket.assigns.current_user.id
+    org_id = socket.assigns.org_id
+
+    case Portfolio.create_project(project_params, customer_id, user_id, org_id) do
+      {:ok, project} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Project created successfully")
+         |> push_navigate(to: ~p"/org/#{socket.assigns.org_id}/projects/#{project.id}")}
+
+      {:error, changeset} ->
+        {:noreply, assign(socket, form: to_form(changeset))}
+    end
+  end
+
+  defp save_project(socket, :edit, project_params) do
+    case Portfolio.update_project(socket.assigns.project, project_params) do
+      {:ok, project} ->
+        role = socket.assigns.current_membership.role
+
+        projects =
+          Portfolio.list_projects(socket.assigns.org_id, socket.assigns.current_user.id, role)
+
+        {:noreply,
+         socket
+         |> put_flash(:info, "Project updated successfully")
+         |> assign(:projects, projects)
+         |> push_patch(to: ~p"/org/#{socket.assigns.org_id}/projects/#{project.id}")}
+
+      {:error, changeset} ->
+        {:noreply, assign(socket, form: to_form(changeset))}
+    end
+  end
+
+  defp status_class("active"), do: "bg-green-100 text-green-800"
+  defp status_class("completed"), do: "bg-blue-100 text-blue-800"
+  defp status_class("archived"), do: "bg-gray-100 text-gray-800"
+  defp status_class(_), do: "bg-gray-100 text-gray-800"
+end

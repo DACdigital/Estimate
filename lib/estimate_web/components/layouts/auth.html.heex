@@ -1,0 +1,26 @@
+<div class="min-h-screen bg-gray-50 flex flex-col">
+  <!-- Header -->
+  <header class="bg-white border-b border-gray-200">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between items-center h-16">
+        <a href="/" class="text-xl font-semibold text-gray-900">EstiMate</a>
+        <div class="flex items-center gap-4">
+          <.theme_toggle />
+        </div>
+      </div>
+    </div>
+  </header>
+  
+<!-- Main content -->
+  <main class="flex-1 flex items-center justify-center p-8">
+    <div class="w-full max-w-md">
+      <.flash_group flash={@flash} />
+      {@inner_content}
+    </div>
+  </main>
+  
+<!-- Footer -->
+  <footer class="py-4 text-center text-sm text-gray-500">
+    Built with Phoenix LiveView
+  </footer>
+</div>

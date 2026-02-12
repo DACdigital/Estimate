@@ -1,0 +1,85 @@
+defmodule EstimateWeb.OrgAuth do
+  @moduledoc """
+  LiveView on_mount hook for organization-scoped routes.
+
+  Verifies user membership and assigns organization context.
+  RLS enforcement happens at the Repo level — each DB operation goes
+  through `Repo.with_org_context/2` which sets the role + org variable
+  on a checked-out connection for the duration of the call.
+  """
+  use EstimateWeb, :verified_routes
+
+  import Phoenix.LiveView
+  import Phoenix.Component
+
+  alias Estimate.Accounts
+
+  def on_mount(:ensure_org_member, params, _session, socket) do
+    org_id = params["org_id"]
+    user = socket.assigns.current_user
+
+    if org_id && user do
+      # memberships table has no RLS — safe to query without org context
+      case Accounts.get_user_membership(user.id, org_id) do
+        nil ->
+          socket =
+            socket
+            |> put_flash(:error, "You don't have access to this organization.")
+            |> redirect(to: ~p"/organizations")
+
+          {:halt, socket}
+
+        membership ->
+          organization = Accounts.get_organization!(org_id)
+
+          # Store org_id and user_id in process dictionary for RLS context.
+          # Context functions use Repo.ensure_org_context/1 to
+          # automatically wrap DB ops with SET ROLE + set_config.
+          Estimate.Repo.put_org_id(org_id)
+          Estimate.Repo.put_user_id(user.id)
+
+          socket =
+            socket
+            |> assign(:current_organization, organization)
+            |> assign(:current_membership, membership)
+            |> assign(:org_id, org_id)
+
+          {:cont, socket}
+      end
+    else
+      socket =
+        socket
+        |> put_flash(:error, "Organization not found.")
+        |> redirect(to: ~p"/organizations")
+
+      {:halt, socket}
+    end
+  end
+
+  def on_mount(:load_org_if_present, params, _session, socket) do
+    org_id = params["org_id"]
+    user = socket.assigns.current_user
+
+    if org_id && user do
+      case Accounts.get_user_membership(user.id, org_id) do
+        nil ->
+          {:cont, socket}
+
+        membership ->
+          organization = Accounts.get_organization!(org_id)
+          Estimate.Repo.put_org_id(org_id)
+          Estimate.Repo.put_user_id(user.id)
+
+          socket =
+            socket
+            |> assign(:current_organization, organization)
+            |> assign(:current_membership, membership)
+            |> assign(:org_id, org_id)
+
+          {:cont, socket}
+      end
+    else
+      {:cont, socket}
+    end
+  end
+end

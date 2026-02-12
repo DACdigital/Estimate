@@ -1,0 +1,8 @@
+{
+  "name": "estimate-assets",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "sortablejs": "^1.15.0"
+  }
+}

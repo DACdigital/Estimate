@@ -1,0 +1,190 @@
+defmodule Estimate.Templates do
+  import Ecto.Query
+  alias Estimate.Repo
+
+  alias Estimate.Templates.{
+    EstimationTemplate,
+    EstimationTemplateEpic,
+    EstimationTemplateTask
+  }
+
+  ## Estimation Templates
+
+  def list_estimation_templates(org_id) do
+    Repo.ensure_org_context(fn ->
+      from(t in EstimationTemplate,
+        where: t.organization_id == ^org_id,
+        order_by: [desc: t.updated_at],
+        preload: [epics: :tasks]
+      )
+      |> Repo.all()
+    end)
+  end
+
+  def get_estimation_template!(id, org_id) do
+    Repo.ensure_org_context(fn ->
+      from(t in EstimationTemplate,
+        where: t.id == ^id and t.organization_id == ^org_id,
+        preload: [
+          epics:
+            ^from(e in EstimationTemplateEpic,
+              order_by: e.position,
+              preload: [tasks: ^from(tk in EstimationTemplateTask, order_by: tk.position)]
+            )
+        ]
+      )
+      |> Repo.one!()
+    end)
+  end
+
+  def create_estimation_template(org_id, attrs) do
+    Repo.ensure_org_context(fn ->
+      %EstimationTemplate{}
+      |> EstimationTemplate.changeset(Map.put(attrs, "organization_id", org_id))
+      |> Repo.insert()
+    end)
+  end
+
+  def update_estimation_template(%EstimationTemplate{} = template, attrs) do
+    Repo.ensure_org_context(fn ->
+      template
+      |> EstimationTemplate.changeset(attrs)
+      |> Repo.update()
+    end)
+  end
+
+  def delete_estimation_template(%EstimationTemplate{} = template) do
+    Repo.ensure_org_context(fn ->
+      Repo.delete(template)
+    end)
+  end
+
+  ## Template Epics
+
+  def create_template_epic(attrs) do
+    Repo.ensure_org_context(fn ->
+      %EstimationTemplateEpic{}
+      |> EstimationTemplateEpic.changeset(attrs)
+      |> Repo.insert()
+    end)
+  end
+
+  def update_template_epic(%EstimationTemplateEpic{} = epic, attrs) do
+    Repo.ensure_org_context(fn ->
+      epic
+      |> EstimationTemplateEpic.changeset(attrs)
+      |> Repo.update()
+    end)
+  end
+
+  def delete_template_epic(%EstimationTemplateEpic{} = epic) do
+    Repo.ensure_org_context(fn ->
+      Repo.delete(epic)
+    end)
+  end
+
+  def reorder_template_epics(template_id, epic_ids) do
+    Repo.ensure_org_context(fn ->
+      Repo.transaction(fn ->
+        epic_ids
+        |> Enum.with_index()
+        |> Enum.each(fn {id, position} ->
+          from(e in EstimationTemplateEpic,
+            where: e.id == ^id and e.estimation_template_id == ^template_id
+          )
+          |> Repo.update_all(set: [position: position])
+        end)
+      end)
+
+      :ok
+    end)
+  end
+
+  ## Template Tasks
+
+  def create_template_task(attrs) do
+    Repo.ensure_org_context(fn ->
+      %EstimationTemplateTask{}
+      |> EstimationTemplateTask.changeset(attrs)
+      |> Repo.insert()
+    end)
+  end
+
+  def update_template_task(%EstimationTemplateTask{} = task, attrs) do
+    Repo.ensure_org_context(fn ->
+      task
+      |> EstimationTemplateTask.changeset(attrs)
+      |> Repo.update()
+    end)
+  end
+
+  def delete_template_task(%EstimationTemplateTask{} = task) do
+    Repo.ensure_org_context(fn ->
+      Repo.delete(task)
+    end)
+  end
+
+  def reorder_template_tasks(epic_id, task_ids) do
+    Repo.ensure_org_context(fn ->
+      Repo.transaction(fn ->
+        task_ids
+        |> Enum.with_index()
+        |> Enum.each(fn {id, position} ->
+          from(t in EstimationTemplateTask,
+            where: t.id == ^id and t.estimation_template_epic_id == ^epic_id
+          )
+          |> Repo.update_all(set: [position: position])
+        end)
+      end)
+
+      :ok
+    end)
+  end
+
+  ## Create from existing estimation
+
+  def create_from_estimation(org_id, name, estimation) do
+    Repo.ensure_org_context(fn ->
+      Ecto.Multi.new()
+      |> Ecto.Multi.insert(:template, fn _ ->
+        EstimationTemplate.changeset(%EstimationTemplate{}, %{
+          name: name,
+          description: estimation.description,
+          organization_id: org_id
+        })
+      end)
+      |> Ecto.Multi.run(:epics_tasks, fn _repo, %{template: template} ->
+        Enum.each(estimation.epics, fn epic ->
+          {:ok, new_epic} =
+            %EstimationTemplateEpic{}
+            |> EstimationTemplateEpic.changeset(%{
+              name: epic.name,
+              description: epic.description,
+              position: epic.position,
+              estimation_template_id: template.id
+            })
+            |> Repo.insert()
+
+          Enum.each(epic.tasks, fn task ->
+            %EstimationTemplateTask{}
+            |> EstimationTemplateTask.changeset(%{
+              name: task.name,
+              description: task.description,
+              position: task.position,
+              priority: task.priority,
+              estimation_template_epic_id: new_epic.id
+            })
+            |> Repo.insert!()
+          end)
+        end)
+
+        {:ok, :done}
+      end)
+      |> Repo.transaction()
+      |> case do
+        {:ok, %{template: template}} -> {:ok, template}
+        {:error, _op, changeset, _} -> {:error, changeset}
+      end
+    end)
+  end
+end
