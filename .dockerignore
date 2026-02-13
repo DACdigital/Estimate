@@ -1,0 +1,48 @@
+# Git
+.git
+.gitignore
+
+# Build artifacts
+_build
+deps
+*.ez
+
+# Generated on crash
+erl_crash.dump
+
+# Static artifacts (regenerated during build)
+priv/static/assets
+priv/static/cache_manifest.json
+
+# Node
+assets/node_modules
+npm-debug.log
+
+# Environment
+.env
+.env.*
+
+# IDE / Editor
+.elixir_ls
+.vscode
+.idea
+*.swp
+*.swo
+.DS_Store
+
+# Docker
+Dockerfile*
+docker-compose*
+
+# Documentation
+*.md
+
+# Tests
+test
+cover
+
+# Tmp
+tmp
+
+# Claude
+.claude

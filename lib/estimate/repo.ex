@@ -22,6 +22,7 @@ defmodule Estimate.Repo do
   # (run as postgres by default; tests opt into RLS via DataCase.setup_rls/1).
   defp skip_after_connect? do
     Application.get_env(:estimate, :env) == :test or
+      System.get_env("SKIP_RLS_ROLE") == "true" or
       System.argv()
       |> Enum.any?(
         &(&1 in ~w(ecto.migrate ecto.rollback ecto.reset ecto.setup ecto.create ecto.drop))

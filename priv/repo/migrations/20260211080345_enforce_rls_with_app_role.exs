@@ -99,7 +99,16 @@ defmodule Estimate.Repo.Migrations.EnforceRlsWithAppRole do
   end
 
   defp current_database do
-    Application.get_env(:estimate, Estimate.Repo)[:database] ||
+    config = Application.get_env(:estimate, Estimate.Repo)
+
+    config[:database] ||
+      extract_database_from_url(config[:url]) ||
       raise "Database name not configured"
+  end
+
+  defp extract_database_from_url(nil), do: nil
+
+  defp extract_database_from_url(url) do
+    url |> URI.parse() |> Map.get(:path) |> String.trim_leading("/")
   end
 end
