@@ -1,0 +1,12 @@
+include:
+  - project: 'dacdigital/gitlab-ci'
+    ref: master
+    file:
+      - 'templates/docker/.docker-build.yml'
+      
+trigger_job:
+  stage: deploy
+  when: manual
+  trigger:
+    project: dacdigital/tools/deployment/estimate-deployment
+    branch: master
