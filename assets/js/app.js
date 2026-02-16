@@ -26,11 +26,13 @@ import {hooks as colocatedHooks} from "phoenix-colocated/estimate"
 import topbar from "../vendor/topbar"
 import Sortable from "sortablejs"
 import SearchFocus from "./hooks/search_focus"
+import AiEnhance from "./hooks/ai_enhance"
 
 // Custom hooks
 const Hooks = {
   ...colocatedHooks,
   SearchFocus,
+  AiEnhance,
 
   JsonFileReader: {
     mounted() {

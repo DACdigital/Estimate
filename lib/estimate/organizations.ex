@@ -47,6 +47,35 @@ defmodule Estimate.Organizations do
     Organization.changeset(org, attrs)
   end
 
+  ## AI Settings
+
+  def update_ai_settings(%Organization{} = org, attrs) do
+    org
+    |> Organization.ai_settings_changeset(attrs)
+    |> Repo.update()
+  end
+
+  def get_decrypted_api_key(%Organization{} = org) do
+    case {org.openrouter_api_key_nonce, org.encrypted_openrouter_api_key} do
+      {nil, _} -> nil
+      {_, nil} -> nil
+
+      {nonce, ciphertext} ->
+        case Estimate.Encryption.decrypt(nonce, ciphertext) do
+          {:ok, plaintext} -> plaintext
+          _ -> nil
+        end
+    end
+  end
+
+  def mask_api_key(%Organization{} = org) do
+    case get_decrypted_api_key(org) do
+      nil -> nil
+      key when byte_size(key) <= 8 -> "****"
+      key -> String.slice(key, 0, 4) <> "..." <> String.slice(key, -4, 4)
+    end
+  end
+
   ## Membership
 
   def create_membership(attrs) do
@@ -103,7 +132,8 @@ defmodule Estimate.Organizations do
         # Re-check at DB level to prevent race condition
         fresh =
           from(i in Invite,
-            where: i.id == ^invite.id and is_nil(i.accepted_at) and i.expires_at > ^DateTime.utc_now()
+            where:
+              i.id == ^invite.id and is_nil(i.accepted_at) and i.expires_at > ^DateTime.utc_now()
           )
           |> Repo.one()
 
