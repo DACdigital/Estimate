@@ -8,17 +8,20 @@
     
 <!-- Org selector -->
     <div :if={assigns[:current_organization]} class="px-4 py-3 border-b border-gray-100">
-      <div class="flex items-center gap-3 px-2 py-2 rounded-lg bg-gray-50">
+      <a
+        href="/organizations"
+        class="flex items-center gap-3 px-2 py-2 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer"
+      >
         <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold text-sm">
           {String.first(@current_organization.name)}
         </div>
         <div class="flex-1 min-w-0">
           <p class="text-sm font-medium text-gray-900 truncate">{@current_organization.name}</p>
         </div>
-        <a href="/organizations" class="text-gray-400 hover:text-gray-600">
+        <span class="text-gray-400">
           <.icon name="hero-chevron-up-down" class="w-4 h-4" />
-        </a>
-      </div>
+        </span>
+      </a>
     </div>
     
 <!-- Navigation -->
@@ -110,6 +113,18 @@
           href={~p"/org/#{@org_id}/settings/currencies"}
           label="Currencies"
           active={assigns[:settings_page] == :currencies}
+        />
+        <.settings_nav_link
+          :if={assigns[:current_membership] && assigns[:current_membership].role in ["owner", "admin"]}
+          href={~p"/org/#{@org_id}/settings/ai"}
+          label="AI Integration"
+          active={assigns[:settings_page] == :ai}
+        />
+        <.settings_nav_link
+          :if={assigns[:current_membership] && assigns[:current_membership].role in ["owner", "admin"]}
+          href={~p"/org/#{@org_id}/settings/email"}
+          label="Email"
+          active={assigns[:settings_page] == :email}
         />
       </div>
     </nav>
