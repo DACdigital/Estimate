@@ -3,6 +3,8 @@ defmodule EstimateWeb.TemplatesLive.Show do
 
   alias Estimate.Templates
 
+  import EstimateWeb.EstimatorLive.Helpers, only: [priority_label: 1, priority_class: 1]
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -18,24 +20,31 @@ defmodule EstimateWeb.TemplatesLive.Show do
 
       <%!-- Header --%>
       <div class="mb-6">
-        <form phx-change="update_template" phx-debounce="500">
-          <input
-            type="text"
-            name="name"
-            value={@template.name}
-            class="text-2xl font-bold text-gray-900 bg-transparent border-0 border-b-2 border-transparent hover:border-gray-200 focus:border-gray-900 focus:ring-0 p-0 pb-1 w-full transition-colors"
-          />
-          <textarea
-            name="description"
-            rows="1"
-            placeholder="Add description..."
-            class="mt-2 text-sm text-gray-500 bg-transparent border-0 border-b-2 border-transparent hover:border-gray-200 focus:border-gray-900 focus:ring-0 p-0 pb-1 w-full resize-none transition-colors"
-          >{@template.description}</textarea>
-        </form>
+        <%= if @is_admin do %>
+          <form phx-change="update_template" phx-debounce="500">
+            <input
+              type="text"
+              name="name"
+              value={@template.name}
+              class="text-2xl font-bold text-gray-900 bg-transparent border-0 border-b-2 border-transparent hover:border-gray-200 focus:border-gray-900 focus:ring-0 p-0 pb-1 w-full transition-colors"
+            />
+            <textarea
+              name="description"
+              rows="1"
+              placeholder="Add description..."
+              class="mt-2 text-sm text-gray-500 bg-transparent border-0 border-b-2 border-transparent hover:border-gray-200 focus:border-gray-900 focus:ring-0 p-0 pb-1 w-full resize-none transition-colors"
+            >{@template.description}</textarea>
+          </form>
+        <% else %>
+          <h1 class="text-2xl font-bold text-gray-900">{@template.name}</h1>
+          <p :if={@template.description} class="mt-2 text-sm text-gray-500">
+            {@template.description}
+          </p>
+        <% end %>
       </div>
 
       <%!-- Actions --%>
-      <div class="flex items-center justify-end gap-4 mb-4">
+      <div :if={@is_admin} class="flex items-center justify-end gap-4 mb-4">
         <button
           phx-click="add_epic"
           class="px-4 py-2 bg-gray-900 text-white text-sm rounded-lg hover:bg-gray-800 transition-colors font-medium"
@@ -70,7 +79,7 @@ defmodule EstimateWeb.TemplatesLive.Show do
                     <.icon name="hero-document-text" class="w-3.5 h-3.5" />
                   </button>
                 </div>
-                <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div :if={@is_admin} class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
                     phx-click="edit_epic"
                     phx-value-id={epic.id}
@@ -130,7 +139,7 @@ defmodule EstimateWeb.TemplatesLive.Show do
                     >
                       <.icon name="hero-document-text" class="w-3.5 h-3.5" />
                     </button>
-                    <div class="flex items-center gap-1 opacity-0 group-hover/task:opacity-100 transition-opacity">
+                    <div :if={@is_admin} class="flex items-center gap-1 opacity-0 group-hover/task:opacity-100 transition-opacity">
                       <button
                         phx-click="edit_task"
                         phx-value-id={task.id}
@@ -360,6 +369,7 @@ defmodule EstimateWeb.TemplatesLive.Show do
      |> assign(:page_title, template.name)
      |> assign(:active_tab, :templates)
      |> assign(:template, template)
+     |> assign(:is_admin, admin?(socket.assigns.current_membership))
      |> assign(:modal, nil)
      |> assign(:epic_form, to_form(%{}, as: "epic"))
      |> assign(:task_form, to_form(%{}, as: "task"))
@@ -371,18 +381,22 @@ defmodule EstimateWeb.TemplatesLive.Show do
 
   @impl true
   def handle_event("update_template", params, socket) do
-    attrs = %{
-      "name" => params["name"],
-      "description" => params["description"]
-    }
+    unless socket.assigns.is_admin do
+      {:noreply, put_flash(socket, :error, "Not authorized")}
+    else
+      attrs = %{
+        "name" => params["name"],
+        "description" => params["description"]
+      }
 
-    case Templates.update_estimation_template(socket.assigns.template, attrs) do
-      {:ok, template} ->
-        template = Templates.get_estimation_template!(template.id, socket.assigns.org_id)
-        {:noreply, assign(socket, :template, template)}
+      case Templates.update_estimation_template(socket.assigns.template, attrs) do
+        {:ok, template} ->
+          template = Templates.get_estimation_template!(template.id, socket.assigns.org_id)
+          {:noreply, assign(socket, :template, template)}
 
-      {:error, _} ->
-        {:noreply, socket}
+        {:error, _} ->
+          {:noreply, socket}
+      end
     end
   end
 
@@ -410,36 +424,44 @@ defmodule EstimateWeb.TemplatesLive.Show do
   end
 
   def handle_event("save_epic", %{"epic_id" => "", "name" => name} = params, socket) do
-    position = length(socket.assigns.template.epics)
+    unless socket.assigns.is_admin do
+      {:noreply, put_flash(socket, :error, "Not authorized")}
+    else
+      position = length(socket.assigns.template.epics)
 
-    attrs = %{
-      "name" => name,
-      "description" => params["description"],
-      "position" => position,
-      "estimation_template_id" => socket.assigns.template.id
-    }
+      attrs = %{
+        "name" => name,
+        "description" => params["description"],
+        "position" => position,
+        "estimation_template_id" => socket.assigns.template.id
+      }
 
-    case Templates.create_template_epic(attrs) do
-      {:ok, _} ->
-        {:noreply, reload_and_close(socket)}
+      case Templates.create_template_epic(attrs) do
+        {:ok, _} ->
+          {:noreply, reload_and_close(socket)}
 
-      {:error, _} ->
-        {:noreply, put_flash(socket, :error, "Could not create epic")}
+        {:error, _} ->
+          {:noreply, put_flash(socket, :error, "Could not create epic")}
+      end
     end
   end
 
   def handle_event("save_epic", %{"epic_id" => id, "name" => name} = params, socket) do
-    epic = find_epic(socket.assigns.template, id)
+    unless socket.assigns.is_admin do
+      {:noreply, put_flash(socket, :error, "Not authorized")}
+    else
+      epic = find_epic(socket.assigns.template, id)
 
-    case Templates.update_template_epic(epic, %{
-           "name" => name,
-           "description" => params["description"]
-         }) do
-      {:ok, _} ->
-        {:noreply, reload_and_close(socket)}
+      case Templates.update_template_epic(epic, %{
+             "name" => name,
+             "description" => params["description"]
+           }) do
+        {:ok, _} ->
+          {:noreply, reload_and_close(socket)}
 
-      {:error, _} ->
-        {:noreply, put_flash(socket, :error, "Could not update epic")}
+        {:error, _} ->
+          {:noreply, put_flash(socket, :error, "Could not update epic")}
+      end
     end
   end
 
@@ -449,16 +471,20 @@ defmodule EstimateWeb.TemplatesLive.Show do
   end
 
   def handle_event("delete_epic", _params, socket) do
-    case Templates.delete_template_epic(socket.assigns.deleting_epic) do
-      {:ok, _} ->
-        {:noreply,
-         socket
-         |> assign(:deleting_epic, nil)
-         |> reload_template()
-         |> put_flash(:info, "Epic deleted")}
+    unless socket.assigns.is_admin do
+      {:noreply, put_flash(socket, :error, "Not authorized")}
+    else
+      case Templates.delete_template_epic(socket.assigns.deleting_epic) do
+        {:ok, _} ->
+          {:noreply,
+           socket
+           |> assign(:deleting_epic, nil)
+           |> reload_template()
+           |> put_flash(:info, "Epic deleted")}
 
-      {:error, _} ->
-        {:noreply, put_flash(socket, :error, "Could not delete epic")}
+        {:error, _} ->
+          {:noreply, put_flash(socket, :error, "Could not delete epic")}
+      end
     end
   end
 
@@ -502,23 +528,27 @@ defmodule EstimateWeb.TemplatesLive.Show do
         %{"task_id" => "", "epic_id" => epic_id, "name" => name} = params,
         socket
       ) do
-    epic = find_epic(socket.assigns.template, epic_id)
-    position = length(epic.tasks)
+    unless socket.assigns.is_admin do
+      {:noreply, put_flash(socket, :error, "Not authorized")}
+    else
+      epic = find_epic(socket.assigns.template, epic_id)
+      position = length(epic.tasks)
 
-    attrs = %{
-      "name" => name,
-      "description" => params["description"],
-      "priority" => params["priority"] || "must",
-      "position" => position,
-      "estimation_template_epic_id" => epic_id
-    }
+      attrs = %{
+        "name" => name,
+        "description" => params["description"],
+        "priority" => params["priority"] || "must",
+        "position" => position,
+        "estimation_template_epic_id" => epic_id
+      }
 
-    case Templates.create_template_task(attrs) do
-      {:ok, _} ->
-        {:noreply, reload_and_close(socket)}
+      case Templates.create_template_task(attrs) do
+        {:ok, _} ->
+          {:noreply, reload_and_close(socket)}
 
-      {:error, _} ->
-        {:noreply, put_flash(socket, :error, "Could not create task")}
+        {:error, _} ->
+          {:noreply, put_flash(socket, :error, "Could not create task")}
+      end
     end
   end
 
@@ -527,20 +557,24 @@ defmodule EstimateWeb.TemplatesLive.Show do
         %{"task_id" => id, "epic_id" => epic_id, "name" => name} = params,
         socket
       ) do
-    task = find_task(socket.assigns.template, epic_id, id)
+    unless socket.assigns.is_admin do
+      {:noreply, put_flash(socket, :error, "Not authorized")}
+    else
+      task = find_task(socket.assigns.template, epic_id, id)
 
-    attrs = %{
-      "name" => name,
-      "description" => params["description"],
-      "priority" => params["priority"] || task.priority
-    }
+      attrs = %{
+        "name" => name,
+        "description" => params["description"],
+        "priority" => params["priority"] || task.priority
+      }
 
-    case Templates.update_template_task(task, attrs) do
-      {:ok, _} ->
-        {:noreply, reload_and_close(socket)}
+      case Templates.update_template_task(task, attrs) do
+        {:ok, _} ->
+          {:noreply, reload_and_close(socket)}
 
-      {:error, _} ->
-        {:noreply, put_flash(socket, :error, "Could not update task")}
+        {:error, _} ->
+          {:noreply, put_flash(socket, :error, "Could not update task")}
+      end
     end
   end
 
@@ -550,29 +584,41 @@ defmodule EstimateWeb.TemplatesLive.Show do
   end
 
   def handle_event("delete_task", _params, socket) do
-    case Templates.delete_template_task(socket.assigns.deleting_task) do
-      {:ok, _} ->
-        {:noreply,
-         socket
-         |> assign(:deleting_task, nil)
-         |> reload_template()
-         |> put_flash(:info, "Task deleted")}
+    unless socket.assigns.is_admin do
+      {:noreply, put_flash(socket, :error, "Not authorized")}
+    else
+      case Templates.delete_template_task(socket.assigns.deleting_task) do
+        {:ok, _} ->
+          {:noreply,
+           socket
+           |> assign(:deleting_task, nil)
+           |> reload_template()
+           |> put_flash(:info, "Task deleted")}
 
-      {:error, _} ->
-        {:noreply, put_flash(socket, :error, "Could not delete task")}
+        {:error, _} ->
+          {:noreply, put_flash(socket, :error, "Could not delete task")}
+      end
     end
   end
 
   ## Reorder events
 
   def handle_event("reorder_epics", %{"ids" => ids}, socket) do
-    Templates.reorder_template_epics(socket.assigns.template.id, ids)
-    {:noreply, reload_template(socket)}
+    unless socket.assigns.is_admin do
+      {:noreply, put_flash(socket, :error, "Not authorized")}
+    else
+      Templates.reorder_template_epics(socket.assigns.template.id, ids)
+      {:noreply, reload_template(socket)}
+    end
   end
 
   def handle_event("reorder_tasks", %{"epic_id" => epic_id, "ids" => ids}, socket) do
-    Templates.reorder_template_tasks(epic_id, ids)
-    {:noreply, reload_template(socket)}
+    unless socket.assigns.is_admin do
+      {:noreply, put_flash(socket, :error, "Not authorized")}
+    else
+      Templates.reorder_template_tasks(epic_id, ids)
+      {:noreply, reload_template(socket)}
+    end
   end
 
   ## Common events
@@ -611,16 +657,4 @@ defmodule EstimateWeb.TemplatesLive.Show do
     epic = find_epic(template, epic_id)
     Enum.find(epic.tasks, &(&1.id == task_id))
   end
-
-  defp priority_label("must"), do: "Must"
-  defp priority_label("should"), do: "Should"
-  defp priority_label("could"), do: "Could"
-  defp priority_label("wont"), do: "Won't"
-  defp priority_label(_), do: "Must"
-
-  defp priority_class("must"), do: "bg-red-100 text-red-700"
-  defp priority_class("should"), do: "bg-amber-100 text-amber-700"
-  defp priority_class("could"), do: "bg-blue-100 text-blue-700"
-  defp priority_class("wont"), do: "bg-gray-100 text-gray-500"
-  defp priority_class(_), do: "bg-red-100 text-red-700"
 end

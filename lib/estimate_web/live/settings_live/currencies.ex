@@ -251,7 +251,7 @@ defmodule EstimateWeb.SettingsLive.Currencies do
      |> assign(:settings_page, :currencies)
      |> assign(:currencies, currencies)
      |> assign(:main_currency, main_currency)
-     |> assign(:is_admin, socket.assigns.current_membership.role in ["owner", "admin"])
+     |> assign(:is_admin, admin?(socket.assigns.current_membership))
      |> assign(:deleting_currency, nil)
      |> assign(
        :new_currency_form,

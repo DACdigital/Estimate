@@ -115,13 +115,13 @@
           active={assigns[:settings_page] == :currencies}
         />
         <.settings_nav_link
-          :if={assigns[:current_membership] && assigns[:current_membership].role in ["owner", "admin"]}
+          :if={admin?(assigns[:current_membership])}
           href={~p"/org/#{@org_id}/settings/ai"}
           label="AI Integration"
           active={assigns[:settings_page] == :ai}
         />
         <.settings_nav_link
-          :if={assigns[:current_membership] && assigns[:current_membership].role in ["owner", "admin"]}
+          :if={admin?(assigns[:current_membership])}
           href={~p"/org/#{@org_id}/settings/email"}
           label="Email"
           active={assigns[:settings_page] == :email}

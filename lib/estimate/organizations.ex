@@ -76,6 +76,41 @@ defmodule Estimate.Organizations do
     end
   end
 
+  ## SMTP Settings
+
+  def update_smtp_settings(%Organization{} = org, attrs) do
+    org
+    |> Organization.smtp_settings_changeset(attrs)
+    |> Repo.update()
+  end
+
+  def get_decrypted_smtp_password(%Organization{} = org) do
+    case {org.smtp_password_nonce, org.encrypted_smtp_password} do
+      {nil, _} -> nil
+      {_, nil} -> nil
+
+      {nonce, ciphertext} ->
+        case Estimate.Encryption.decrypt(nonce, ciphertext) do
+          {:ok, plaintext} -> plaintext
+          _ -> nil
+        end
+    end
+  end
+
+  def mask_smtp_password(%Organization{} = org) do
+    case get_decrypted_smtp_password(org) do
+      nil -> nil
+      pw when byte_size(pw) <= 8 -> "****"
+      pw -> String.slice(pw, 0, 4) <> "..." <> String.slice(pw, -4, 4)
+    end
+  end
+
+  def smtp_configured?(%Organization{} = org) do
+    org.smtp_host not in [nil, ""] and
+      org.smtp_from_email not in [nil, ""] and
+      org.encrypted_smtp_password != nil
+  end
+
   ## Membership
 
   def create_membership(attrs) do

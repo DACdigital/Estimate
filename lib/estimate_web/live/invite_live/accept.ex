@@ -3,6 +3,7 @@ defmodule EstimateWeb.InviteLive.Accept do
 
   alias Estimate.Accounts
   alias Estimate.Accounts.User
+  alias Estimate.Organizations
 
   @impl true
   def render(assigns) do
@@ -64,7 +65,7 @@ defmodule EstimateWeb.InviteLive.Accept do
 
   @impl true
   def mount(%{"token" => token}, _session, socket) do
-    invite = Accounts.get_valid_invite_by_token(token)
+    invite = Organizations.get_valid_invite_by_token(token)
     changeset = Accounts.change_user_registration(%User{})
 
     {:ok,
@@ -89,7 +90,7 @@ defmodule EstimateWeb.InviteLive.Accept do
 
     case Accounts.register_user(user_params) do
       {:ok, user} ->
-        case Accounts.accept_invite(invite, user.id) do
+        case Organizations.accept_invite(invite, user.id) do
           {:ok, _} ->
             {:noreply,
              socket
@@ -112,7 +113,7 @@ defmodule EstimateWeb.InviteLive.Accept do
     invite = socket.assigns.invite
     user = socket.assigns.current_user
 
-    case Accounts.accept_invite(invite, user.id) do
+    case Organizations.accept_invite(invite, user.id) do
       {:ok, _} ->
         {:noreply,
          socket

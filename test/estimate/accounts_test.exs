@@ -2,6 +2,7 @@ defmodule Estimate.AccountsTest do
   use Estimate.DataCase
 
   alias Estimate.Accounts
+  alias Estimate.Organizations
   import Estimate.AccountsFixtures
 
   describe "register_user_with_organization/2" do
@@ -59,7 +60,7 @@ defmodule Estimate.AccountsTest do
       org2 = organization_fixture()
       membership_fixture(user, org2)
 
-      orgs = Accounts.list_user_organizations(user.id)
+      orgs = Organizations.list_user_organizations(user.id)
       assert length(orgs) == 2
       org_ids = Enum.map(orgs, fn {o, _role} -> o.id end)
       assert org.id in org_ids
@@ -73,15 +74,15 @@ defmodule Estimate.AccountsTest do
       new_user = user_fixture()
 
       {:ok, invite} =
-        Accounts.create_invite(org.id, %{email: new_user.email, role: "member"}, inviter.id)
+        Organizations.create_invite(org.id, %{email: new_user.email, role: "member"}, inviter.id)
 
       assert invite.token != nil
       assert Accounts.Invite.valid?(invite)
 
-      fetched = Accounts.get_valid_invite_by_token(invite.token)
+      fetched = Organizations.get_valid_invite_by_token(invite.token)
       assert fetched.id == invite.id
 
-      {:ok, %{membership: membership}} = Accounts.accept_invite(invite, new_user.id)
+      {:ok, %{membership: membership}} = Organizations.accept_invite(invite, new_user.id)
       assert membership.user_id == new_user.id
       assert membership.organization_id == org.id
     end
@@ -92,10 +93,10 @@ defmodule Estimate.AccountsTest do
       %{user: admin, organization: org} = user_with_organization_fixture()
       requester = user_fixture()
 
-      {:ok, request} = Accounts.create_join_request(requester.id, org.id)
+      {:ok, request} = Organizations.create_join_request(requester.id, org.id)
       assert request.status == "pending"
 
-      {:ok, %{membership: membership}} = Accounts.approve_join_request(request, admin.id)
+      {:ok, %{membership: membership}} = Organizations.approve_join_request(request, admin.id)
       assert membership.user_id == requester.id
       assert membership.organization_id == org.id
     end
@@ -104,8 +105,8 @@ defmodule Estimate.AccountsTest do
       %{user: admin, organization: org} = user_with_organization_fixture()
       requester = user_fixture()
 
-      {:ok, request} = Accounts.create_join_request(requester.id, org.id)
-      {:ok, rejected} = Accounts.reject_join_request(request, admin.id)
+      {:ok, request} = Organizations.create_join_request(requester.id, org.id)
+      {:ok, rejected} = Organizations.reject_join_request(request, admin.id)
       assert rejected.status == "rejected"
     end
   end

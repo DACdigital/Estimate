@@ -3,6 +3,7 @@ defmodule EstimateWeb.JoinRequestLive.New do
 
   alias Estimate.Accounts
   alias Estimate.Accounts.User
+  alias Estimate.Organizations
 
   @impl true
   def render(assigns) do
@@ -159,7 +160,7 @@ defmodule EstimateWeb.JoinRequestLive.New do
 
     organization =
       try do
-        Accounts.get_organization!(org_id)
+        Organizations.get_organization!(org_id)
       rescue
         Ecto.NoResultsError -> nil
       end
@@ -167,14 +168,14 @@ defmodule EstimateWeb.JoinRequestLive.New do
     if user do
       already_member =
         if organization do
-          Accounts.get_user_membership(user.id, org_id) != nil
+          Organizations.get_user_membership(user.id, org_id) != nil
         else
           false
         end
 
       pending_request =
         if organization && !already_member do
-          Accounts.list_pending_join_requests(org_id)
+          Organizations.list_pending_join_requests(org_id)
           |> Enum.find(&(&1.user_id == user.id))
         end
 
@@ -211,11 +212,14 @@ defmodule EstimateWeb.JoinRequestLive.New do
 
     case Accounts.register_user(user_params) do
       {:ok, user} ->
-        case Accounts.create_join_request(user.id, org.id) do
+        case Organizations.create_join_request(user.id, org.id) do
           {:ok, _request} ->
             {:noreply,
              socket
-             |> put_flash(:info, "Account created! Your join request for #{org.name} is pending approval.")
+             |> put_flash(
+               :info,
+               "Account created! Your join request for #{org.name} is pending approval."
+             )
              |> redirect(to: ~p"/users/log_in")}
 
           {:error, _} ->
@@ -234,7 +238,7 @@ defmodule EstimateWeb.JoinRequestLive.New do
     user = socket.assigns.current_user
     org = socket.assigns.organization
 
-    case Accounts.create_join_request(user.id, org.id) do
+    case Organizations.create_join_request(user.id, org.id) do
       {:ok, _request} ->
         {:noreply,
          socket

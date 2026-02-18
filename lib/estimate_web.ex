@@ -52,6 +52,8 @@ defmodule EstimateWeb do
     quote do
       use Phoenix.LiveView
 
+      import EstimateWeb.AuthHelpers
+
       unquote(html_helpers())
     end
   end
@@ -71,6 +73,8 @@ defmodule EstimateWeb do
       # Import convenience functions from controllers
       import Phoenix.Controller,
         only: [get_csrf_token: 0, view_module: 1, view_template: 1]
+
+      import EstimateWeb.AuthHelpers
 
       # Include general helpers for rendering HTML
       unquote(html_helpers())

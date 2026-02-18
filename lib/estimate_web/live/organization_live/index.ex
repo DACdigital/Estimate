@@ -2,6 +2,7 @@ defmodule EstimateWeb.OrganizationLive.Index do
   use EstimateWeb, :live_view
 
   alias Estimate.Accounts
+  alias Estimate.Organizations
 
   @impl true
   def render(assigns) do
@@ -127,7 +128,7 @@ defmodule EstimateWeb.OrganizationLive.Index do
 
   @impl true
   def mount(_params, _session, socket) do
-    organizations = Accounts.list_user_organizations(socket.assigns.current_user.id)
+    organizations = Organizations.list_user_organizations(socket.assigns.current_user.id)
 
     {:ok,
      socket
@@ -142,7 +143,7 @@ defmodule EstimateWeb.OrganizationLive.Index do
   end
 
   defp apply_action(socket, :new, _params) do
-    changeset = Accounts.change_organization(%Accounts.Organization{})
+    changeset = Organizations.change_organization(%Accounts.Organization{})
 
     socket
     |> assign(:page_title, "New Organization")
@@ -159,7 +160,7 @@ defmodule EstimateWeb.OrganizationLive.Index do
   def handle_event("validate", %{"organization" => org_params}, socket) do
     changeset =
       %Accounts.Organization{}
-      |> Accounts.change_organization(org_params)
+      |> Organizations.change_organization(org_params)
       |> Map.put(:action, :validate)
 
     {:noreply, assign(socket, form: to_form(changeset))}
@@ -168,7 +169,7 @@ defmodule EstimateWeb.OrganizationLive.Index do
   def handle_event("join_with_code", %{"code" => code}, socket) do
     user = socket.assigns.current_user
 
-    case Accounts.get_valid_invite_by_code(code) do
+    case Organizations.get_valid_invite_by_code(code) do
       nil ->
         {:noreply,
          socket
@@ -176,7 +177,7 @@ defmodule EstimateWeb.OrganizationLive.Index do
          |> assign(:invite_code, code)}
 
       invite ->
-        case Accounts.accept_invite(invite, user.id) do
+        case Organizations.accept_invite(invite, user.id) do
           {:ok, _} ->
             {:noreply,
              socket

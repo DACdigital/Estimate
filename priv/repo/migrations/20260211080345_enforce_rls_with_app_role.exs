@@ -11,7 +11,7 @@ defmodule Estimate.Repo.Migrations.EnforceRlsWithAppRole do
     DO $$
     BEGIN
       IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'estimate_app') THEN
-        CREATE ROLE estimate_app WITH LOGIN PASSWORD 'estimate_app_dev' NOSUPERUSER NOCREATEDB NOCREATEROLE;
+        CREATE ROLE estimate_app WITH LOGIN PASSWORD '#{System.get_env("DATABASE_ROLE_PASSWORD", "estimate_app_dev")}' NOSUPERUSER NOCREATEDB NOCREATEROLE;
       END IF;
     END
     $$

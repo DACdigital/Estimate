@@ -45,6 +45,12 @@ defmodule EstimateWeb.Router do
       on_mount: [{EstimateWeb.UserAuth, :mount_current_user}] do
       live "/invites/:token", InviteLive.Accept, :show
     end
+
+    live_session :join_request,
+      layout: {EstimateWeb.Layouts, :auth},
+      on_mount: [{EstimateWeb.UserAuth, :mount_current_user}] do
+      live "/organizations/:id/join", JoinRequestLive.New, :new
+    end
   end
 
   # Authenticated routes (non-org)
@@ -56,7 +62,6 @@ defmodule EstimateWeb.Router do
       on_mount: [{EstimateWeb.UserAuth, :ensure_authenticated}] do
       live "/organizations", OrganizationLive.Index, :index
       live "/organizations/new", OrganizationLive.Index, :new
-      live "/organizations/:id/join", JoinRequestLive.New, :new
     end
 
     delete "/users/log_out", UserSessionController, :delete
@@ -86,6 +91,8 @@ defmodule EstimateWeb.Router do
       live "/settings", SettingsLive.Index, :index
       live "/settings/members", SettingsLive.Members, :index
       live "/settings/currencies", SettingsLive.Currencies, :index
+      live "/settings/ai", SettingsLive.Ai, :index
+      live "/settings/email", SettingsLive.Email, :index
 
       # CRM
       live "/customers", CustomerLive.Index, :index

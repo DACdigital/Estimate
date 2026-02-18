@@ -3,7 +3,7 @@ defmodule EstimateWeb.CustomerLive.Index do
 
   alias Estimate.CRM
   alias Estimate.CRM.Customer
-  alias Estimate.Accounts
+  alias Estimate.Organizations.Currencies
 
   @impl true
   def render(assigns) do
@@ -16,6 +16,7 @@ defmodule EstimateWeb.CustomerLive.Index do
           <p class="mt-1 text-gray-500">Manage your customer relationships</p>
         </div>
         <.link
+          :if={@is_admin}
           patch={~p"/org/#{@org_id}/customers/new"}
           class="px-4 py-2 bg-gray-900 text-white text-sm rounded-lg hover:bg-gray-800 transition-colors font-medium"
         >
@@ -59,6 +60,7 @@ defmodule EstimateWeb.CustomerLive.Index do
                 {customer.default_currency.code}
               </span>
               <.link
+                :if={@is_admin}
                 patch={~p"/org/#{@org_id}/customers/#{customer.id}/edit"}
                 class="text-gray-400 hover:text-gray-600 transition-colors"
               >
@@ -180,7 +182,7 @@ defmodule EstimateWeb.CustomerLive.Index do
   @impl true
   def mount(_params, _session, socket) do
     customers = CRM.list_customers(socket.assigns.org_id)
-    currencies = Accounts.list_currencies(socket.assigns.org_id)
+    currencies = Currencies.list_currencies(socket.assigns.org_id)
 
     {:ok,
      socket
@@ -188,6 +190,7 @@ defmodule EstimateWeb.CustomerLive.Index do
      |> assign(:active_tab, :customers)
      |> assign(:customers, customers)
      |> assign(:currencies, currencies)
+     |> assign(:is_admin, admin?(socket.assigns.current_membership))
      |> assign(:customer, nil)
      |> assign(:form, nil)}
   end
@@ -234,7 +237,11 @@ defmodule EstimateWeb.CustomerLive.Index do
   end
 
   def handle_event("save", %{"customer" => customer_params}, socket) do
-    save_customer(socket, socket.assigns.live_action, customer_params)
+    unless admin?(socket.assigns.current_membership) do
+      {:noreply, put_flash(socket, :error, "Not authorized")}
+    else
+      save_customer(socket, socket.assigns.live_action, customer_params)
+    end
   end
 
   defp save_customer(socket, :new, customer_params) do

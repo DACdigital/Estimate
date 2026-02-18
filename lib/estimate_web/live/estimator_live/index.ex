@@ -352,11 +352,9 @@ defmodule EstimateWeb.EstimatorLive.Index do
   def mount(%{"project_id" => project_id, "id" => id}, _session, socket) do
     org_id = socket.assigns.org_id
     user_id = socket.assigns.current_user.id
-    membership_role = socket.assigns.current_membership.role
-
     collaborator = Portfolio.get_collaborator(project_id, user_id)
 
-    unless membership_role in ["owner", "admin"] or collaborator do
+    unless admin?(socket.assigns.current_membership) or collaborator do
       {:ok,
        socket
        |> Phoenix.LiveView.put_flash(:error, "You don't have access to this project.")
@@ -792,46 +790,46 @@ defmodule EstimateWeb.EstimatorLive.Index do
 
   def handle_event("add_estimation_role", _params, socket), do: {:noreply, socket}
 
-  def handle_event("save_settings", _params, %{assigns: %{can_edit: false}} = socket) do
-    {:noreply, put_flash(socket, :error, "You don't have edit access")}
-  end
-
   def handle_event("save_settings", params, socket) do
-    estimation = socket.assigns.estimation
-    org_id = socket.assigns.org_id
+    case authorize_edit(socket) do
+      {:unauthorized, socket} ->
+        {:noreply, socket}
 
-    # Update estimation attrs
-    attrs = %{
-      "name" => params["name"],
-      "currency_id" => params["currency_id"]
-    }
+      :ok ->
+        estimation = socket.assigns.estimation
+        org_id = socket.assigns.org_id
 
-    # Update each role's rate and overheads
-    roles_params = params["roles"] || %{}
+        attrs = %{
+          "name" => params["name"],
+          "currency_id" => params["currency_id"]
+        }
 
-    Enum.each(roles_params, fn {role_id, role_attrs} ->
-      role = EstimationEngine.get_role!(role_id, org_id)
+        roles_params = params["roles"] || %{}
 
-      EstimationEngine.update_role(role, %{
-        hourly_rate: parse_decimal(role_attrs["hourly_rate"]),
-        pm_overhead: parse_decimal(role_attrs["pm_overhead"]),
-        qa_overhead: parse_decimal(role_attrs["qa_overhead"]),
-        risk_buffer: parse_decimal(role_attrs["risk_buffer"])
-      })
-    end)
+        Enum.each(roles_params, fn {role_id, role_attrs} ->
+          role = EstimationEngine.get_role!(role_id, org_id)
 
-    case EstimationEngine.update_estimation(estimation, attrs) do
-      {:ok, _} ->
-        estimation = EstimationEngine.get_estimation!(estimation.id, org_id)
+          EstimationEngine.update_role(role, %{
+            hourly_rate: parse_decimal(role_attrs["hourly_rate"]),
+            pm_overhead: parse_decimal(role_attrs["pm_overhead"]),
+            qa_overhead: parse_decimal(role_attrs["qa_overhead"]),
+            risk_buffer: parse_decimal(role_attrs["risk_buffer"])
+          })
+        end)
 
-        {:noreply,
-         socket
-         |> assign(:estimation, estimation)
-         |> assign(:modal, nil)
-         |> put_flash(:info, "Settings saved")}
+        case EstimationEngine.update_estimation(estimation, attrs) do
+          {:ok, _} ->
+            estimation = EstimationEngine.get_estimation!(estimation.id, org_id)
 
-      {:error, _changeset} ->
-        {:noreply, put_flash(socket, :error, "Could not save settings")}
+            {:noreply,
+             socket
+             |> assign(:estimation, estimation)
+             |> assign(:modal, nil)
+             |> put_flash(:info, "Settings saved")}
+
+          {:error, _changeset} ->
+            {:noreply, put_flash(socket, :error, "Could not save settings")}
+        end
     end
   end
 
@@ -922,9 +920,7 @@ defmodule EstimateWeb.EstimatorLive.Index do
 
   defp can_edit?(collaborator, membership) do
     collab_role = if collaborator, do: collaborator.role, else: nil
-    membership_role = if membership, do: membership.role, else: nil
-
-    collab_role in ["owner", "editor"] or membership_role in ["owner", "admin"]
+    collab_role in ["owner", "editor"] or admin?(membership)
   end
 
   defp authorize_edit(socket) do

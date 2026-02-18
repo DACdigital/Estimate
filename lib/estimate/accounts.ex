@@ -18,39 +18,6 @@ defmodule Estimate.Accounts do
     RoleTemplateRate
   }
 
-  # Delegations for backward compatibility
-  defdelegate get_organization!(id), to: Estimate.Organizations
-  defdelegate list_user_organizations(user_id), to: Estimate.Organizations
-  defdelegate get_user_membership(user_id, org_id), to: Estimate.Organizations
-  defdelegate create_organization(attrs), to: Estimate.Organizations
-  defdelegate update_organization(org, attrs), to: Estimate.Organizations
-  defdelegate change_organization(org, attrs \\ %{}), to: Estimate.Organizations
-  defdelegate create_membership(attrs), to: Estimate.Organizations
-  defdelegate list_organization_members(org_id), to: Estimate.Organizations
-  defdelegate update_membership_role(membership, role), to: Estimate.Organizations
-  defdelegate delete_membership(membership), to: Estimate.Organizations
-  defdelegate create_invite(org_id, attrs, invited_by_id), to: Estimate.Organizations
-  defdelegate get_valid_invite_by_token(token), to: Estimate.Organizations
-  defdelegate accept_invite(invite, user_id), to: Estimate.Organizations
-  defdelegate list_organization_invites(org_id), to: Estimate.Organizations
-  defdelegate create_invite_code(org_id, role, invited_by_id), to: Estimate.Organizations
-  defdelegate get_valid_invite_by_code(code), to: Estimate.Organizations
-  defdelegate delete_invite(invite), to: Estimate.Organizations
-  defdelegate create_join_request(user_id, org_id), to: Estimate.Organizations
-  defdelegate approve_join_request(request, reviewer_id), to: Estimate.Organizations
-  defdelegate reject_join_request(request, reviewer_id), to: Estimate.Organizations
-  defdelegate list_pending_join_requests(org_id), to: Estimate.Organizations
-  defdelegate get_join_request!(id), to: Estimate.Organizations
-
-  defdelegate list_currencies(org_id), to: Estimate.Organizations.Currencies
-  defdelegate get_currency!(id, org_id), to: Estimate.Organizations.Currencies
-  defdelegate get_main_currency(org_id), to: Estimate.Organizations.Currencies
-  defdelegate set_main_currency(currency), to: Estimate.Organizations.Currencies
-  defdelegate create_currency(org_id, attrs), to: Estimate.Organizations.Currencies
-  defdelegate update_currency(currency, attrs), to: Estimate.Organizations.Currencies
-  defdelegate delete_currency(currency), to: Estimate.Organizations.Currencies
-  defdelegate change_currency(currency, attrs \\ %{}), to: Estimate.Organizations.Currencies
-
   ## User queries
 
   def get_user!(id), do: Repo.get!(User, id)
@@ -168,6 +135,18 @@ defmodule Estimate.Accounts do
 
   def change_user_registration(%User{} = user, attrs \\ %{}) do
     User.registration_changeset(user, attrs, hash_password: false, validate_email: false)
+  end
+
+  ## Last org tracking
+
+  def update_user_last_org(%User{last_org_id: org_id}, org_id), do: :ok
+
+  def update_user_last_org(%User{} = user, org_id) do
+    Repo.without_rls(fn ->
+      user
+      |> Ecto.Changeset.change(last_org_id: org_id)
+      |> Repo.update()
+    end)
   end
 
   ## Session

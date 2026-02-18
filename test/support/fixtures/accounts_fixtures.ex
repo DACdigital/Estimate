@@ -28,7 +28,7 @@ defmodule Estimate.AccountsFixtures do
     {:ok, organization} =
       attrs
       |> Enum.into(%{name: "Test Organization #{System.unique_integer()}"})
-      |> Estimate.Accounts.create_organization()
+      |> Estimate.Organizations.create_organization()
 
     organization
   end
@@ -45,7 +45,7 @@ defmodule Estimate.AccountsFixtures do
 
   def membership_fixture(user, organization, role \\ "member") do
     {:ok, membership} =
-      Estimate.Accounts.create_membership(%{
+      Estimate.Organizations.create_membership(%{
         user_id: user.id,
         organization_id: organization.id,
         role: role

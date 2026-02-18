@@ -161,7 +161,7 @@ defmodule EstimateWeb.SettingsLive.Index do
      |> assign(:page_title, "Settings")
      |> assign(:active_tab, :settings)
      |> assign(:settings_page, :general)
-     |> assign(:can_edit, socket.assigns.current_membership.role in ["owner", "admin"])
+     |> assign(:can_edit, admin?(socket.assigns.current_membership))
      |> assign(:form, to_form(changeset))}
   end
 
@@ -176,7 +176,7 @@ defmodule EstimateWeb.SettingsLive.Index do
   end
 
   def handle_event("save", %{"organization" => org_params}, socket) do
-    unless socket.assigns.current_membership.role in ["owner", "admin"] do
+    unless admin?(socket.assigns.current_membership) do
       {:noreply, put_flash(socket, :error, "Not authorized")}
     else
       case Organizations.update_organization(socket.assigns.current_organization, org_params) do

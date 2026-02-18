@@ -21,7 +21,7 @@ defmodule EstimateWeb.UserAuth do
     |> renew_session()
     |> put_token_in_session(token)
     |> maybe_write_remember_me_cookie(token, params)
-    |> redirect(to: user_return_to || signed_in_path(conn))
+    |> redirect(to: user_return_to || signed_in_path(user))
   end
 
   defp maybe_write_remember_me_cookie(conn, token, %{"remember_me" => "true"}) do
@@ -95,7 +95,7 @@ defmodule EstimateWeb.UserAuth do
   def redirect_if_user_is_authenticated(conn, _opts) do
     if conn.assigns[:current_user] do
       conn
-      |> redirect(to: signed_in_path(conn))
+      |> redirect(to: signed_in_path(conn.assigns.current_user))
       |> halt()
     else
       conn
@@ -108,7 +108,8 @@ defmodule EstimateWeb.UserAuth do
 
   defp maybe_store_return_to(conn), do: conn
 
-  defp signed_in_path(_conn), do: ~p"/organizations"
+  defp signed_in_path(%{last_org_id: org_id}) when not is_nil(org_id), do: ~p"/org/#{org_id}"
+  defp signed_in_path(_), do: ~p"/organizations"
 
   ## LiveView hooks
 
@@ -135,7 +136,7 @@ defmodule EstimateWeb.UserAuth do
     socket = mount_current_user(socket, session)
 
     if socket.assigns.current_user do
-      {:halt, Phoenix.LiveView.redirect(socket, to: signed_in_path(socket))}
+      {:halt, Phoenix.LiveView.redirect(socket, to: signed_in_path(socket.assigns.current_user))}
     else
       {:cont, socket}
     end

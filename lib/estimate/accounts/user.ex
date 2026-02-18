@@ -8,6 +8,7 @@ defmodule Estimate.Accounts.User do
     field :password, :string, virtual: true, redact: true
     field :hashed_password, :string, redact: true
     field :confirmed_at, :utc_datetime
+    field :last_org_id, :binary_id
 
     has_many :memberships, Estimate.Accounts.Membership
     has_many :organizations, through: [:memberships, :organization]

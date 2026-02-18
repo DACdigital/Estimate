@@ -5,34 +5,69 @@ defmodule EstimateWeb.UserLive.ResetPassword do
 
   def render(assigns) do
     ~H"""
-    <div class="mx-auto max-w-md">
-      <.header class="text-center">Reset Password</.header>
+    <div class="w-full">
+      <h1 class="text-3xl font-bold text-center text-gray-900 mb-8">
+        Reset Password
+      </h1>
 
-      <.simple_form
-        for={@form}
+      <form
         id="reset_password_form"
         phx-submit="reset_password"
         phx-change="validate"
+        class="space-y-4"
       >
-        <.error :if={@form.errors != []}>
+        <div
+          :if={@form.errors != []}
+          class="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm"
+        >
           Oops, something went wrong! Please check the errors below.
-        </.error>
+        </div>
 
-        <.input field={@form[:password]} type="password" label="New password" required />
-        <.input
-          field={@form[:password_confirmation]}
-          type="password"
-          label="Confirm new password"
-          required
-        />
-        <:actions>
-          <.button phx-disable-with="Resetting..." class="w-full">Reset Password</.button>
-        </:actions>
-      </.simple_form>
+        <div>
+          <input
+            type="password"
+            name="user[password]"
+            value={@form[:password].value}
+            placeholder="New password"
+            required
+            class={"w-full px-4 py-3 border rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent #{if @form[:password].errors != [], do: "border-red-500", else: "border-gray-300"}"}
+          />
+          <p :for={error <- @form[:password].errors} class="mt-1 text-sm text-red-600">
+            {translate_error(error)}
+          </p>
+        </div>
 
-      <p class="text-center text-sm mt-4">
-        <.link href={~p"/users/register"}>Register</.link>
-        | <.link href={~p"/users/log_in"}>Log in</.link>
+        <div>
+          <input
+            type="password"
+            name="user[password_confirmation]"
+            value={@form[:password_confirmation].value}
+            placeholder="Confirm new password"
+            required
+            class={"w-full px-4 py-3 border rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent #{if @form[:password_confirmation].errors != [], do: "border-red-500", else: "border-gray-300"}"}
+          />
+          <p :for={error <- @form[:password_confirmation].errors} class="mt-1 text-sm text-red-600">
+            {translate_error(error)}
+          </p>
+        </div>
+
+        <button
+          type="submit"
+          phx-disable-with="Resetting..."
+          class="w-full py-3 px-4 bg-gray-900 text-white font-medium rounded-lg hover:bg-gray-800 transition-colors"
+        >
+          Reset Password
+        </button>
+      </form>
+
+      <p class="mt-8 text-center text-gray-600">
+        <.link navigate={~p"/users/register"} class="text-blue-600 hover:text-blue-700 font-medium">
+          Sign Up
+        </.link>
+        <span class="mx-2 text-gray-300">|</span>
+        <.link navigate={~p"/users/log_in"} class="text-blue-600 hover:text-blue-700 font-medium">
+          Sign In
+        </.link>
       </p>
     </div>
     """

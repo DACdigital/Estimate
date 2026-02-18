@@ -12,7 +12,7 @@ defmodule EstimateWeb.OrgAuth do
   import Phoenix.LiveView
   import Phoenix.Component
 
-  alias Estimate.Accounts
+  alias Estimate.{Accounts, Organizations}
 
   def on_mount(:ensure_org_member, params, _session, socket) do
     org_id = params["org_id"]
@@ -20,7 +20,7 @@ defmodule EstimateWeb.OrgAuth do
 
     if org_id && user do
       # memberships table has no RLS — safe to query without org context
-      case Accounts.get_user_membership(user.id, org_id) do
+      case Organizations.get_user_membership(user.id, org_id) do
         nil ->
           socket =
             socket
@@ -30,13 +30,15 @@ defmodule EstimateWeb.OrgAuth do
           {:halt, socket}
 
         membership ->
-          organization = Accounts.get_organization!(org_id)
+          organization = Organizations.get_organization!(org_id)
 
           # Store org_id and user_id in process dictionary for RLS context.
           # Context functions use Repo.ensure_org_context/1 to
           # automatically wrap DB ops with SET ROLE + set_config.
           Estimate.Repo.put_org_id(org_id)
           Estimate.Repo.put_user_id(user.id)
+
+          Task.start(fn -> Accounts.update_user_last_org(user, org_id) end)
 
           socket =
             socket
@@ -61,12 +63,12 @@ defmodule EstimateWeb.OrgAuth do
     user = socket.assigns.current_user
 
     if org_id && user do
-      case Accounts.get_user_membership(user.id, org_id) do
+      case Organizations.get_user_membership(user.id, org_id) do
         nil ->
           {:cont, socket}
 
         membership ->
-          organization = Accounts.get_organization!(org_id)
+          organization = Organizations.get_organization!(org_id)
           Estimate.Repo.put_org_id(org_id)
           Estimate.Repo.put_user_id(user.id)
 

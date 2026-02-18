@@ -6,6 +6,7 @@ defmodule EstimateWeb.ProjectLive.Show do
   alias Estimate.EstimationEngine
   alias Estimate.EstimationEngine.Calculator
   alias Estimate.Accounts
+  alias Estimate.Organizations.Currencies
 
   @impl true
   def render(assigns) do
@@ -626,7 +627,10 @@ defmodule EstimateWeb.ProjectLive.Show do
             </div>
           </div>
 
-          <div :if={@can_edit_project} class="px-6 py-3 bg-gray-50 border-t border-gray-200 flex justify-end">
+          <div
+            :if={@can_edit_project}
+            class="px-6 py-3 bg-gray-50 border-t border-gray-200 flex justify-end"
+          >
             <button
               type="submit"
               phx-disable-with="Saving..."
@@ -1311,12 +1315,10 @@ defmodule EstimateWeb.ProjectLive.Show do
   def mount(%{"id" => id}, _session, socket) do
     org_id = socket.assigns.org_id
     user = socket.assigns.current_user
-    membership_role = socket.assigns.current_membership.role
-
     # Collaborator access check for non-admins
     current_collaborator = Portfolio.get_collaborator(id, user.id)
 
-    unless membership_role in ["owner", "admin"] or current_collaborator do
+    unless admin?(socket.assigns.current_membership) or current_collaborator do
       {:ok,
        socket
        |> Phoenix.LiveView.put_flash(:error, "You don't have access to this project.")
@@ -1331,7 +1333,7 @@ defmodule EstimateWeb.ProjectLive.Show do
     estimations = EstimationEngine.list_estimations(id)
     role_templates = Accounts.list_role_templates(org_id)
     estimation_templates = Estimate.Templates.list_estimation_templates(org_id)
-    currencies = Accounts.list_currencies(org_id)
+    currencies = Currencies.list_currencies(org_id)
 
     # Load the current estimation (is_current=true) with full data for the dashboard
     current_estimation =
@@ -1342,7 +1344,7 @@ defmodule EstimateWeb.ProjectLive.Show do
 
     changeset = Portfolio.change_project(project)
 
-    is_org_admin = socket.assigns.current_membership.role in ["owner", "admin"]
+    is_org_admin = admin?(socket.assigns.current_membership)
     collab_role = current_collaborator && current_collaborator.role
 
     can_edit_project = is_org_admin || collab_role in ["owner", "editor"]
@@ -1638,42 +1640,21 @@ defmodule EstimateWeb.ProjectLive.Show do
       project = socket.assigns.project
       org_id = socket.assigns.org_id
 
-    result =
-      case source do
-        "copy" ->
-          source_estimation_id = Map.get(params, "source_estimation_id")
-          name = estimation_params["name"]
+      result =
+        case source do
+          "copy" ->
+            source_estimation_id = Map.get(params, "source_estimation_id")
+            name = estimation_params["name"]
 
-          if source_estimation_id && name && name != "" do
-            source_estimation = EstimationEngine.get_estimation!(source_estimation_id, org_id)
-            EstimationEngine.copy_estimation(source_estimation, name, project.id, org_id)
-          else
-            {:error, :invalid_params}
-          end
+            if source_estimation_id && name && name != "" do
+              source_estimation = EstimationEngine.get_estimation!(source_estimation_id, org_id)
+              EstimationEngine.copy_estimation(source_estimation, name, project.id, org_id)
+            else
+              {:error, :invalid_params}
+            end
 
-        "template" ->
-          estimation_template_id = Map.get(params, "estimation_template_id")
-          template_ids = Map.get(params, "template_ids", [])
-          currency_id = Map.get(params, "currency_id", project.currency_id)
-
-          attrs =
-            Map.merge(estimation_params, %{
-              "project_id" => project.id,
-              "currency_id" => currency_id,
-              "organization_id" => org_id
-            })
-
-          EstimationEngine.create_estimation_from_estimation_template(
-            attrs,
-            estimation_template_id,
-            template_ids,
-            currency_id
-          )
-
-        "json" ->
-          parsed_json = socket.assigns.json_parsed
-
-          if parsed_json do
+          "template" ->
+            estimation_template_id = Map.get(params, "estimation_template_id")
             template_ids = Map.get(params, "template_ids", [])
             currency_id = Map.get(params, "currency_id", project.currency_id)
 
@@ -1684,49 +1665,70 @@ defmodule EstimateWeb.ProjectLive.Show do
                 "organization_id" => org_id
               })
 
-            EstimationEngine.create_estimation_from_json(
+            EstimationEngine.create_estimation_from_estimation_template(
               attrs,
-              parsed_json,
+              estimation_template_id,
               template_ids,
               currency_id
             )
-          else
-            {:error, :no_json}
-          end
 
-        _ ->
-          template_ids = Map.get(params, "template_ids", [])
-          currency_id = Map.get(params, "currency_id", project.currency_id)
+          "json" ->
+            parsed_json = socket.assigns.json_parsed
 
-          attrs =
-            Map.merge(estimation_params, %{
-              "project_id" => project.id,
-              "currency_id" => currency_id
-            })
+            if parsed_json do
+              template_ids = Map.get(params, "template_ids", [])
+              currency_id = Map.get(params, "currency_id", project.currency_id)
 
-          EstimationEngine.create_estimation_from_templates(attrs, template_ids, currency_id)
+              attrs =
+                Map.merge(estimation_params, %{
+                  "project_id" => project.id,
+                  "currency_id" => currency_id,
+                  "organization_id" => org_id
+                })
+
+              EstimationEngine.create_estimation_from_json(
+                attrs,
+                parsed_json,
+                template_ids,
+                currency_id
+              )
+            else
+              {:error, :no_json}
+            end
+
+          _ ->
+            template_ids = Map.get(params, "template_ids", [])
+            currency_id = Map.get(params, "currency_id", project.currency_id)
+
+            attrs =
+              Map.merge(estimation_params, %{
+                "project_id" => project.id,
+                "currency_id" => currency_id
+              })
+
+            EstimationEngine.create_estimation_from_templates(attrs, template_ids, currency_id)
+        end
+
+      case result do
+        {:ok, estimation} ->
+          estimations = EstimationEngine.list_estimations(project.id)
+
+          {:noreply,
+           socket
+           |> put_flash(
+             :info,
+             if(source == "copy", do: "Estimation copied", else: "Estimation created")
+           )
+           |> assign(:show_new_estimation_modal, false)
+           |> assign(:estimations, estimations)
+           |> push_navigate(
+             to:
+               ~p"/org/#{socket.assigns.org_id}/projects/#{project.id}/estimations/#{estimation.id}/estimator"
+           )}
+
+        {:error, _} ->
+          {:noreply, put_flash(socket, :error, "Could not create estimation")}
       end
-
-    case result do
-      {:ok, estimation} ->
-        estimations = EstimationEngine.list_estimations(project.id)
-
-        {:noreply,
-         socket
-         |> put_flash(
-           :info,
-           if(source == "copy", do: "Estimation copied", else: "Estimation created")
-         )
-         |> assign(:show_new_estimation_modal, false)
-         |> assign(:estimations, estimations)
-         |> push_navigate(
-           to:
-             ~p"/org/#{socket.assigns.org_id}/projects/#{project.id}/estimations/#{estimation.id}/estimator"
-         )}
-
-      {:error, _} ->
-        {:noreply, put_flash(socket, :error, "Could not create estimation")}
-    end
     end
   end
 

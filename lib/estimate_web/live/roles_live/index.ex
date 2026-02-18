@@ -2,6 +2,7 @@ defmodule EstimateWeb.RolesLive.Index do
   use EstimateWeb, :live_view
 
   alias Estimate.Accounts
+  alias Estimate.Organizations.Currencies
 
   @impl true
   def render(assigns) do
@@ -104,7 +105,8 @@ defmodule EstimateWeb.RolesLive.Index do
                         phx-value-template-id={template.id}
                         phx-value-currency-id={currency.id}
                         phx-value-rate-id={if rate, do: rate.id, else: ""}
-                        class="w-16 px-2 py-1.5 border border-gray-200 rounded-md text-sm font-mono text-center focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent hover:border-gray-300"
+                        disabled={!@is_admin}
+                        class={"w-16 px-2 py-1.5 border border-gray-200 rounded-md text-sm font-mono text-center focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent #{if @is_admin, do: "hover:border-gray-300", else: "cursor-not-allowed bg-gray-50 text-gray-500"}"}
                       />
                     </td>
                   <% end %>
@@ -118,7 +120,8 @@ defmodule EstimateWeb.RolesLive.Index do
                       phx-blur="update_overhead"
                       phx-value-template-id={template.id}
                       phx-value-field="pm_overhead"
-                      class="w-14 px-2 py-1.5 border border-gray-200 rounded-md text-sm font-mono text-center focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent hover:border-gray-300"
+                      disabled={!@is_admin}
+                      class={"w-14 px-2 py-1.5 border border-gray-200 rounded-md text-sm font-mono text-center focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent #{if @is_admin, do: "hover:border-gray-300", else: "cursor-not-allowed bg-gray-50 text-gray-500"}"}
                     />
                   </td>
                   <td class="py-4 text-center w-20">
@@ -131,7 +134,8 @@ defmodule EstimateWeb.RolesLive.Index do
                       phx-blur="update_overhead"
                       phx-value-template-id={template.id}
                       phx-value-field="qa_overhead"
-                      class="w-14 px-2 py-1.5 border border-gray-200 rounded-md text-sm font-mono text-center focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent hover:border-gray-300"
+                      disabled={!@is_admin}
+                      class={"w-14 px-2 py-1.5 border border-gray-200 rounded-md text-sm font-mono text-center focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent #{if @is_admin, do: "hover:border-gray-300", else: "cursor-not-allowed bg-gray-50 text-gray-500"}"}
                     />
                   </td>
                   <td class="py-4 text-center w-20">
@@ -144,12 +148,14 @@ defmodule EstimateWeb.RolesLive.Index do
                       phx-blur="update_overhead"
                       phx-value-template-id={template.id}
                       phx-value-field="risk_buffer"
-                      class="w-14 px-2 py-1.5 border border-gray-200 rounded-md text-sm font-mono text-center focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent hover:border-gray-300"
+                      disabled={!@is_admin}
+                      class={"w-14 px-2 py-1.5 border border-gray-200 rounded-md text-sm font-mono text-center focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent #{if @is_admin, do: "hover:border-gray-300", else: "cursor-not-allowed bg-gray-50 text-gray-500"}"}
                     />
                   </td>
                   <td class="px-4 py-4">
                     <div class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
+                        :if={@is_admin}
                         phx-click="edit_template"
                         phx-value-id={template.id}
                         class="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors focus:outline-none"
@@ -182,6 +188,7 @@ defmodule EstimateWeb.RolesLive.Index do
         </div>
 
         <.form
+          :if={@is_admin}
           for={@new_form}
           phx-submit="add_template"
           class="px-6 py-4 bg-gray-50 border-t border-gray-200"
@@ -251,7 +258,7 @@ defmodule EstimateWeb.RolesLive.Index do
   @impl true
   def mount(_params, _session, socket) do
     role_templates = Accounts.list_role_templates(socket.assigns.org_id)
-    currencies = Accounts.list_currencies(socket.assigns.org_id)
+    currencies = Currencies.list_currencies(socket.assigns.org_id)
 
     {:ok,
      socket
@@ -260,7 +267,7 @@ defmodule EstimateWeb.RolesLive.Index do
      |> assign(:role_templates, role_templates)
      |> assign(:currencies, currencies)
      |> assign(:editing_template_id, nil)
-     |> assign(:is_admin, socket.assigns.current_membership.role in ["owner", "admin"])
+     |> assign(:is_admin, admin?(socket.assigns.current_membership))
      |> assign(:deleting_template, nil)
      |> assign(:new_form, to_form(%{}, as: "template"))
      |> assign(:edit_form, to_form(%{}, as: "template"))}
@@ -276,20 +283,24 @@ defmodule EstimateWeb.RolesLive.Index do
   end
 
   def handle_event("add_template", %{"name" => name, "abbreviation" => abbr}, socket) do
-    case Accounts.create_role_template(socket.assigns.org_id, %{
-           "name" => name,
-           "abbreviation" => abbr
-         }) do
-      {:ok, _template} ->
-        role_templates = Accounts.list_role_templates(socket.assigns.org_id)
+    unless socket.assigns.is_admin do
+      {:noreply, put_flash(socket, :error, "Not authorized")}
+    else
+      case Accounts.create_role_template(socket.assigns.org_id, %{
+             "name" => name,
+             "abbreviation" => abbr
+           }) do
+        {:ok, _template} ->
+          role_templates = Accounts.list_role_templates(socket.assigns.org_id)
 
-        {:noreply,
-         socket
-         |> put_flash(:info, "Role added")
-         |> assign(:role_templates, role_templates)}
+          {:noreply,
+           socket
+           |> put_flash(:info, "Role added")
+           |> assign(:role_templates, role_templates)}
 
-      {:error, _changeset} ->
-        {:noreply, put_flash(socket, :error, "Could not add role. Check name and abbreviation.")}
+        {:error, _changeset} ->
+          {:noreply, put_flash(socket, :error, "Could not add role. Check name and abbreviation.")}
+      end
     end
   end
 
@@ -298,20 +309,24 @@ defmodule EstimateWeb.RolesLive.Index do
         %{"template_id" => id, "name" => name, "abbreviation" => abbr},
         socket
       ) do
-    template = Accounts.get_role_template!(id)
+    unless socket.assigns.is_admin do
+      {:noreply, put_flash(socket, :error, "Not authorized")}
+    else
+      template = Accounts.get_role_template!(id)
 
-    case Accounts.update_role_template(template, %{"name" => name, "abbreviation" => abbr}) do
-      {:ok, _template} ->
-        role_templates = Accounts.list_role_templates(socket.assigns.org_id)
+      case Accounts.update_role_template(template, %{"name" => name, "abbreviation" => abbr}) do
+        {:ok, _template} ->
+          role_templates = Accounts.list_role_templates(socket.assigns.org_id)
 
-        {:noreply,
-         socket
-         |> put_flash(:info, "Role updated")
-         |> assign(:role_templates, role_templates)
-         |> assign(:editing_template_id, nil)}
+          {:noreply,
+           socket
+           |> put_flash(:info, "Role updated")
+           |> assign(:role_templates, role_templates)
+           |> assign(:editing_template_id, nil)}
 
-      {:error, _changeset} ->
-        {:noreply, put_flash(socket, :error, "Could not update role.")}
+        {:error, _changeset} ->
+          {:noreply, put_flash(socket, :error, "Could not update role.")}
+      end
     end
   end
 
@@ -353,74 +368,82 @@ defmodule EstimateWeb.RolesLive.Index do
   end
 
   def handle_event("update_overhead", params, socket) do
-    %{"template-id" => template_id, "field" => field, "value" => value} = params
-
-    if field not in ~w(pm_overhead qa_overhead risk_buffer) do
-      {:noreply, socket}
+    unless socket.assigns.is_admin do
+      {:noreply, put_flash(socket, :error, "Not authorized")}
     else
-      case Decimal.parse(value) do
-        {decimal, _} ->
-          if Decimal.compare(decimal, 0) != :lt and Decimal.compare(decimal, 100) != :gt do
-            template = Accounts.get_role_template!(template_id)
+      %{"template-id" => template_id, "field" => field, "value" => value} = params
 
-            case Accounts.update_role_template(template, %{field => decimal}) do
-              {:ok, _} ->
-                role_templates = Accounts.list_role_templates(socket.assigns.org_id)
-                {:noreply, assign(socket, :role_templates, role_templates)}
+      if field not in ~w(pm_overhead qa_overhead risk_buffer) do
+        {:noreply, socket}
+      else
+        case Decimal.parse(value) do
+          {decimal, _} ->
+            if Decimal.compare(decimal, 0) != :lt and Decimal.compare(decimal, 100) != :gt do
+              template = Accounts.get_role_template!(template_id)
 
-              {:error, _} ->
-                {:noreply, put_flash(socket, :error, "Could not update #{field}")}
+              case Accounts.update_role_template(template, %{field => decimal}) do
+                {:ok, _} ->
+                  role_templates = Accounts.list_role_templates(socket.assigns.org_id)
+                  {:noreply, assign(socket, :role_templates, role_templates)}
+
+                {:error, _} ->
+                  {:noreply, put_flash(socket, :error, "Could not update #{field}")}
+              end
+            else
+              {:noreply, put_flash(socket, :error, "Value must be between 0 and 100")}
             end
-          else
-            {:noreply, put_flash(socket, :error, "Value must be between 0 and 100")}
-          end
 
-        :error ->
-          {:noreply, socket}
+          :error ->
+            {:noreply, put_flash(socket, :error, "Invalid number")}
+        end
       end
     end
   end
 
   def handle_event("update_rate", params, socket) do
-    %{
-      "template-id" => template_id,
-      "currency-id" => currency_id,
-      "rate-id" => rate_id,
-      "value" => value
-    } = params
+    unless socket.assigns.is_admin do
+      {:noreply, put_flash(socket, :error, "Not authorized")}
+    else
+      %{
+        "template-id" => template_id,
+        "currency-id" => currency_id,
+        "rate-id" => rate_id,
+        "value" => value
+      } = params
 
-    case Decimal.parse(value) do
-      {rate, _} ->
-        if Decimal.compare(rate, 0) != :lt do
-          result =
-            if rate_id == "" do
-              Accounts.create_role_template_rate(template_id, currency_id, rate)
-            else
-              existing_rate = Accounts.get_role_template_rate!(rate_id)
-              Accounts.update_role_template_rate(existing_rate, %{hourly_rate: rate})
+      case Decimal.parse(value) do
+        {rate, _} ->
+          if Decimal.compare(rate, 0) != :lt do
+            result =
+              if rate_id == "" do
+                Accounts.create_role_template_rate(template_id, currency_id, rate)
+              else
+                existing_rate = Accounts.get_role_template_rate!(rate_id)
+                Accounts.update_role_template_rate(existing_rate, %{hourly_rate: rate})
+              end
+
+            case result do
+              {:ok, _} ->
+                role_templates = Accounts.list_role_templates(socket.assigns.org_id)
+                {:noreply, assign(socket, :role_templates, role_templates)}
+
+              {:error, _} ->
+                {:noreply, put_flash(socket, :error, "Could not update rate")}
             end
-
-          case result do
-            {:ok, _} ->
-              role_templates = Accounts.list_role_templates(socket.assigns.org_id)
-              {:noreply, assign(socket, :role_templates, role_templates)}
-
-            {:error, _} ->
-              {:noreply, put_flash(socket, :error, "Could not update rate")}
+          else
+            {:noreply, put_flash(socket, :error, "Rate must be positive")}
           end
-        else
-          {:noreply, put_flash(socket, :error, "Rate must be positive")}
-        end
 
-      :error ->
-        if value == "" and rate_id != "" do
-          rate = Accounts.get_role_template_rate!(rate_id)
-          Accounts.delete_role_template_rate(rate)
-          role_templates = Accounts.list_role_templates(socket.assigns.org_id)
-          {:noreply, assign(socket, :role_templates, role_templates)}
-        else
-          {:noreply, socket}
-        end
+        :error ->
+          if value == "" and rate_id != "" do
+            rate = Accounts.get_role_template_rate!(rate_id)
+            Accounts.delete_role_template_rate(rate)
+            role_templates = Accounts.list_role_templates(socket.assigns.org_id)
+            {:noreply, assign(socket, :role_templates, role_templates)}
+          else
+            {:noreply, put_flash(socket, :error, "Invalid rate")}
+          end
+      end
     end
   end
 

@@ -4,7 +4,7 @@ defmodule EstimateWeb.ProjectLive.Index do
   alias Estimate.Portfolio
   alias Estimate.Portfolio.Project
   alias Estimate.CRM
-  alias Estimate.Accounts
+  alias Estimate.Organizations.Currencies
 
   @impl true
   def render(assigns) do
@@ -265,7 +265,7 @@ defmodule EstimateWeb.ProjectLive.Index do
     role = socket.assigns.current_membership.role
     projects = Portfolio.list_projects(org_id, user.id, role)
     customers = CRM.list_customers(org_id)
-    currencies = Accounts.list_currencies(org_id)
+    currencies = Currencies.list_currencies(org_id)
 
     {:ok,
      socket
@@ -295,9 +295,8 @@ defmodule EstimateWeb.ProjectLive.Index do
   end
 
   defp apply_action(socket, :edit, %{"id" => id}) do
-    role = socket.assigns.current_membership.role
     user_id = socket.assigns.current_user.id
-    is_admin = role in ["owner", "admin"]
+    is_admin = admin?(socket.assigns.current_membership)
     is_collaborator = is_admin || Portfolio.get_collaborator(id, user_id) != nil
 
     unless is_collaborator do
@@ -392,7 +391,15 @@ defmodule EstimateWeb.ProjectLive.Index do
   end
 
   defp save_project(socket, :edit, project_params) do
-    case Portfolio.update_project(socket.assigns.project, project_params) do
+    user_id = socket.assigns.current_user.id
+    project_id = socket.assigns.project.id
+    is_admin = admin?(socket.assigns.current_membership)
+    is_collaborator = is_admin || Portfolio.get_collaborator(project_id, user_id) != nil
+
+    unless is_collaborator do
+      {:noreply, put_flash(socket, :error, "Not authorized")}
+    else
+      case Portfolio.update_project(socket.assigns.project, project_params) do
       {:ok, project} ->
         role = socket.assigns.current_membership.role
 
@@ -407,6 +414,7 @@ defmodule EstimateWeb.ProjectLive.Index do
 
       {:error, changeset} ->
         {:noreply, assign(socket, form: to_form(changeset))}
+      end
     end
   end
 

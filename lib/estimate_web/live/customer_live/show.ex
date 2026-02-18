@@ -170,7 +170,7 @@ defmodule EstimateWeb.CustomerLive.Show do
      |> assign(:active_tab, :customers)
      |> assign(:customer, customer)
      |> assign(:projects, projects)
-     |> assign(:is_admin, socket.assigns.current_membership.role in ["owner", "admin"])
+     |> assign(:is_admin, admin?(socket.assigns.current_membership))
      |> assign(:deleting_customer, false)}
   end
 

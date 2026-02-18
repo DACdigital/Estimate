@@ -64,7 +64,7 @@ defmodule EstimateWeb.TemplatesLive.Index do
       </div>
 
       <%!-- New Template Bar --%>
-      <div class="bg-white border border-gray-200 rounded-xl">
+      <div :if={@is_admin} class="bg-white border border-gray-200 rounded-xl">
         <form phx-submit="create_template" class="px-6 py-4">
           <div class="flex items-center gap-3">
             <input
@@ -130,20 +130,24 @@ defmodule EstimateWeb.TemplatesLive.Index do
      |> assign(:page_title, "Templates")
      |> assign(:active_tab, :templates)
      |> assign(:templates, templates)
-     |> assign(:is_admin, socket.assigns.current_membership.role in ["owner", "admin"])
+     |> assign(:is_admin, admin?(socket.assigns.current_membership))
      |> assign(:deleting_template, nil)}
   end
 
   @impl true
   def handle_event("create_template", %{"name" => name}, socket) when name != "" do
-    case Templates.create_estimation_template(socket.assigns.org_id, %{"name" => name}) do
-      {:ok, template} ->
-        {:noreply,
-         socket
-         |> push_navigate(to: ~p"/org/#{socket.assigns.org_id}/templates/#{template.id}")}
+    unless socket.assigns.is_admin do
+      {:noreply, put_flash(socket, :error, "Not authorized")}
+    else
+      case Templates.create_estimation_template(socket.assigns.org_id, %{"name" => name}) do
+        {:ok, template} ->
+          {:noreply,
+           socket
+           |> push_navigate(to: ~p"/org/#{socket.assigns.org_id}/templates/#{template.id}")}
 
-      {:error, _changeset} ->
-        {:noreply, put_flash(socket, :error, "Could not create template")}
+        {:error, _changeset} ->
+          {:noreply, put_flash(socket, :error, "Could not create template")}
+      end
     end
   end
 

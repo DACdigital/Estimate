@@ -11,8 +11,17 @@ defmodule Estimate.Accounts.Organization do
     field :openrouter_model, :string
     field :openrouter_system_prompt, :string
 
+    field :smtp_host, :string
+    field :smtp_port, :integer
+    field :smtp_username, :string
+    field :encrypted_smtp_password, :binary
+    field :smtp_password_nonce, :binary
+    field :smtp_from_name, :string
+    field :smtp_from_email, :string
+
     # Virtual — for form input only, never persisted
     field :openrouter_api_key, :string, virtual: true
+    field :smtp_password, :string, virtual: true
 
     has_many :memberships, Estimate.Accounts.Membership
     has_many :users, through: [:memberships, :user]
@@ -34,6 +43,40 @@ defmodule Estimate.Accounts.Organization do
     organization
     |> cast(attrs, [:openrouter_api_key, :openrouter_model, :openrouter_system_prompt])
     |> encrypt_api_key()
+  end
+
+  def smtp_settings_changeset(organization, attrs) do
+    organization
+    |> cast(attrs, [
+      :smtp_host,
+      :smtp_port,
+      :smtp_username,
+      :smtp_password,
+      :smtp_from_name,
+      :smtp_from_email
+    ])
+    |> validate_format(:smtp_from_email, ~r/^[^\s]+@[^\s]+$/, message: "must be a valid email")
+    |> validate_number(:smtp_port, greater_than: 0, less_than_or_equal_to: 65535)
+    |> encrypt_smtp_password()
+  end
+
+  defp encrypt_smtp_password(changeset) do
+    case get_change(changeset, :smtp_password) do
+      nil ->
+        changeset
+
+      "" ->
+        changeset
+        |> put_change(:encrypted_smtp_password, nil)
+        |> put_change(:smtp_password_nonce, nil)
+
+      password ->
+        {:ok, nonce, ciphertext} = Encryption.encrypt(password)
+
+        changeset
+        |> put_change(:encrypted_smtp_password, ciphertext)
+        |> put_change(:smtp_password_nonce, nonce)
+    end
   end
 
   defp encrypt_api_key(changeset) do

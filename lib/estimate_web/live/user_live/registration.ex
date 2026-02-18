@@ -3,6 +3,7 @@ defmodule EstimateWeb.UserLive.Registration do
 
   alias Estimate.Accounts
   alias Estimate.Accounts.User
+  alias Estimate.Organizations
 
   def render(assigns) do
     ~H"""
@@ -181,7 +182,7 @@ defmodule EstimateWeb.UserLive.Registration do
 
   def mount(_params, _session, socket) do
     changeset = Accounts.change_user_registration(%User{})
-    org_changeset = Accounts.change_organization(%Accounts.Organization{})
+    org_changeset = Organizations.change_organization(%Accounts.Organization{})
 
     socket =
       socket
@@ -203,7 +204,7 @@ defmodule EstimateWeb.UserLive.Registration do
   def handle_event("save", %{"user" => user_params, "invite_code" => code}, socket) do
     case Accounts.register_user(user_params) do
       {:ok, user} ->
-        case Accounts.get_valid_invite_by_code(code) do
+        case Organizations.get_valid_invite_by_code(code) do
           nil ->
             {:noreply,
              socket
@@ -212,7 +213,7 @@ defmodule EstimateWeb.UserLive.Registration do
              |> assign_form(Accounts.change_user_registration(user))}
 
           invite ->
-            case Accounts.accept_invite(invite, user.id) do
+            case Organizations.accept_invite(invite, user.id) do
               {:ok, _} ->
                 changeset = Accounts.change_user_registration(user)
                 {:noreply, socket |> assign(trigger_submit: true) |> assign_form(changeset)}
@@ -260,7 +261,7 @@ defmodule EstimateWeb.UserLive.Registration do
           socket
 
         org_params ->
-          org_changeset = Accounts.change_organization(%Accounts.Organization{}, org_params)
+          org_changeset = Organizations.change_organization(%Accounts.Organization{}, org_params)
           assign_org_form(socket, Map.put(org_changeset, :action, :validate))
       end
 

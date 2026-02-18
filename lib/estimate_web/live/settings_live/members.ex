@@ -464,7 +464,7 @@ defmodule EstimateWeb.SettingsLive.Members do
      |> assign(:join_requests, join_requests)
      |> assign(:removing_member, nil)
      |> assign(:canceling_invite, nil)
-     |> assign(:is_admin, socket.assigns.current_membership.role in ["owner", "admin"])
+     |> assign(:is_admin, admin?(socket.assigns.current_membership))
      |> assign(:generated_code, nil)
      |> assign(:join_url, url(~p"/organizations/#{org_id}/join"))
      |> assign(:invite_form, to_form(%{"email" => "", "role" => "member"}, as: "invite"))}
@@ -684,8 +684,6 @@ defmodule EstimateWeb.SettingsLive.Members do
       end
     end
   end
-
-  defp admin?(membership), do: membership.role in ["owner", "admin"]
 
   defp atomize_keys(map) do
     Map.new(map, fn {k, v} -> {String.to_existing_atom(k), v} end)

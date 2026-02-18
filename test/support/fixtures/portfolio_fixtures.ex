@@ -11,7 +11,10 @@ defmodule Estimate.PortfolioFixtures do
     result =
       if user do
         membership = Estimate.Repo.get_by(Estimate.Accounts.Membership, user_id: user.id)
-        org = if membership, do: Estimate.Accounts.get_organization!(membership.organization_id)
+
+        org =
+          if membership, do: Estimate.Organizations.get_organization!(membership.organization_id)
+
         %{user: user, organization: org}
       else
         AccountsFixtures.user_with_organization_fixture()
