@@ -25,6 +25,7 @@ defmodule EstimateWeb.Endpoint do
     from: :estimate,
     gzip: not code_reloading?,
     only: EstimateWeb.static_paths(),
+    only_matching: ~w(favicon robots),
     raise_on_missing_only: code_reloading?
 
   # Code reloading can be explicitly enabled under the
