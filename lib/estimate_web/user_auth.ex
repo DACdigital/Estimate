@@ -108,6 +108,17 @@ defmodule EstimateWeb.UserAuth do
 
   defp maybe_store_return_to(conn), do: conn
 
+  @doc "Validates a return_to path is safe (local, no open redirect)."
+  def safe_return_to("/" <> rest = path) do
+    uri = URI.parse(path)
+
+    if is_nil(uri.host) and is_nil(uri.scheme) and not String.starts_with?(rest, ["/", "\\"]) do
+      path
+    end
+  end
+
+  def safe_return_to(_), do: nil
+
   defp signed_in_path(%{last_org_id: org_id}) when not is_nil(org_id), do: ~p"/org/#{org_id}"
   defp signed_in_path(_), do: ~p"/organizations"
 

@@ -8,56 +8,103 @@ defmodule EstimateWeb.InviteLive.Accept do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="mx-auto max-w-md">
+    <div class="w-full">
       <%= if @invite do %>
-        <.header class="text-center">
-          Join {@invite.organization.name}
-          <:subtitle>
-            You've been invited to join this organization
-          </:subtitle>
-        </.header>
-
         <%= if @current_user do %>
-          <div class="mt-8 text-center">
-            <p class="mb-4">You're signed in as <strong>{@current_user.email}</strong></p>
-            <.button phx-click="accept_invite">
+          <h1 class="text-3xl font-bold text-center text-gray-900 mb-2">
+            Join {@invite.organization.name}
+          </h1>
+          <p class="text-center text-gray-600 mb-8">You've been invited to join this organization</p>
+
+          <div class="text-center">
+            <p class="text-gray-600 mb-6">You're signed in as <strong>{@current_user.email}</strong></p>
+            <button
+              phx-click="accept_invite"
+              class="w-full py-3 px-4 bg-gray-900 text-white font-medium rounded-lg hover:bg-gray-800 transition-colors"
+            >
               Accept Invitation
-            </.button>
+            </button>
           </div>
         <% else %>
-          <div class="mt-8">
-            <p class="text-center mb-6">Create an account to join:</p>
+          <h1 class="text-3xl font-bold text-center text-gray-900 mb-2">
+            Join {@invite.organization.name}
+          </h1>
+          <p class="text-center text-gray-600 mb-8">Create an account to join</p>
 
-            <.simple_form
-              for={@form}
-              id="registration_form"
-              phx-submit="register_and_accept"
-              phx-change="validate"
+          <form
+            id="registration_form"
+            phx-submit="register_and_accept"
+            phx-change="validate"
+            class="space-y-4"
+          >
+            <div>
+              <input
+                type="text"
+                name="user[name]"
+                value={@form[:name].value}
+                placeholder="Full Name"
+                required
+                class={"w-full px-4 py-3 border rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent #{if @form[:name].errors != [], do: "border-red-500", else: "border-gray-300"}"}
+              />
+              <p :for={error <- @form[:name].errors} class="mt-1 text-sm text-red-600">
+                {translate_error(error)}
+              </p>
+            </div>
+
+            <div>
+              <input
+                type="email"
+                name="user[email]"
+                value={@form[:email].value || @invite.email}
+                placeholder="Email Address"
+                required
+                class={"w-full px-4 py-3 border rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent #{if @form[:email].errors != [], do: "border-red-500", else: "border-gray-300"}"}
+              />
+              <p :for={error <- @form[:email].errors} class="mt-1 text-sm text-red-600">
+                {translate_error(error)}
+              </p>
+            </div>
+
+            <div>
+              <input
+                type="password"
+                name="user[password]"
+                placeholder="Password"
+                required
+                class={"w-full px-4 py-3 border rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent #{if @form[:password].errors != [], do: "border-red-500", else: "border-gray-300"}"}
+              />
+              <p :for={error <- @form[:password].errors} class="mt-1 text-sm text-red-600">
+                {translate_error(error)}
+              </p>
+            </div>
+
+            <button
+              type="submit"
+              phx-disable-with="Creating account..."
+              class="w-full py-3 px-4 bg-gray-900 text-white font-medium rounded-lg hover:bg-gray-800 transition-colors"
             >
-              <.input field={@form[:name]} type="text" label="Name" required />
-              <.input field={@form[:email]} type="email" label="Email" value={@invite.email} required />
-              <.input field={@form[:password]} type="password" label="Password" required />
+              Create Account & Join
+            </button>
+          </form>
 
-              <:actions>
-                <.button phx-disable-with="Creating account..." class="w-full">
-                  Create Account & Join
-                </.button>
-              </:actions>
-            </.simple_form>
+          <.or_divider />
 
-            <p class="text-center text-sm mt-4">
-              Already have an account?
-              <.link href={~p"/users/log_in"} class="text-brand hover:underline">Sign in</.link>
-            </p>
+          <div class="space-y-3">
+            <.google_button href={~p"/auth/google?#{%{return_to: @return_to}}"} />
           </div>
+
+          <p class="mt-8 text-center text-gray-600">
+            Already have an account?
+            <.link navigate={~p"/users/log_in?#{%{return_to: @return_to}}"} class="text-blue-600 hover:text-blue-700 font-medium">
+              Sign In
+            </.link>
+          </p>
         <% end %>
       <% else %>
-        <.header class="text-center">
+        <h1 class="text-3xl font-bold text-center text-gray-900 mb-2">
           Invalid Invitation
-          <:subtitle>
-            This invitation link is invalid or has expired.
-          </:subtitle>
-        </.header>
+        </h1>
+        <p class="text-center text-gray-600">This invitation link is invalid or has expired.</p>
       <% end %>
     </div>
     """
@@ -67,11 +114,13 @@ defmodule EstimateWeb.InviteLive.Accept do
   def mount(%{"token" => token}, _session, socket) do
     invite = Organizations.get_valid_invite_by_token(token)
     changeset = Accounts.change_user_registration(%User{})
+    return_to = ~p"/invites/#{token}"
 
     {:ok,
      socket
      |> assign(:invite, invite)
      |> assign(:token, token)
+     |> assign(:return_to, return_to)
      |> assign_form(changeset)}
   end
 

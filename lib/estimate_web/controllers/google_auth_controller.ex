@@ -7,13 +7,14 @@ defmodule EstimateWeb.GoogleAuthController do
   @compile {:no_warn_undefined, Assent.Strategy.Google}
   @strategy Assent.Strategy.Google
 
-  def request(conn, _params) do
+  def request(conn, params) do
     config = google_config()
 
     case @strategy.authorize_url(config) do
       {:ok, %{url: url, session_params: session_params}} ->
         conn
         |> put_session(:google_session_params, session_params)
+        |> maybe_store_return_to(params)
         |> redirect(external: url)
 
       {:error, _reason} ->
@@ -49,6 +50,15 @@ defmodule EstimateWeb.GoogleAuthController do
         |> redirect(to: ~p"/users/log_in")
     end
   end
+
+  defp maybe_store_return_to(conn, %{"return_to" => return_to}) do
+    case UserAuth.safe_return_to(return_to) do
+      nil -> conn
+      safe -> put_session(conn, :user_return_to, safe)
+    end
+  end
+
+  defp maybe_store_return_to(conn, _params), do: conn
 
   defp google_config do
     oauth_config = Application.fetch_env!(:estimate, :google_oauth)
