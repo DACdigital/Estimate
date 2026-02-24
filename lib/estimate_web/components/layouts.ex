@@ -58,28 +58,6 @@ defmodule EstimateWeb.Layouts do
   end
 
   @doc """
-  Settings sub-navigation link component (Vercel-style).
-  """
-  attr :href, :string, required: true
-  attr :label, :string, required: true
-  attr :active, :boolean, default: false
-
-  def settings_nav_link(assigns) do
-    ~H"""
-    <a
-      href={@href}
-      class={[
-        "block px-3 py-2 rounded-lg text-sm transition-colors",
-        @active && "bg-gray-100 text-gray-900 font-medium",
-        !@active && "text-gray-600 hover:text-gray-900"
-      ]}
-    >
-      {@label}
-    </a>
-    """
-  end
-
-  @doc """
   Shows the flash group with standard titles and content.
 
   ## Examples

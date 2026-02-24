@@ -26,7 +26,6 @@
     
 <!-- Navigation -->
     <nav
-      :if={assigns[:active_tab] != :settings}
       class="flex-1 px-4 py-4 space-y-1 overflow-y-auto"
     >
       <.sidebar_link
@@ -43,12 +42,15 @@
         label="Customers"
         active={assigns[:active_tab] == :customers}
       />
-      <div :if={assigns[:org_id]} class="pt-1">
-        <div class={[
-          "flex items-center gap-3 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider",
-          assigns[:active_tab] in [:roles, :templates] && "text-gray-700",
-          assigns[:active_tab] not in [:roles, :templates] && "text-gray-400"
-        ]}>
+      <.sidebar_link
+        :if={assigns[:org_id]}
+        href={~p"/org/#{@org_id}/projects"}
+        icon="hero-folder"
+        label="Projects"
+        active={assigns[:active_tab] == :projects}
+      />
+      <div :if={assigns[:org_id]} class="pt-4 mt-4 border-t border-gray-100">
+        <div class="flex items-center gap-3 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-gray-400">
           <.icon name="hero-book-open" class="w-5 h-5" />
           <span>Library</span>
         </div>
@@ -65,76 +67,26 @@
           />
         </div>
       </div>
-      <.sidebar_link
-        :if={assigns[:org_id]}
-        href={~p"/org/#{@org_id}/projects"}
-        icon="hero-folder"
-        label="Projects"
-        active={assigns[:active_tab] == :projects}
-      />
 
       <div class="pt-4 mt-4 border-t border-gray-100">
-        <.sidebar_link
-          :if={assigns[:org_id]}
-          href={~p"/org/#{@org_id}/settings"}
-          icon="hero-cog-6-tooth"
-          label="Settings"
-          active={assigns[:active_tab] == :settings}
-        />
-      </div>
-    </nav>
-    
-<!-- Settings sub-navigation -->
-    <nav
-      :if={assigns[:active_tab] == :settings && assigns[:org_id]}
-      class="flex-1 flex flex-col overflow-y-auto"
-    >
-      <div class="px-4 py-3 border-b border-gray-100">
-        <a
-          href={~p"/org/#{@org_id}"}
-          class="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
-        >
-          <.icon name="hero-arrow-left" class="w-4 h-4" />
-          <span class="text-sm font-medium">Settings</span>
-        </a>
-      </div>
-      <div class="flex-1 px-3 py-3 space-y-0.5">
-        <.settings_nav_link
-          href={~p"/org/#{@org_id}/settings"}
-          label="General"
-          active={assigns[:settings_page] == :general}
-        />
-        <.settings_nav_link
-          href={~p"/org/#{@org_id}/settings/members"}
-          label="Members"
-          active={assigns[:settings_page] == :members}
-        />
-        <.settings_nav_link
-          href={~p"/org/#{@org_id}/settings/currencies"}
-          label="Currencies"
-          active={assigns[:settings_page] == :currencies}
-        />
-        <.settings_nav_link
-          :if={admin?(assigns[:current_membership])}
-          href={~p"/org/#{@org_id}/settings/ai"}
-          label="AI Integration"
-          active={assigns[:settings_page] == :ai}
-        />
-        <.settings_nav_link
-          :if={admin?(assigns[:current_membership])}
-          href={~p"/org/#{@org_id}/settings/email"}
-          label="Email"
-          active={assigns[:settings_page] == :email}
-        />
+        <div class="flex items-center gap-3 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-gray-400">
+          <.icon name="hero-cog-6-tooth" class="w-5 h-5" />
+          <span>Settings</span>
+        </div>
+        <div class="ml-8 space-y-0.5">
+          <.sidebar_child_link href={~p"/org/#{@org_id}/settings"} label="General" active={assigns[:settings_page] == :general} />
+          <.sidebar_child_link href={~p"/org/#{@org_id}/settings/members"} label="Members" active={assigns[:settings_page] == :members} />
+          <.sidebar_child_link href={~p"/org/#{@org_id}/settings/currencies"} label="Currencies" active={assigns[:settings_page] == :currencies} />
+          <.sidebar_child_link :if={admin?(assigns[:current_membership])} href={~p"/org/#{@org_id}/settings/ai"} label="AI Integration" active={assigns[:settings_page] == :ai} />
+          <.sidebar_child_link :if={admin?(assigns[:current_membership])} href={~p"/org/#{@org_id}/settings/email"} label="Email" active={assigns[:settings_page] == :email} />
+        </div>
       </div>
     </nav>
     
 <!-- User section -->
     <div :if={assigns[:current_user]} class="border-t border-gray-200 p-4">
       <div class="flex items-center gap-3">
-        <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-medium text-sm">
-          {String.first(@current_user.name || @current_user.email)}
-        </div>
+        <.avatar name={@current_user.name || @current_user.email} seed={@current_user.id} size={:sm} />
         <div class="flex-1 min-w-0">
           <p class="text-sm font-medium text-gray-900 truncate">
             {@current_user.name || @current_user.email}
