@@ -2,6 +2,8 @@ defmodule EstimateWeb.TemplatesLive.Index do
   use EstimateWeb, :live_view
 
   alias Estimate.Templates
+  import EstimateWeb.Components.JsonImportComponent
+  import EstimateWeb.JsonImportHelpers
 
   @impl true
   def render(assigns) do
@@ -63,26 +65,81 @@ defmodule EstimateWeb.TemplatesLive.Index do
         <% end %>
       </div>
 
-      <%!-- New Template Bar --%>
+      <%!-- New Template --%>
       <div :if={@is_admin} class="bg-white border border-gray-200 rounded-xl">
-        <form phx-submit="create_template" class="px-6 py-4">
-          <div class="flex items-center gap-3">
-            <input
-              type="text"
-              name="name"
-              value=""
-              placeholder="New template name..."
-              required
-              class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
-            />
+        <div class="px-6 pt-4 pb-2">
+          <div class="flex gap-2">
             <button
-              type="submit"
-              class="px-4 py-2 bg-gray-900 text-white text-sm rounded-lg hover:bg-gray-800 transition-colors font-medium"
+              type="button"
+              phx-click="set_creation_mode"
+              phx-value-mode="manual"
+              class={"px-3 py-2 text-sm font-medium rounded-lg border-2 transition-colors #{if @creation_mode == "manual", do: "border-gray-900 bg-gray-900 text-white", else: "border-gray-200 text-gray-600 hover:border-gray-300"}"}
             >
-              Create Template
+              <.icon name="hero-plus" class="w-4 h-4 inline-block mr-1 -mt-0.5" /> Manual
+            </button>
+            <button
+              type="button"
+              phx-click="set_creation_mode"
+              phx-value-mode="json"
+              class={"px-3 py-2 text-sm font-medium rounded-lg border-2 transition-colors #{if @creation_mode == "json", do: "border-gray-900 bg-gray-900 text-white", else: "border-gray-200 text-gray-600 hover:border-gray-300"}"}
+            >
+              <.icon name="hero-arrow-up-tray" class="w-4 h-4 inline-block mr-1 -mt-0.5" />
+              Import JSON
             </button>
           </div>
-        </form>
+        </div>
+
+        <%= if @creation_mode == "manual" do %>
+          <form phx-submit="create_template" class="px-6 py-4">
+            <div class="flex items-center gap-3">
+              <input
+                type="text"
+                name="name"
+                value=""
+                placeholder="New template name..."
+                required
+                class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+              />
+              <button
+                type="submit"
+                class="px-4 py-2 bg-gray-900 text-white text-sm rounded-lg hover:bg-gray-800 transition-colors font-medium"
+              >
+                Create Template
+              </button>
+            </div>
+          </form>
+        <% else %>
+          <form phx-submit="create_template_from_json" phx-change="validate_template_json" class="px-6 py-4 space-y-4">
+            <.json_import_panel
+              json_input={@json_input}
+              json_error={@json_error}
+              json_parsed={@json_parsed}
+            />
+
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1.5">Template Name</label>
+              <input
+                type="text"
+                name="template_name"
+                value={@template_name}
+                placeholder="Template name (auto-filled from JSON)..."
+                required
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+              />
+            </div>
+
+            <div class="flex justify-end">
+              <button
+                type="submit"
+                disabled={!@json_parsed}
+                phx-disable-with="Importing..."
+                class={"px-4 py-2 bg-gray-900 text-white text-sm rounded-lg hover:bg-gray-800 transition-colors font-medium #{if !@json_parsed, do: "opacity-50 cursor-not-allowed"}"}
+              >
+                Import Template
+              </button>
+            </div>
+          </form>
+        <% end %>
       </div>
 
       <%!-- Delete Confirmation Modal --%>
@@ -131,10 +188,92 @@ defmodule EstimateWeb.TemplatesLive.Index do
      |> assign(:active_tab, :templates)
      |> assign(:templates, templates)
      |> assign(:is_admin, admin?(socket.assigns.current_membership))
-     |> assign(:deleting_template, nil)}
+     |> assign(:deleting_template, nil)
+     |> assign(:creation_mode, "manual")
+     |> assign(:template_name, "")
+     |> init_json_assigns()}
   end
 
   @impl true
+  def handle_event("set_creation_mode", %{"mode" => mode}, socket) do
+    {:noreply,
+     socket
+     |> assign(:creation_mode, mode)
+     |> assign(:template_name, "")
+     |> clear_json()}
+  end
+
+  def handle_event("validate_template_json", %{"json_input" => json_string} = params, socket) do
+    socket = validate_json(socket, json_string)
+
+    # Auto-fill template name from parsed JSON if user hasn't overridden
+    template_name = Map.get(params, "template_name", "")
+
+    socket =
+      if template_name == "" && socket.assigns.json_parsed do
+        assign(socket, :template_name, socket.assigns.json_parsed.estimation || "")
+      else
+        assign(socket, :template_name, template_name)
+      end
+
+    {:noreply, socket}
+  end
+
+  def handle_event("validate_template_json", params, socket) do
+    template_name = Map.get(params, "template_name", socket.assigns.template_name)
+
+    socket =
+      if Map.get(params, "json_input") == "" do
+        clear_json(socket)
+      else
+        socket
+      end
+
+    {:noreply, assign(socket, :template_name, template_name)}
+  end
+
+  def handle_event("json_file_uploaded", %{"content" => content}, socket) do
+    socket = validate_json(socket, content)
+
+    socket =
+      if socket.assigns.json_parsed do
+        assign(socket, :template_name, socket.assigns.json_parsed.estimation || "")
+      else
+        socket
+      end
+
+    {:noreply, socket}
+  end
+
+  def handle_event("download_json_schema", _params, socket) do
+    {:noreply, push_schema_download(socket)}
+  end
+
+  def handle_event("create_template_from_json", %{"template_name" => name}, socket) do
+    unless socket.assigns.is_admin do
+      {:noreply, put_flash(socket, :error, "Not authorized")}
+    else
+      parsed = socket.assigns.json_parsed
+
+      if parsed do
+        attrs = %{"name" => name, "description" => parsed.description}
+
+        case Templates.create_template_from_json(socket.assigns.org_id, attrs, parsed) do
+          {:ok, template} ->
+            {:noreply,
+             socket
+             |> put_flash(:info, "Template imported")
+             |> push_navigate(to: ~p"/org/#{socket.assigns.org_id}/templates/#{template.id}")}
+
+          {:error, _} ->
+            {:noreply, put_flash(socket, :error, "Could not import template")}
+        end
+      else
+        {:noreply, put_flash(socket, :error, "No valid JSON to import")}
+      end
+    end
+  end
+
   def handle_event("create_template", %{"name" => name}, socket) when name != "" do
     unless socket.assigns.is_admin do
       {:noreply, put_flash(socket, :error, "Not authorized")}

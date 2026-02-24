@@ -141,6 +141,57 @@ defmodule Estimate.Templates do
     end)
   end
 
+  ## Create from JSON import
+
+  def create_template_from_json(org_id, attrs, parsed_json) do
+    Repo.ensure_org_context(fn ->
+      Ecto.Multi.new()
+      |> Ecto.Multi.insert(:template, fn _ ->
+        EstimationTemplate.changeset(%EstimationTemplate{}, %{
+          name: attrs["name"] || parsed_json.estimation || "Imported Template",
+          description: attrs["description"] || parsed_json.description,
+          organization_id: org_id
+        })
+      end)
+      |> Ecto.Multi.run(:epics_tasks, fn _repo, %{template: template} ->
+        parsed_json.epics
+        |> Enum.with_index()
+        |> Enum.each(fn {epic, position} ->
+          {:ok, new_epic} =
+            %EstimationTemplateEpic{}
+            |> EstimationTemplateEpic.changeset(%{
+              name: epic.name,
+              description: epic.description,
+              position: position,
+              estimation_template_id: template.id
+            })
+            |> Repo.insert()
+
+          epic.tasks
+          |> Enum.with_index()
+          |> Enum.each(fn {task, task_position} ->
+            %EstimationTemplateTask{}
+            |> EstimationTemplateTask.changeset(%{
+              name: task.name,
+              description: task.description,
+              position: task_position,
+              priority: task.priority,
+              estimation_template_epic_id: new_epic.id
+            })
+            |> Repo.insert!()
+          end)
+        end)
+
+        {:ok, :done}
+      end)
+      |> Repo.transaction()
+      |> case do
+        {:ok, %{template: template}} -> {:ok, template}
+        {:error, _op, changeset, _} -> {:error, changeset}
+      end
+    end)
+  end
+
   ## Create from existing estimation
 
   def create_from_estimation(org_id, name, estimation) do

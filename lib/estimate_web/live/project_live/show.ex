@@ -7,6 +7,8 @@ defmodule EstimateWeb.ProjectLive.Show do
   alias Estimate.EstimationEngine.Calculator
   alias Estimate.Accounts
   alias Estimate.Organizations.Currencies
+  import EstimateWeb.Components.JsonImportComponent
+  import EstimateWeb.JsonImportHelpers
 
   @impl true
   def render(assigns) do
@@ -147,54 +149,12 @@ defmodule EstimateWeb.ProjectLive.Show do
 
           <div class="space-y-5">
             <%!-- JSON Import --%>
-            <div :if={@estimation_source == "json"} class="space-y-3">
-              <div>
-                <div class="flex items-center justify-between mb-1.5">
-                  <label class="block text-xs font-medium text-gray-500">
-                    Paste JSON
-                  </label>
-                  <div class="flex items-center gap-3">
-                    <button
-                      type="button"
-                      phx-click="download_json_schema"
-                      class="text-xs text-blue-600 hover:text-blue-700 hover:underline"
-                    >
-                      Download example schema
-                    </button>
-                    <label class="text-xs text-blue-600 hover:text-blue-700 hover:underline cursor-pointer">
-                      Or upload file
-                      <input
-                        type="file"
-                        accept=".json"
-                        class="hidden"
-                        id="json-file-input"
-                        phx-hook="JsonFileReader"
-                      />
-                    </label>
-                  </div>
-                </div>
-                <textarea
-                  name="json_input"
-                  rows="12"
-                  phx-debounce="500"
-                  placeholder={"{\n  \"epics\": [\n    {\n      \"name\": \"Epic name\",\n      \"tasks\": [\n        { \"name\": \"Task name\", \"priority\": \"must\" }\n      ]\n    }\n  ]\n}"}
-                  class={"w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm font-mono resize-none #{if @json_error, do: "border-red-300", else: "border-gray-300"}"}
-                ><%= @json_input %></textarea>
-              </div>
-
-              <p :if={@json_error} class="text-sm text-red-600">{@json_error}</p>
-
-              <div
-                :if={@json_parsed && !@json_error}
-                class="bg-green-50 border border-green-200 rounded-lg p-3"
-              >
-                <p class="text-sm text-green-700 font-medium">
-                  <.icon name="hero-check-circle" class="w-4 h-4 inline-block -mt-0.5 mr-1" />
-                  {length(@json_parsed.epics)} epics, {Enum.sum(
-                    Enum.map(@json_parsed.epics, fn e -> length(e.tasks) end)
-                  )} tasks will be imported
-                </p>
-              </div>
+            <div :if={@estimation_source == "json"}>
+              <.json_import_panel
+                json_input={@json_input}
+                json_error={@json_error}
+                json_parsed={@json_parsed}
+              />
             </div>
 
             <%!-- Copy source selector --%>
@@ -1390,9 +1350,7 @@ defmodule EstimateWeb.ProjectLive.Show do
      |> assign(:selected_member, nil)
      |> assign(:selected_role, "viewer")
      |> assign(:removing_collaborator, nil)
-     |> assign(:json_input, "")
-     |> assign(:json_error, nil)
-     |> assign(:json_parsed, nil)}
+     |> init_json_assigns()}
   end
 
   @impl true
@@ -1547,9 +1505,7 @@ defmodule EstimateWeb.ProjectLive.Show do
     socket =
       socket
       |> assign(:estimation_source, source)
-      |> assign(:json_input, "")
-      |> assign(:json_error, nil)
-      |> assign(:json_parsed, nil)
+      |> clear_json()
 
     {:noreply, socket}
   end
@@ -1582,10 +1538,7 @@ defmodule EstimateWeb.ProjectLive.Show do
     # Clear JSON state if textarea was emptied
     socket =
       if Map.get(params, "json_input") == "" do
-        socket
-        |> assign(:json_input, "")
-        |> assign(:json_parsed, nil)
-        |> assign(:json_error, nil)
+        clear_json(socket)
       else
         socket
       end
@@ -1737,14 +1690,7 @@ defmodule EstimateWeb.ProjectLive.Show do
   end
 
   def handle_event("download_json_schema", _params, socket) do
-    schema = Estimate.EstimationEngine.JsonImport.example_schema()
-
-    {:noreply,
-     push_event(socket, "download_file", %{
-       content: schema,
-       filename: "estimation-schema.json",
-       content_type: "application/json"
-     })}
+    {:noreply, push_schema_download(socket)}
   end
 
   def handle_event("set_current_estimation", %{"id" => id}, socket) do
@@ -1892,46 +1838,39 @@ defmodule EstimateWeb.ProjectLive.Show do
   end
 
   defp do_validate_json(socket, json_string) do
-    alias Estimate.EstimationEngine.JsonImport
+    socket = validate_json(socket, json_string)
 
-    case JsonImport.parse_and_validate(json_string) do
-      {:ok, parsed} ->
-        # Prefill form from parsed JSON
-        form_data = %{
-          "name" => parsed.estimation || "",
-          "description" => parsed.description || ""
-        }
+    if socket.assigns.json_parsed do
+      parsed = socket.assigns.json_parsed
 
-        # Try to resolve currency code
-        socket =
-          if parsed.currency do
-            currency =
-              Enum.find(socket.assigns.currencies, fn c ->
-                String.upcase(c.code) == String.upcase(parsed.currency)
-              end)
+      # Prefill form from parsed JSON
+      form_data = %{
+        "name" => parsed.estimation || "",
+        "description" => parsed.description || ""
+      }
 
-            if currency do
-              socket
-              |> assign(:modal_currency_id, currency.id)
-              |> assign(:modal_currency, currency)
-            else
-              socket
-            end
+      # Try to resolve currency code
+      socket =
+        if parsed.currency do
+          currency =
+            Enum.find(socket.assigns.currencies, fn c ->
+              String.upcase(c.code) == String.upcase(parsed.currency)
+            end)
+
+          if currency do
+            socket
+            |> assign(:modal_currency_id, currency.id)
+            |> assign(:modal_currency, currency)
           else
             socket
           end
+        else
+          socket
+        end
 
-        socket
-        |> assign(:json_input, json_string)
-        |> assign(:json_parsed, parsed)
-        |> assign(:json_error, nil)
-        |> assign(:estimation_form, to_form(form_data, as: "estimation"))
-
-      {:error, reason} ->
-        socket
-        |> assign(:json_input, json_string)
-        |> assign(:json_parsed, nil)
-        |> assign(:json_error, reason)
+      assign(socket, :estimation_form, to_form(form_data, as: "estimation"))
+    else
+      socket
     end
   end
 
