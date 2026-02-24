@@ -24,10 +24,9 @@ defmodule Estimate.CRM.Customer do
       :country,
       :website_url,
       :description,
-      :default_currency_id,
-      :organization_id
+      :default_currency_id
     ])
-    |> validate_required([:key, :name, :organization_id])
+    |> validate_required([:key, :name])
     |> validate_length(:key, min: 2, max: 20)
     |> validate_length(:name, min: 1, max: 200)
     |> validate_format(:country, ~r/^[A-Z]{2}$/,

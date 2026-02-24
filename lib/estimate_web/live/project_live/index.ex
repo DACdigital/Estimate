@@ -43,9 +43,7 @@ defmodule EstimateWeb.ProjectLive.Index do
               navigate={~p"/org/#{@org_id}/projects/#{project.id}"}
               class="flex items-center gap-4 flex-1 min-w-0"
             >
-              <div class="w-11 h-11 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-medium flex-shrink-0">
-                {String.first(project.name) |> String.upcase()}
-              </div>
+              <.avatar name={project.name} seed={project.id} size={:lg} />
               <span
                 :if={project.key && project.customer}
                 class="text-xs font-mono text-gray-400 w-20 flex-shrink-0"
@@ -63,7 +61,7 @@ defmodule EstimateWeb.ProjectLive.Index do
               <span :if={project.currency} class="text-xs text-gray-400 font-mono">
                 {project.currency.code}
               </span>
-              <span class={"text-xs px-2 py-0.5 rounded-full #{status_class(project.status)}"}>
+              <span class={"text-xs px-2 py-0.5 rounded-full #{project_status_class(project.status)}"}>
                 {project.status}
               </span>
               <.link
@@ -418,8 +416,4 @@ defmodule EstimateWeb.ProjectLive.Index do
     end
   end
 
-  defp status_class("active"), do: "bg-green-100 text-green-800"
-  defp status_class("completed"), do: "bg-blue-100 text-blue-800"
-  defp status_class("archived"), do: "bg-gray-100 text-gray-800"
-  defp status_class(_), do: "bg-gray-100 text-gray-800"
 end

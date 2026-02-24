@@ -31,6 +31,98 @@ defmodule EstimateWeb.CoreComponents do
 
   alias Phoenix.LiveView.JS
 
+  @user_gradients [
+    "bg-gradient-to-br from-indigo-500 to-purple-600 text-white",
+    "bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white",
+    "bg-gradient-to-br from-blue-500 to-indigo-600 text-white",
+    "bg-gradient-to-br from-sky-500 to-blue-600 text-white",
+    "bg-gradient-to-br from-rose-500 to-pink-600 text-white",
+    "bg-gradient-to-br from-fuchsia-500 to-purple-600 text-white",
+    "bg-gradient-to-br from-purple-500 to-indigo-600 text-white",
+    "bg-gradient-to-br from-pink-500 to-rose-600 text-white",
+    "bg-gradient-to-br from-indigo-600 to-blue-500 text-white",
+    "bg-gradient-to-br from-violet-600 to-indigo-500 text-white"
+  ]
+
+  @customer_gradients [
+    "bg-gradient-to-br from-emerald-500 to-teal-600 text-white",
+    "bg-gradient-to-br from-teal-500 to-cyan-600 text-white",
+    "bg-gradient-to-br from-green-500 to-emerald-600 text-white",
+    "bg-gradient-to-br from-cyan-500 to-teal-500 text-white",
+    "bg-gradient-to-br from-emerald-600 to-green-500 text-white",
+    "bg-gradient-to-br from-teal-600 to-emerald-500 text-white"
+  ]
+
+  @size_classes %{
+    xs: "w-6 h-6 text-[10px]",
+    sm: "w-8 h-8 text-xs",
+    md: "w-10 h-10 text-sm",
+    lg: "w-11 h-11 text-sm",
+    xl: "w-14 h-14 text-xl"
+  }
+
+  @doc """
+  Renders an avatar circle with initials and a deterministic gradient color.
+
+  ## Examples
+
+      <.avatar name="Krzysztof Radecki" seed="user-uuid" />
+      <.avatar name="Acme Corp" seed="customer-uuid" type={:customer} size={:xl} />
+  """
+  attr :name, :string, default: nil
+  attr :seed, :string, default: nil
+  attr :size, :atom, default: :md
+  attr :type, :atom, default: :user
+  attr :class, :any, default: nil
+
+  def avatar(assigns) do
+    initials = avatar_initials(assigns.name)
+    seed = assigns.seed || assigns.name || ""
+
+    color_classes =
+      case assigns.type do
+        :pending -> "bg-amber-100 text-amber-600"
+        :customer -> Enum.at(@customer_gradients, :erlang.phash2(seed, length(@customer_gradients)))
+        _ -> Enum.at(@user_gradients, :erlang.phash2(seed, length(@user_gradients)))
+      end
+
+    assigns =
+      assigns
+      |> assign(:initials, initials)
+      |> assign(:color_classes, color_classes)
+      |> assign(:size_classes, Map.fetch!(@size_classes, assigns.size))
+
+    ~H"""
+    <div class={[
+      "rounded-full flex items-center justify-center font-medium flex-shrink-0",
+      @color_classes, @size_classes, @class
+    ]}>
+      {@initials}
+    </div>
+    """
+  end
+
+  defp avatar_initials(nil), do: "?"
+  defp avatar_initials(""), do: "?"
+
+  defp avatar_initials(name) do
+    name = String.trim(name)
+
+    cond do
+      name == "" -> "?"
+      String.contains?(name, "@") -> name |> String.first() |> String.upcase()
+      true ->
+        words = String.split(name)
+
+        case words do
+          [single] -> single |> String.first() |> String.upcase()
+          [first | rest] ->
+            last = List.last(rest)
+            String.upcase(String.first(first) <> String.first(last))
+        end
+    end
+  end
+
   @doc """
   Renders flash notices.
 
@@ -481,6 +573,11 @@ defmodule EstimateWeb.CoreComponents do
     </div>
     """
   end
+
+  def project_status_class("active"), do: "bg-green-100 text-green-800"
+  def project_status_class("completed"), do: "bg-blue-100 text-blue-800"
+  def project_status_class("archived"), do: "bg-gray-100 text-gray-800"
+  def project_status_class(_), do: "bg-gray-100 text-gray-800"
 
   ## JS Commands
 

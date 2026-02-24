@@ -9,6 +9,8 @@ defmodule EstimateWeb.ProjectLive.Show do
   alias Estimate.Organizations.Currencies
   import EstimateWeb.Components.JsonImportComponent
   import EstimateWeb.JsonImportHelpers
+  import EstimateWeb.EstimatorLive.Helpers,
+    only: [priority_label: 1, priority_class: 1, format_rate: 2, format_cost: 2]
 
   @impl true
   def render(assigns) do
@@ -36,13 +38,11 @@ defmodule EstimateWeb.ProjectLive.Show do
       <%!-- Header --%>
       <div class="flex items-start justify-between mb-6">
         <div class="flex items-center gap-4">
-          <div class="w-14 h-14 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xl font-medium">
-            {String.first(@project.name) |> String.upcase()}
-          </div>
+          <.avatar name={@project.name} seed={@project.id} size={:xl} />
           <div>
             <div class="flex items-center gap-3">
               <h1 class="text-2xl font-bold text-gray-900">{@project.name}</h1>
-              <span class={"text-xs px-2 py-0.5 rounded-full #{status_class(@project.status)}"}>
+              <span class={"text-xs px-2 py-0.5 rounded-full #{project_status_class(@project.status)}"}>
                 {@project.status}
               </span>
             </div>
@@ -1052,9 +1052,7 @@ defmodule EstimateWeb.ProjectLive.Show do
               <label class="block text-xs font-medium text-gray-500 mb-1.5">Member</label>
               <%= if @selected_member do %>
                 <div class="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">
-                  <div class="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs font-medium">
-                    {String.first(@selected_member.name || @selected_member.email) |> String.upcase()}
-                  </div>
+                  <.avatar name={@selected_member.name || @selected_member.email} seed={@selected_member.id} size={:xs} />
                   <span class="text-sm text-gray-900">
                     {@selected_member.name || @selected_member.email}
                   </span>
@@ -1094,9 +1092,7 @@ defmodule EstimateWeb.ProjectLive.Show do
                     phx-value-user-id={membership.user.id}
                     class="w-full px-3 py-2 flex items-center gap-3 hover:bg-gray-50 text-left"
                   >
-                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs font-medium flex-shrink-0">
-                      {String.first(membership.user.name || membership.user.email) |> String.upcase()}
-                    </div>
+                    <.avatar name={membership.user.name || membership.user.email} seed={membership.user.id} size={:sm} />
                     <div class="min-w-0">
                       <p class="text-sm font-medium text-gray-900 truncate">
                         {membership.user.name || membership.user.email}
@@ -1153,9 +1149,7 @@ defmodule EstimateWeb.ProjectLive.Show do
             class="px-6 py-4 flex items-center justify-between border-b border-gray-100 last:border-b-0"
           >
             <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-sm font-medium">
-                {String.first(collab.user.name || collab.user.email) |> String.upcase()}
-              </div>
+              <.avatar name={collab.user.name || collab.user.email} seed={collab.user.id} />
               <div>
                 <div class="flex items-center gap-2">
                   <h3 class="text-sm font-medium text-gray-900">{collab.user.name}</h3>
@@ -1909,20 +1903,6 @@ defmodule EstimateWeb.ProjectLive.Show do
     assigns.can_manage_collaborators && collab.user_id != assigns.current_user.id
   end
 
-  defp status_class("active"), do: "bg-green-100 text-green-800"
-  defp status_class("completed"), do: "bg-blue-100 text-blue-800"
-  defp status_class("archived"), do: "bg-gray-100 text-gray-800"
-  defp status_class(_), do: "bg-gray-100 text-gray-800"
-
-  defp format_rate(rate, nil), do: "$#{rate}/h"
-
-  defp format_rate(rate, currency) do
-    case currency.symbol_position do
-      "suffix" -> "#{rate}#{currency.symbol}/h"
-      _ -> "#{currency.symbol}#{rate}/h"
-    end
-  end
-
   defp format_hours_h(decimal) do
     if Decimal.compare(decimal, 0) == :eq do
       "0h"
@@ -1931,32 +1911,4 @@ defmodule EstimateWeb.ProjectLive.Show do
     end
   end
 
-  defp format_cost(decimal, currency) do
-    if Decimal.compare(decimal, 0) == :eq do
-      "-"
-    else
-      symbol = if currency, do: currency.symbol, else: "$"
-      position = if currency, do: currency.symbol_position, else: "prefix"
-
-      case position do
-        "suffix" ->
-          Number.Currency.number_to_currency(decimal, unit: "", format: "%n") <> symbol
-
-        _ ->
-          Number.Currency.number_to_currency(decimal, unit: symbol)
-      end
-    end
-  end
-
-  defp priority_label("must"), do: "Must"
-  defp priority_label("should"), do: "Should"
-  defp priority_label("could"), do: "Could"
-  defp priority_label("wont"), do: "Won't"
-  defp priority_label(_), do: "Must"
-
-  defp priority_class("must"), do: "bg-red-100 text-red-700"
-  defp priority_class("should"), do: "bg-amber-100 text-amber-700"
-  defp priority_class("could"), do: "bg-blue-100 text-blue-700"
-  defp priority_class("wont"), do: "bg-gray-100 text-gray-500"
-  defp priority_class(_), do: "bg-red-100 text-red-700"
 end

@@ -3,6 +3,7 @@ defmodule EstimateWeb.CustomerLive.Show do
 
   alias Estimate.CRM
   alias Estimate.Portfolio
+  import EstimateWeb.LiveHelpers
 
   @impl true
   def render(assigns) do
@@ -20,9 +21,7 @@ defmodule EstimateWeb.CustomerLive.Show do
       <%!-- Customer Header --%>
       <div class="flex items-start justify-between mb-8">
         <div class="flex items-center gap-4">
-          <div class="w-14 h-14 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white text-xl font-medium">
-            {String.first(@customer.name) |> String.upcase()}
-          </div>
+          <.avatar name={@customer.name} seed={@customer.id} type={:customer} size={:xl} />
           <div>
             <div class="flex items-center gap-3">
               <h1 class="text-2xl font-bold text-gray-900">{@customer.name}</h1>
@@ -94,7 +93,7 @@ defmodule EstimateWeb.CustomerLive.Show do
             <.link navigate={~p"/org/#{@org_id}/projects/#{project.id}"} class="flex-1 min-w-0">
               <div class="flex items-center gap-3">
                 <h3 class="text-sm font-medium text-gray-900">{project.name}</h3>
-                <span class={"text-xs px-1.5 py-0.5 rounded #{status_color(project.status)}"}>
+                <span class={"text-xs px-1.5 py-0.5 rounded #{project_status_class(project.status)}"}>
                   {project.status}
                 </span>
               </div>
@@ -151,10 +150,6 @@ defmodule EstimateWeb.CustomerLive.Show do
     """
   end
 
-  defp status_color("active"), do: "bg-green-100 text-green-700"
-  defp status_color("completed"), do: "bg-blue-100 text-blue-700"
-  defp status_color("archived"), do: "bg-gray-100 text-gray-500"
-  defp status_color(_), do: "bg-gray-100 text-gray-500"
 
   @impl true
   def mount(%{"id" => id}, _session, socket) do
@@ -184,11 +179,9 @@ defmodule EstimateWeb.CustomerLive.Show do
   end
 
   def handle_event("delete", _params, socket) do
-    unless socket.assigns.is_admin do
-      {:noreply, put_flash(socket, :error, "Not authorized")}
-    else
+    require_admin(socket, fn ->
       do_delete_customer(socket)
-    end
+    end)
   end
 
   defp do_delete_customer(socket) do

@@ -58,7 +58,8 @@ defmodule EstimateWeb.InviteLive.Accept do
                 value={@form[:email].value || @invite.email}
                 placeholder="Email Address"
                 required
-                class={"w-full px-4 py-3 border rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent #{if @form[:email].errors != [], do: "border-red-500", else: "border-gray-300"}"}
+                readonly={@invite.email != nil}
+                class={"w-full px-4 py-3 border rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent #{if @invite.email, do: "bg-gray-50 text-gray-500"} #{if @form[:email].errors != [], do: "border-red-500", else: "border-gray-300"}"}
               />
               <p :for={error <- @form[:email].errors} class="mt-1 text-sm text-red-600">
                 {translate_error(error)}
@@ -136,6 +137,11 @@ defmodule EstimateWeb.InviteLive.Accept do
 
   def handle_event("register_and_accept", %{"user" => user_params}, socket) do
     invite = socket.assigns.invite
+
+    user_params =
+      if invite.email,
+        do: Map.put(user_params, "email", invite.email),
+        else: user_params
 
     case Accounts.register_user(user_params) do
       {:ok, user} ->

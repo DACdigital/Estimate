@@ -33,7 +33,8 @@ defmodule Estimate.CRM do
     Repo.ensure_org_context(fn ->
       result =
         %Customer{}
-        |> Customer.changeset(Map.put(attrs, "organization_id", org_id))
+        |> Customer.changeset(attrs)
+        |> Ecto.Changeset.put_change(:organization_id, org_id)
         |> Repo.insert()
 
       case result do

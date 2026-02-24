@@ -2,6 +2,7 @@ defmodule EstimateWeb.SettingsLive.Members do
   use EstimateWeb, :live_view
 
   alias Estimate.Organizations
+  import EstimateWeb.LiveHelpers
 
   @impl true
   def render(assigns) do
@@ -218,9 +219,7 @@ defmodule EstimateWeb.SettingsLive.Members do
         class="px-6 py-4 flex items-center justify-between border-b border-gray-100 last:border-b-0"
       >
         <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-sm font-medium">
-            {String.first(membership.user.name || membership.user.email) |> String.upcase()}
-          </div>
+          <.avatar name={membership.user.name || membership.user.email} seed={membership.user.id} />
           <div>
             <div class="flex items-center gap-2">
               <h3 class="text-sm font-medium text-gray-900">{membership.user.name}</h3>
@@ -352,9 +351,7 @@ defmodule EstimateWeb.SettingsLive.Members do
           class="px-6 py-4 flex items-center justify-between border-b border-gray-100 last:border-b-0"
         >
           <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 text-sm font-medium">
-              {String.first(request.user.name || request.user.email) |> String.upcase()}
-            </div>
+            <.avatar name={request.user.name || request.user.email} seed={request.user.id} type={:pending} />
             <div>
               <h3 class="text-sm font-medium text-gray-900">{request.user.name}</h3>
               <p class="text-sm text-gray-500">{request.user.email}</p>
@@ -476,9 +473,7 @@ defmodule EstimateWeb.SettingsLive.Members do
   end
 
   def handle_event("send_invite", %{"invite" => params}, socket) do
-    unless admin?(socket.assigns.current_membership) do
-      {:noreply, put_flash(socket, :error, "Not authorized")}
-    else
+    require_admin(socket, fn ->
       user = socket.assigns.current_user
       org_id = socket.assigns.org_id
 
@@ -509,7 +504,7 @@ defmodule EstimateWeb.SettingsLive.Members do
         {:error, _changeset} ->
           {:noreply, put_flash(socket, :error, "Could not create invitation")}
       end
-    end
+    end)
   end
 
   def handle_event("change_member_role", %{"id" => id, "role" => role}, socket) do
@@ -569,9 +564,7 @@ defmodule EstimateWeb.SettingsLive.Members do
   end
 
   def handle_event("cancel_invite", _params, socket) do
-    unless admin?(socket.assigns.current_membership) do
-      {:noreply, put_flash(socket, :error, "Not authorized")}
-    else
+    require_admin(socket, fn ->
       invite = socket.assigns.canceling_invite
 
       if invite do
@@ -586,13 +579,11 @@ defmodule EstimateWeb.SettingsLive.Members do
       else
         {:noreply, assign(socket, :canceling_invite, nil)}
       end
-    end
+    end)
   end
 
   def handle_event("generate_invite_code", %{"role" => role}, socket) do
-    unless admin?(socket.assigns.current_membership) do
-      {:noreply, put_flash(socket, :error, "Not authorized")}
-    else
+    require_admin(socket, fn ->
       user = socket.assigns.current_user
       org_id = socket.assigns.org_id
 
@@ -608,7 +599,7 @@ defmodule EstimateWeb.SettingsLive.Members do
         {:error, _changeset} ->
           {:noreply, put_flash(socket, :error, "Could not generate invite code")}
       end
-    end
+    end)
   end
 
   def handle_event("copy_invite_code", %{"code" => code}, socket) do
@@ -639,50 +630,56 @@ defmodule EstimateWeb.SettingsLive.Members do
   end
 
   def handle_event("approve_request", %{"id" => id}, socket) do
-    unless admin?(socket.assigns.current_membership) do
-      {:noreply, put_flash(socket, :error, "Not authorized")}
-    else
+    require_admin(socket, fn ->
       request = Organizations.get_join_request!(id)
-      user = socket.assigns.current_user
 
-      case Organizations.approve_join_request(request, user.id) do
-        {:ok, _} ->
-          org_id = socket.assigns.org_id
-          members = Organizations.list_organization_members(org_id)
-          join_requests = Organizations.list_pending_join_requests(org_id)
+      if request.organization_id != socket.assigns.org_id do
+        {:noreply, put_flash(socket, :error, "Not authorized")}
+      else
+        user = socket.assigns.current_user
 
-          {:noreply,
-           socket
-           |> put_flash(:info, "Request approved!")
-           |> assign(:members, members)
-           |> assign(:join_requests, join_requests)}
+        case Organizations.approve_join_request(request, user.id) do
+          {:ok, _} ->
+            org_id = socket.assigns.org_id
+            members = Organizations.list_organization_members(org_id)
+            join_requests = Organizations.list_pending_join_requests(org_id)
 
-        {:error, _} ->
-          {:noreply, put_flash(socket, :error, "Could not approve request")}
+            {:noreply,
+             socket
+             |> put_flash(:info, "Request approved!")
+             |> assign(:members, members)
+             |> assign(:join_requests, join_requests)}
+
+          {:error, _} ->
+            {:noreply, put_flash(socket, :error, "Could not approve request")}
+        end
       end
-    end
+    end)
   end
 
   def handle_event("reject_request", %{"id" => id}, socket) do
-    unless admin?(socket.assigns.current_membership) do
-      {:noreply, put_flash(socket, :error, "Not authorized")}
-    else
+    require_admin(socket, fn ->
       request = Organizations.get_join_request!(id)
-      user = socket.assigns.current_user
 
-      case Organizations.reject_join_request(request, user.id) do
-        {:ok, _} ->
-          join_requests = Organizations.list_pending_join_requests(socket.assigns.org_id)
+      if request.organization_id != socket.assigns.org_id do
+        {:noreply, put_flash(socket, :error, "Not authorized")}
+      else
+        user = socket.assigns.current_user
 
-          {:noreply,
-           socket
-           |> put_flash(:info, "Request rejected")
-           |> assign(:join_requests, join_requests)}
+        case Organizations.reject_join_request(request, user.id) do
+          {:ok, _} ->
+            join_requests = Organizations.list_pending_join_requests(socket.assigns.org_id)
 
-        {:error, _} ->
-          {:noreply, put_flash(socket, :error, "Could not reject request")}
+            {:noreply,
+             socket
+             |> put_flash(:info, "Request rejected")
+             |> assign(:join_requests, join_requests)}
+
+          {:error, _} ->
+            {:noreply, put_flash(socket, :error, "Could not reject request")}
+        end
       end
-    end
+    end)
   end
 
   defp atomize_keys(map) do

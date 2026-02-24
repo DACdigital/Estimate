@@ -4,6 +4,7 @@ defmodule EstimateWeb.CustomerLive.Index do
   alias Estimate.CRM
   alias Estimate.CRM.Customer
   alias Estimate.Organizations.Currencies
+  import EstimateWeb.LiveHelpers
 
   @impl true
   def render(assigns) do
@@ -43,9 +44,7 @@ defmodule EstimateWeb.CustomerLive.Index do
               navigate={~p"/org/#{@org_id}/customers/#{customer.id}"}
               class="flex items-center gap-4 flex-1 min-w-0"
             >
-              <div class="w-11 h-11 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-medium flex-shrink-0">
-                {String.first(customer.name) |> String.upcase()}
-              </div>
+              <.avatar name={customer.name} seed={customer.id} type={:customer} size={:lg} />
               <span class="text-xs font-mono text-gray-400 w-12 flex-shrink-0">{customer.key}</span>
               <div class="min-w-0">
                 <h3 class="text-sm font-medium text-gray-900 truncate">{customer.name}</h3>
@@ -237,11 +236,9 @@ defmodule EstimateWeb.CustomerLive.Index do
   end
 
   def handle_event("save", %{"customer" => customer_params}, socket) do
-    unless admin?(socket.assigns.current_membership) do
-      {:noreply, put_flash(socket, :error, "Not authorized")}
-    else
+    require_admin(socket, fn ->
       save_customer(socket, socket.assigns.live_action, customer_params)
-    end
+    end)
   end
 
   defp save_customer(socket, :new, customer_params) do
