@@ -443,6 +443,8 @@ defmodule EstimateWeb.ProjectLive.Show do
           estimation={@current_estimation}
           currency={@current_estimation.currency}
           dashboard_tab={@dashboard_tab}
+          org_id={@org_id}
+          project={@project}
         />
       <% else %>
         <div class="bg-base-100 border border-base-300 rounded-xl p-8 text-center">
@@ -682,7 +684,12 @@ defmodule EstimateWeb.ProjectLive.Show do
           </div>
           <div class="text-right">
             <p class="text-xs text-base-content/40">Based on</p>
-            <p class="text-sm font-medium text-base-content/80">{@estimation.name}</p>
+            <.link
+              navigate={~p"/org/#{@org_id}/projects/#{@project.id}/estimations/#{@estimation.id}/estimator"}
+              class="text-sm font-medium text-base-content/80 hover:underline"
+            >
+              {@estimation.name}
+            </.link>
           </div>
         </div>
       </div>
@@ -721,11 +728,11 @@ defmodule EstimateWeb.ProjectLive.Show do
           </div>
 
           <div class="bg-neutral rounded-lg p-4">
-            <p class="text-[10px] font-semibold text-base-content/40 uppercase tracking-wide mb-1">
+            <p class="text-[10px] font-semibold text-neutral-content/60 uppercase tracking-wide mb-1">
               Final Total
             </p>
             <p class="text-2xl font-bold text-neutral-content">{format_hours_h(@total_hours)}</p>
-            <p class="text-sm text-base-content/30">{format_cost(@total_cost, @currency)}</p>
+            <p class="text-sm text-neutral-content/60">{format_cost(@total_cost, @currency)}</p>
           </div>
         </div>
 
