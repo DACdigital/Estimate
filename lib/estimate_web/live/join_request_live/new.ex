@@ -11,28 +11,28 @@ defmodule EstimateWeb.JoinRequestLive.New do
     <div class="w-full">
       <%= if @organization do %>
         <%= if @current_user do %>
-          <h1 class="text-3xl font-bold text-center text-gray-900 mb-8">
+          <h1 class="text-3xl font-bold text-center text-base-content mb-8">
             Join {@organization.name}
           </h1>
 
           <div class="text-center">
             <%= if @already_member do %>
-              <p class="text-gray-600 mb-6">You're already a member of this organization.</p>
+              <p class="text-base-content/70 mb-6">You're already a member of this organization.</p>
               <.link navigate={~p"/org/#{@organization.id}"}>
-                <button class="w-full py-3 px-4 bg-gray-900 text-white font-medium rounded-lg hover:bg-gray-800 transition-colors">
+                <button class="w-full py-3 px-4 bg-neutral text-neutral-content font-medium rounded-lg hover:bg-neutral/90 transition-colors">
                   Go to Organization
                 </button>
               </.link>
             <% else %>
               <%= if @pending_request do %>
-                <p class="text-gray-600">Your request to join is pending approval.</p>
+                <p class="text-base-content/70">Your request to join is pending approval.</p>
               <% else %>
-                <p class="text-gray-600 mb-6">
+                <p class="text-base-content/70 mb-6">
                   An admin will review your request to join this organization.
                 </p>
                 <button
                   phx-click="request_join"
-                  class="w-full py-3 px-4 bg-gray-900 text-white font-medium rounded-lg hover:bg-gray-800 transition-colors"
+                  class="w-full py-3 px-4 bg-neutral text-neutral-content font-medium rounded-lg hover:bg-neutral/90 transition-colors"
                 >
                   Request to Join
                 </button>
@@ -40,10 +40,10 @@ defmodule EstimateWeb.JoinRequestLive.New do
             <% end %>
           </div>
         <% else %>
-          <h1 class="text-3xl font-bold text-center text-gray-900 mb-2">
+          <h1 class="text-3xl font-bold text-center text-base-content mb-2">
             Join {@organization.name}
           </h1>
-          <p class="text-center text-gray-600 mb-8">Create an account to request access</p>
+          <p class="text-center text-base-content/70 mb-8">Create an account to request access</p>
 
           <form
             id="registration_form"
@@ -58,9 +58,9 @@ defmodule EstimateWeb.JoinRequestLive.New do
                 value={@form[:name].value}
                 placeholder="Full Name"
                 required
-                class={"w-full px-4 py-3 border rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent #{if @form[:name].errors != [], do: "border-red-500", else: "border-gray-300"}"}
+                class={"w-full px-4 py-3 border rounded-lg text-base-content placeholder-base-content/60 #{if @form[:name].errors != [], do: "border-error", else: "border-base-content/20"}"}
               />
-              <p :for={error <- @form[:name].errors} class="mt-1 text-sm text-red-600">
+              <p :for={error <- @form[:name].errors} class="mt-1 text-sm text-error">
                 {translate_error(error)}
               </p>
             </div>
@@ -72,9 +72,9 @@ defmodule EstimateWeb.JoinRequestLive.New do
                 value={@form[:email].value}
                 placeholder="Email Address"
                 required
-                class={"w-full px-4 py-3 border rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent #{if @form[:email].errors != [], do: "border-red-500", else: "border-gray-300"}"}
+                class={"w-full px-4 py-3 border rounded-lg text-base-content placeholder-base-content/60 #{if @form[:email].errors != [], do: "border-error", else: "border-base-content/20"}"}
               />
-              <p :for={error <- @form[:email].errors} class="mt-1 text-sm text-red-600">
+              <p :for={error <- @form[:email].errors} class="mt-1 text-sm text-error">
                 {translate_error(error)}
               </p>
             </div>
@@ -85,9 +85,9 @@ defmodule EstimateWeb.JoinRequestLive.New do
                 name="user[password]"
                 placeholder="Password"
                 required
-                class={"w-full px-4 py-3 border rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent #{if @form[:password].errors != [], do: "border-red-500", else: "border-gray-300"}"}
+                class={"w-full px-4 py-3 border rounded-lg text-base-content placeholder-base-content/60 #{if @form[:password].errors != [], do: "border-error", else: "border-base-content/20"}"}
               />
-              <p :for={error <- @form[:password].errors} class="mt-1 text-sm text-red-600">
+              <p :for={error <- @form[:password].errors} class="mt-1 text-sm text-error">
                 {translate_error(error)}
               </p>
             </div>
@@ -95,7 +95,7 @@ defmodule EstimateWeb.JoinRequestLive.New do
             <button
               type="submit"
               phx-disable-with="Creating account..."
-              class="w-full py-3 px-4 bg-gray-900 text-white font-medium rounded-lg hover:bg-gray-800 transition-colors mt-2"
+              class="w-full py-3 px-4 bg-neutral text-neutral-content font-medium rounded-lg hover:bg-neutral/90 transition-colors mt-2"
             >
               Create Account & Request to Join
             </button>
@@ -107,18 +107,18 @@ defmodule EstimateWeb.JoinRequestLive.New do
             <.google_button href={~p"/auth/google?#{%{return_to: @return_to}}"} />
           </div>
 
-          <p class="mt-8 text-center text-gray-600">
+          <p class="mt-8 text-center text-base-content/70">
             Already have an account?
-            <.link navigate={~p"/users/log_in?#{%{return_to: @return_to}}"} class="text-blue-600 hover:text-blue-700 font-medium">
+            <.link navigate={~p"/users/log_in?#{%{return_to: @return_to}}"} class="text-info hover:text-info/80 font-medium">
               Sign In
             </.link>
           </p>
         <% end %>
       <% else %>
-        <h1 class="text-3xl font-bold text-center text-gray-900 mb-4">
+        <h1 class="text-3xl font-bold text-center text-base-content mb-4">
           Organization Not Found
         </h1>
-        <p class="text-center text-gray-600">This organization doesn't exist.</p>
+        <p class="text-center text-base-content/70">This organization doesn't exist.</p>
       <% end %>
     </div>
     """

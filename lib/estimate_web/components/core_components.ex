@@ -81,7 +81,7 @@ defmodule EstimateWeb.CoreComponents do
 
     color_classes =
       case assigns.type do
-        :pending -> "bg-amber-100 text-amber-600"
+        :pending -> "bg-warning/10 text-warning"
         :customer -> Enum.at(@customer_gradients, :erlang.phash2(seed, length(@customer_gradients)))
         _ -> Enum.at(@user_gradients, :erlang.phash2(seed, length(@user_gradients)))
       end
@@ -534,7 +534,7 @@ defmodule EstimateWeb.CoreComponents do
     ~H"""
     <a
       href={@href}
-      class="w-full py-3 px-4 bg-white border border-gray-300 rounded-lg font-medium text-gray-700 flex items-center justify-center gap-3 hover:bg-gray-50 transition-colors"
+      class="w-full py-3 px-4 bg-base-100 border border-base-content/20 rounded-lg font-medium text-base-content/80 flex items-center justify-center gap-3 hover:bg-base-200 transition-colors"
     >
       <svg class="w-5 h-5" viewBox="0 0 24 24">
         <path
@@ -565,19 +565,19 @@ defmodule EstimateWeb.CoreComponents do
     ~H"""
     <div class="relative my-6">
       <div class="absolute inset-0 flex items-center">
-        <div class="w-full border-t border-gray-200"></div>
+        <div class="w-full border-t border-base-300"></div>
       </div>
       <div class="relative flex justify-center text-sm">
-        <span class="px-4 bg-gray-50 text-gray-500">{render_slot(@inner_block) || "or"}</span>
+        <span class="px-4 bg-base-200 text-base-content/60">{render_slot(@inner_block) || "or"}</span>
       </div>
     </div>
     """
   end
 
-  def project_status_class("active"), do: "bg-green-100 text-green-800"
-  def project_status_class("completed"), do: "bg-blue-100 text-blue-800"
-  def project_status_class("archived"), do: "bg-gray-100 text-gray-800"
-  def project_status_class(_), do: "bg-gray-100 text-gray-800"
+  def project_status_class("active"), do: "bg-success/10 text-success"
+  def project_status_class("completed"), do: "bg-info/10 text-info"
+  def project_status_class("archived"), do: "bg-base-200 text-base-content"
+  def project_status_class(_), do: "bg-base-200 text-base-content"
 
   ## JS Commands
 
@@ -666,7 +666,7 @@ defmodule EstimateWeb.CoreComponents do
       data-cancel={JS.exec(@on_cancel, "phx-remove")}
       class="relative z-50 hidden"
     >
-      <div id={"#{@id}-bg"} class="bg-zinc-50/90 fixed inset-0 transition-opacity" aria-hidden="true" />
+      <div id={"#{@id}-bg"} class="bg-base-200/90 fixed inset-0 transition-opacity" aria-hidden="true" />
       <div
         class="fixed inset-0 overflow-y-auto"
         aria-labelledby={"#{@id}-title"}
@@ -682,7 +682,7 @@ defmodule EstimateWeb.CoreComponents do
               phx-window-keydown={JS.exec("data-cancel", to: "##{@id}")}
               phx-key="escape"
               phx-click-away={JS.exec("data-cancel", to: "##{@id}")}
-              class="shadow-zinc-700/10 ring-zinc-700/10 relative hidden rounded-2xl bg-white p-14 shadow-lg ring-1 transition"
+              class="shadow-base-content/10 ring-base-content/10 relative hidden rounded-2xl bg-base-100 p-14 shadow-lg ring-1 transition"
             >
               <div class="absolute top-6 right-5">
                 <button
@@ -731,7 +731,7 @@ defmodule EstimateWeb.CoreComponents do
   def simple_form(assigns) do
     ~H"""
     <.form :let={f} for={@for} as={@as} {@rest}>
-      <div class="mt-10 space-y-8 bg-white">
+      <div class="mt-10 space-y-8 bg-base-100">
         {render_slot(@inner_block, f)}
         <div :for={action <- @actions} class="mt-2 flex items-center justify-between gap-6">
           {render_slot(action, f)}

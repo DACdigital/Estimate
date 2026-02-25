@@ -13,6 +13,8 @@ defmodule Estimate.Organizations do
     JoinRequest
   }
 
+  alias Estimate.Portfolio.{Project, ProjectCollaborator}
+
   ## Organization
 
   def get_organization!(id), do: Repo.get!(Organization, id)
@@ -55,26 +57,11 @@ defmodule Estimate.Organizations do
     |> Repo.update()
   end
 
-  def get_decrypted_api_key(%Organization{} = org) do
-    case {org.openrouter_api_key_nonce, org.encrypted_openrouter_api_key} do
-      {nil, _} -> nil
-      {_, nil} -> nil
+  def get_decrypted_api_key(%Organization{} = org),
+    do: decrypt_field(org, :openrouter_api_key_nonce, :encrypted_openrouter_api_key)
 
-      {nonce, ciphertext} ->
-        case Estimate.Encryption.decrypt(nonce, ciphertext) do
-          {:ok, plaintext} -> plaintext
-          _ -> nil
-        end
-    end
-  end
-
-  def mask_api_key(%Organization{} = org) do
-    case get_decrypted_api_key(org) do
-      nil -> nil
-      key when byte_size(key) <= 8 -> "****"
-      key -> String.slice(key, 0, 4) <> "..." <> String.slice(key, -4, 4)
-    end
-  end
+  def mask_api_key(%Organization{} = org),
+    do: org |> get_decrypted_api_key() |> mask_secret()
 
   ## SMTP Settings
 
@@ -84,8 +71,14 @@ defmodule Estimate.Organizations do
     |> Repo.update()
   end
 
-  def get_decrypted_smtp_password(%Organization{} = org) do
-    case {org.smtp_password_nonce, org.encrypted_smtp_password} do
+  def get_decrypted_smtp_password(%Organization{} = org),
+    do: decrypt_field(org, :smtp_password_nonce, :encrypted_smtp_password)
+
+  def mask_smtp_password(%Organization{} = org),
+    do: org |> get_decrypted_smtp_password() |> mask_secret()
+
+  defp decrypt_field(org, nonce_field, cipher_field) do
+    case {Map.get(org, nonce_field), Map.get(org, cipher_field)} do
       {nil, _} -> nil
       {_, nil} -> nil
 
@@ -97,13 +90,9 @@ defmodule Estimate.Organizations do
     end
   end
 
-  def mask_smtp_password(%Organization{} = org) do
-    case get_decrypted_smtp_password(org) do
-      nil -> nil
-      pw when byte_size(pw) <= 8 -> "****"
-      pw -> String.slice(pw, 0, 4) <> "..." <> String.slice(pw, -4, 4)
-    end
-  end
+  defp mask_secret(nil), do: nil
+  defp mask_secret(s) when byte_size(s) <= 8, do: "****"
+  defp mask_secret(s), do: String.slice(s, 0, 4) <> "..." <> String.slice(s, -4, 4)
 
   def smtp_configured?(%Organization{} = org) do
     org.smtp_host not in [nil, ""] and
@@ -133,8 +122,95 @@ defmodule Estimate.Organizations do
     |> Repo.update()
   end
 
-  def delete_membership(%Membership{} = membership) do
-    Repo.delete(membership)
+  def delete_membership(%Membership{} = membership), do: delete_membership(membership, %{})
+
+  @doc """
+  Deletes membership with optional ownership reassignment.
+  `reassignments` is a map of `%{project_id => new_owner_user_id}`.
+  Validates all project_ids belong to the org and all new owners are org members.
+  """
+  def delete_membership(%Membership{} = membership, reassignments)
+      when is_map(reassignments) do
+    Repo.ensure_org_context(fn ->
+      org_id = membership.organization_id
+      removed_user_id = membership.user_id
+
+      with :ok <- validate_reassignments(reassignments, org_id, removed_user_id) do
+        org_project_ids =
+          from(p in Project, where: p.organization_id == ^org_id, select: p.id)
+
+        multi =
+          reassignments
+          |> Enum.reduce(Ecto.Multi.new(), fn {project_id, new_owner_id}, multi ->
+            Ecto.Multi.run(multi, {:reassign, project_id}, fn _repo, _ ->
+              upsert_owner(project_id, new_owner_id)
+            end)
+          end)
+          |> Ecto.Multi.delete_all(
+            :collaborators,
+            from(pc in ProjectCollaborator,
+              where: pc.user_id == ^removed_user_id and pc.project_id in subquery(org_project_ids)
+            )
+          )
+          |> Ecto.Multi.delete(:membership, membership)
+
+        case Repo.transaction(multi) do
+          {:ok, %{membership: m}} -> {:ok, m}
+          {:error, _op, changeset, _} -> {:error, changeset}
+        end
+      end
+    end)
+  end
+
+  defp validate_reassignments(reassignments, _org_id, _removed_user_id)
+       when map_size(reassignments) == 0,
+       do: :ok
+
+  defp validate_reassignments(reassignments, org_id, removed_user_id) do
+    project_ids = Map.keys(reassignments)
+    new_owner_ids = reassignments |> Map.values() |> Enum.uniq()
+
+    org_project_ids =
+      from(p in Project, where: p.id in ^project_ids and p.organization_id == ^org_id, select: p.id)
+      |> Repo.all()
+      |> MapSet.new()
+
+    member_ids =
+      from(m in Membership, where: m.organization_id == ^org_id, select: m.user_id)
+      |> Repo.all()
+      |> MapSet.new()
+
+    cond do
+      Enum.any?(project_ids, &(not MapSet.member?(org_project_ids, &1))) ->
+        {:error, :invalid_project}
+
+      Enum.any?(new_owner_ids, &(&1 == removed_user_id)) ->
+        {:error, :self_reassignment}
+
+      Enum.any?(new_owner_ids, &(not MapSet.member?(member_ids, &1))) ->
+        {:error, :invalid_member}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp upsert_owner(project_id, user_id) do
+    case Repo.get_by(ProjectCollaborator, project_id: project_id, user_id: user_id) do
+      nil ->
+        %ProjectCollaborator{}
+        |> ProjectCollaborator.changeset(%{
+          project_id: project_id,
+          user_id: user_id,
+          role: "owner"
+        })
+        |> Repo.insert()
+
+      existing ->
+        existing
+        |> ProjectCollaborator.changeset(%{role: "owner"})
+        |> Repo.update()
+    end
   end
 
   ## Invites
@@ -158,38 +234,43 @@ defmodule Estimate.Organizations do
     if invite && Invite.valid?(invite), do: invite
   end
 
-  def accept_invite(%Invite{} = invite, user_id) do
-    unless Invite.valid?(invite) do
-      {:error, :expired}
-    else
-      Ecto.Multi.new()
-      |> Ecto.Multi.run(:verify_still_valid, fn _repo, _ ->
-        # Re-check at DB level to prevent race condition
-        fresh =
-          from(i in Invite,
-            where:
-              i.id == ^invite.id and is_nil(i.accepted_at) and i.expires_at > ^DateTime.utc_now()
-          )
-          |> Repo.one()
+  def accept_invite(%Invite{} = invite, %{id: user_id, email: user_email}) do
+    cond do
+      not Invite.valid?(invite) ->
+        {:error, :expired}
 
-        if fresh, do: {:ok, fresh}, else: {:error, :expired}
-      end)
-      |> Ecto.Multi.update(:invite, fn %{verify_still_valid: fresh} ->
-        Invite.accept_changeset(fresh)
-      end)
-      |> Ecto.Multi.insert(:membership, fn _ ->
-        Membership.changeset(%Membership{}, %{
-          user_id: user_id,
-          organization_id: invite.organization_id,
-          role: invite.role
-        })
-      end)
-      |> Repo.transaction()
-      |> case do
-        {:ok, result} -> {:ok, result}
-        {:error, :verify_still_valid, :expired, _} -> {:error, :expired}
-        {:error, _op, changeset, _} -> {:error, changeset}
-      end
+      invite.email != nil and invite.email != user_email ->
+        {:error, :email_mismatch}
+
+      true ->
+        Ecto.Multi.new()
+        |> Ecto.Multi.run(:verify_still_valid, fn _repo, _ ->
+          fresh =
+            from(i in Invite,
+              where:
+                i.id == ^invite.id and is_nil(i.accepted_at) and
+                  i.expires_at > ^DateTime.utc_now()
+            )
+            |> Repo.one()
+
+          if fresh, do: {:ok, fresh}, else: {:error, :expired}
+        end)
+        |> Ecto.Multi.update(:invite, fn %{verify_still_valid: fresh} ->
+          Invite.accept_changeset(fresh)
+        end)
+        |> Ecto.Multi.insert(:membership, fn _ ->
+          Membership.changeset(%Membership{}, %{
+            user_id: user_id,
+            organization_id: invite.organization_id,
+            role: invite.role
+          })
+        end)
+        |> Repo.transaction()
+        |> case do
+          {:ok, result} -> {:ok, result}
+          {:error, :verify_still_valid, :expired, _} -> {:error, :expired}
+          {:error, _op, changeset, _} -> {:error, changeset}
+        end
     end
   end
 
@@ -270,4 +351,9 @@ defmodule Estimate.Organizations do
   end
 
   def get_join_request!(id), do: Repo.get!(JoinRequest, id)
+
+  def get_join_request!(id, org_id) do
+    from(jr in JoinRequest, where: jr.id == ^id and jr.organization_id == ^org_id)
+    |> Repo.one!()
+  end
 end

@@ -6,10 +6,10 @@ defmodule EstimateWeb.UserLive.ForgotPassword do
   def render(assigns) do
     ~H"""
     <div class="w-full">
-      <h1 class="text-3xl font-bold text-center text-gray-900 mb-2">
+      <h1 class="text-3xl font-bold text-center text-base-content mb-2">
         Forgot your password?
       </h1>
-      <p class="text-center text-gray-500 mb-8">
+      <p class="text-center text-base-content/60 mb-8">
         We'll send a password reset link to your inbox
       </p>
 
@@ -21,25 +21,25 @@ defmodule EstimateWeb.UserLive.ForgotPassword do
             value={@form[:email].value}
             placeholder="Email Address"
             required
-            class="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+            class="w-full px-4 py-3 border border-base-content/20 rounded-lg text-base-content placeholder-base-content/60"
           />
         </div>
 
         <button
           type="submit"
           phx-disable-with="Sending..."
-          class="w-full py-3 px-4 bg-gray-900 text-white font-medium rounded-lg hover:bg-gray-800 transition-colors"
+          class="w-full py-3 px-4 bg-neutral text-neutral-content font-medium rounded-lg hover:bg-neutral/90 transition-colors"
         >
           Send reset link
         </button>
       </form>
 
-      <p class="mt-8 text-center text-gray-600">
-        <.link navigate={~p"/users/register"} class="text-blue-600 hover:text-blue-700 font-medium">
+      <p class="mt-8 text-center text-base-content/70">
+        <.link navigate={~p"/users/register"} class="text-info hover:text-info font-medium">
           Sign Up
         </.link>
-        <span class="mx-2 text-gray-300">|</span>
-        <.link navigate={~p"/users/log_in"} class="text-blue-600 hover:text-blue-700 font-medium">
+        <span class="mx-2 text-base-content/30">|</span>
+        <.link navigate={~p"/users/log_in"} class="text-info hover:text-info font-medium">
           Sign In
         </.link>
       </p>

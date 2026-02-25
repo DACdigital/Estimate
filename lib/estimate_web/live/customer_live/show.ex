@@ -10,12 +10,12 @@ defmodule EstimateWeb.CustomerLive.Show do
     ~H"""
     <div class="max-w-4xl mx-auto">
       <%!-- Breadcrumb --%>
-      <nav class="flex items-center space-x-2 text-sm text-gray-500 mb-6">
-        <.link navigate={~p"/org/#{@org_id}/customers"} class="hover:text-gray-900">
+      <nav class="flex items-center space-x-2 text-sm text-base-content/60 mb-6">
+        <.link navigate={~p"/org/#{@org_id}/customers"} class="hover:text-base-content">
           Customers
         </.link>
-        <span class="text-gray-300">›</span>
-        <span class="text-gray-900 font-medium">{@customer.name}</span>
+        <span class="text-base-content/30">›</span>
+        <span class="text-base-content font-medium">{@customer.name}</span>
       </nav>
 
       <%!-- Customer Header --%>
@@ -24,26 +24,26 @@ defmodule EstimateWeb.CustomerLive.Show do
           <.avatar name={@customer.name} seed={@customer.id} type={:customer} size={:xl} />
           <div>
             <div class="flex items-center gap-3">
-              <h1 class="text-2xl font-bold text-gray-900">{@customer.name}</h1>
-              <span class="text-sm font-mono text-gray-400">{@customer.key}</span>
+              <h1 class="text-2xl font-bold text-base-content">{@customer.name}</h1>
+              <span class="text-sm font-mono text-base-content/40">{@customer.key}</span>
               <span
                 :if={@customer.country}
-                class="text-xs text-gray-400 px-1.5 py-0.5 bg-gray-100 rounded"
+                class="text-xs text-base-content/40 px-1.5 py-0.5 bg-base-200 rounded"
               >
                 {@customer.country}
               </span>
             </div>
-            <p :if={@customer.description} class="mt-1 text-gray-500">{@customer.description}</p>
+            <p :if={@customer.description} class="mt-1 text-base-content/60">{@customer.description}</p>
             <div class="flex items-center gap-4 mt-2 text-sm">
               <a
                 :if={@customer.website_url}
                 href={@customer.website_url}
                 target="_blank"
-                class="text-blue-600 hover:underline"
+                class="text-info hover:underline"
               >
                 {@customer.website_url}
               </a>
-              <span :if={@customer.default_currency} class="text-gray-400">
+              <span :if={@customer.default_currency} class="text-base-content/40">
                 Default: {@customer.default_currency.code}
               </span>
             </div>
@@ -52,14 +52,14 @@ defmodule EstimateWeb.CustomerLive.Show do
         <div class="flex items-center gap-2">
           <.link
             patch={~p"/org/#{@org_id}/customers/#{@customer.id}/edit"}
-            class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors"
+            class="px-3 py-1.5 text-sm text-base-content/70 hover:text-base-content border border-base-300 rounded-lg hover:border-base-content/20 transition-colors"
           >
             Edit
           </.link>
           <button
             :if={@is_admin}
             phx-click="confirm_delete"
-            class="px-3 py-1.5 text-sm text-red-600 hover:text-red-700 border border-red-200 rounded-lg hover:border-red-300 transition-colors"
+            class="px-3 py-1.5 text-sm text-error hover:text-error border border-error/30 dark:border-error/50 rounded-lg hover:border-error/50 transition-colors"
           >
             Delete
           </button>
@@ -67,12 +67,12 @@ defmodule EstimateWeb.CustomerLive.Show do
       </div>
 
       <%!-- Projects Section --%>
-      <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
-        <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-          <h2 class="font-semibold text-gray-900">Projects</h2>
+      <div class="bg-base-100 border border-base-300 rounded-xl overflow-hidden">
+        <div class="px-6 py-4 border-b border-base-content/10 flex items-center justify-between">
+          <h2 class="font-semibold text-base-content">Projects</h2>
           <.link
             navigate={~p"/org/#{@org_id}/projects/new?customer_id=#{@customer.id}"}
-            class="px-3 py-1.5 bg-gray-900 text-white text-sm rounded-lg hover:bg-gray-800 transition-colors"
+            class="px-3 py-1.5 bg-neutral text-neutral-content text-sm rounded-lg hover:bg-neutral/90 transition-colors"
           >
             New Project
           </.link>
@@ -80,24 +80,24 @@ defmodule EstimateWeb.CustomerLive.Show do
 
         <%= if @projects == [] do %>
           <div class="px-6 py-12 text-center">
-            <div class="w-10 h-10 mx-auto mb-3 rounded-full bg-gray-100 flex items-center justify-center">
-              <.icon name="hero-folder" class="w-5 h-5 text-gray-400" />
+            <div class="w-10 h-10 mx-auto mb-3 rounded-full bg-base-200 flex items-center justify-center">
+              <.icon name="hero-folder" class="w-5 h-5 text-base-content/40" />
             </div>
-            <p class="text-sm text-gray-500">No projects yet</p>
+            <p class="text-sm text-base-content/60">No projects yet</p>
           </div>
         <% else %>
           <div
             :for={project <- @projects}
-            class="px-6 py-4 flex items-center justify-between border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors"
+            class="px-6 py-4 flex items-center justify-between border-b border-base-content/10 last:border-b-0 hover:bg-base-200 transition-colors"
           >
             <.link navigate={~p"/org/#{@org_id}/projects/#{project.id}"} class="flex-1 min-w-0">
               <div class="flex items-center gap-3">
-                <h3 class="text-sm font-medium text-gray-900">{project.name}</h3>
+                <h3 class="text-sm font-medium text-base-content">{project.name}</h3>
                 <span class={"text-xs px-1.5 py-0.5 rounded #{project_status_class(project.status)}"}>
                   {project.status}
                 </span>
               </div>
-              <p :if={project.short_description} class="text-sm text-gray-500 truncate mt-0.5">
+              <p :if={project.short_description} class="text-sm text-base-content/60 truncate mt-0.5">
                 {project.short_description}
               </p>
             </.link>
@@ -108,7 +108,7 @@ defmodule EstimateWeb.CustomerLive.Show do
       <div class="mt-6">
         <.link
           navigate={~p"/org/#{@org_id}/customers"}
-          class="text-sm text-gray-500 hover:text-gray-700"
+          class="text-sm text-base-content/60 hover:text-base-content/80"
         >
           ← Back to Customers
         </.link>
@@ -122,24 +122,24 @@ defmodule EstimateWeb.CustomerLive.Show do
         on_cancel={JS.push("cancel_delete")}
       >
         <div class="text-center">
-          <div class="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
-            <.icon name="hero-exclamation-triangle" class="w-6 h-6 text-red-600" />
+          <div class="w-12 h-12 rounded-full bg-error/10 flex items-center justify-center mx-auto mb-4">
+            <.icon name="hero-exclamation-triangle" class="w-6 h-6 text-error" />
           </div>
-          <h3 class="text-lg font-semibold text-gray-900 mb-2">Delete Customer</h3>
-          <p class="text-sm text-gray-500 mb-6">
-            Are you sure you want to delete <span class="font-medium text-gray-900"><%= @customer.name %></span>?
+          <h3 class="text-lg font-semibold text-base-content mb-2">Delete Customer</h3>
+          <p class="text-sm text-base-content/60 mb-6">
+            Are you sure you want to delete <span class="font-medium text-base-content"><%= @customer.name %></span>?
             This will also delete all their projects and estimations.
           </p>
           <div class="flex gap-3 justify-center">
             <button
               phx-click="cancel_delete"
-              class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+              class="px-4 py-2 text-sm text-base-content/70 hover:text-base-content transition-colors"
             >
               Cancel
             </button>
             <button
               phx-click="delete"
-              class="px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors font-medium"
+              class="px-4 py-2 bg-error text-neutral-content text-sm rounded-lg hover:bg-error/90 transition-colors font-medium"
             >
               Delete Customer
             </button>

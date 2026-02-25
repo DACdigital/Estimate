@@ -2,23 +2,24 @@ defmodule EstimateWeb.SettingsLive.Currencies do
   use EstimateWeb, :live_view
 
   alias Estimate.Organizations.Currencies
+  import EstimateWeb.LiveHelpers
 
   @impl true
   def render(assigns) do
     ~H"""
     <div class="max-w-5xl mx-auto space-y-6">
       <%!-- Currency List Card --%>
-      <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      <div class="bg-base-100 border border-base-300 rounded-xl overflow-hidden">
         <div class="p-6">
-          <h2 class="text-xl font-semibold text-gray-900">Currencies</h2>
-          <p class="mt-1 text-sm text-gray-500">
+          <h2 class="text-xl font-semibold text-base-content">Currencies</h2>
+          <p class="mt-1 text-sm text-base-content/60">
             Manage currencies and exchange rates.<%= if @is_admin do %> Click any row to set as main.<% end %>
           </p>
         </div>
 
-        <div class="border-t border-gray-200">
+        <div class="border-t border-base-300">
           <%!-- Table Header --%>
-          <div class="px-6 py-3 bg-gray-50 grid grid-cols-12 gap-6 text-xs font-medium text-gray-500 uppercase tracking-wider">
+          <div class="px-6 py-3 bg-base-200 grid grid-cols-12 gap-6 text-xs font-medium text-base-content/60 uppercase tracking-wider">
             <div class="col-span-2">Code</div>
             <div class="col-span-3">Name</div>
             <div class="col-span-1">Symbol</div>
@@ -29,7 +30,7 @@ defmodule EstimateWeb.SettingsLive.Currencies do
 
           <%!-- Currency Rows --%>
           <%= for currency <- @currencies do %>
-            <div class={"px-6 py-4 grid grid-cols-12 gap-6 items-center border-t border-gray-100 #{unless currency.is_main, do: "hover:bg-gray-50 group", else: "bg-gray-50"}"}>
+            <div class={"px-6 py-4 grid grid-cols-12 gap-6 items-center border-t border-base-content/10 #{unless currency.is_main, do: "hover:bg-base-200 group", else: "bg-base-200"}"}>
               <div class="col-span-2 flex items-center gap-2">
                 <input
                   type="text"
@@ -39,16 +40,16 @@ defmodule EstimateWeb.SettingsLive.Currencies do
                   phx-value-id={currency.id}
                   phx-value-field="code"
                   disabled={!@is_admin}
-                  class={"w-14 px-2 py-1 border border-transparent hover:border-gray-200 rounded text-sm font-mono font-medium focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent uppercase bg-transparent #{if @is_admin, do: "text-gray-900", else: "text-gray-500 cursor-not-allowed"}"}
+                  class={"w-14 px-2 py-1 border border-transparent hover:border-base-300 rounded text-sm font-mono font-medium uppercase bg-transparent #{if @is_admin, do: "text-base-content", else: "text-base-content/60 cursor-not-allowed"}"}
                 />
                 <%= if currency.is_main do %>
-                  <span class="px-1.5 py-0.5 text-xs bg-gray-900 text-white rounded">Main</span>
+                  <span class="px-1.5 py-0.5 text-xs bg-neutral text-neutral-content rounded">Main</span>
                 <% else %>
                   <button
                     :if={@is_admin}
                     phx-click="set_main"
                     phx-value-id={currency.id}
-                    class="px-1.5 py-0.5 text-xs border border-gray-300 text-gray-500 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-gray-100"
+                    class="px-1.5 py-0.5 text-xs border border-base-content/20 text-base-content/60 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-base-300"
                   >
                     Set main
                   </button>
@@ -62,7 +63,7 @@ defmodule EstimateWeb.SettingsLive.Currencies do
                   phx-value-id={currency.id}
                   phx-value-field="name"
                   disabled={!@is_admin}
-                  class={"w-full px-2 py-1 border border-transparent hover:border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-transparent #{if @is_admin, do: "text-gray-600", else: "text-gray-500 cursor-not-allowed"}"}
+                  class={"w-full px-2 py-1 border border-transparent hover:border-base-300 rounded text-sm bg-transparent #{if @is_admin, do: "text-base-content/70", else: "text-base-content/60 cursor-not-allowed"}"}
                 />
               </div>
               <div class="col-span-1">
@@ -74,7 +75,7 @@ defmodule EstimateWeb.SettingsLive.Currencies do
                   phx-value-id={currency.id}
                   phx-value-field="symbol"
                   disabled={!@is_admin}
-                  class={"w-full px-2 py-1 border border-transparent hover:border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-transparent #{if @is_admin, do: "text-gray-600", else: "text-gray-500 cursor-not-allowed"}"}
+                  class={"w-full px-2 py-1 border border-transparent hover:border-base-300 rounded text-sm bg-transparent #{if @is_admin, do: "text-base-content/70", else: "text-base-content/60 cursor-not-allowed"}"}
                 />
               </div>
               <div class="col-span-2">
@@ -82,21 +83,21 @@ defmodule EstimateWeb.SettingsLive.Currencies do
                   phx-click="toggle_position"
                   phx-value-id={currency.id}
                   disabled={!@is_admin}
-                  class={"flex items-center gap-1.5 px-2.5 py-1.5 text-xs border border-gray-200 rounded-md transition-colors #{if @is_admin, do: "hover:border-gray-300 hover:bg-gray-50", else: "cursor-not-allowed opacity-60"}"}
+                  class={"flex items-center gap-1.5 px-2.5 py-1.5 text-xs border border-base-300 rounded-md transition-colors #{if @is_admin, do: "hover:border-base-content/20 hover:bg-base-200", else: "cursor-not-allowed opacity-60"}"}
                   title="Toggle symbol position"
                 >
-                  <span class={"font-mono #{if currency.symbol_position == "prefix", do: "text-gray-900 font-medium", else: "text-gray-400"}"}>
+                  <span class={"font-mono #{if currency.symbol_position == "prefix", do: "text-base-content font-medium", else: "text-base-content/40"}"}>
                     {currency.symbol}99
                   </span>
-                  <span class="text-gray-300">|</span>
-                  <span class={"font-mono #{if currency.symbol_position == "suffix", do: "text-gray-900 font-medium", else: "text-gray-400"}"}>
+                  <span class="text-base-content/30">|</span>
+                  <span class={"font-mono #{if currency.symbol_position == "suffix", do: "text-base-content font-medium", else: "text-base-content/40"}"}>
                     99{currency.symbol}
                   </span>
                 </button>
               </div>
               <div class="col-span-2">
                 <%= if currency.is_main do %>
-                  <span class="w-24 px-2 py-1 text-sm font-mono text-gray-500">1.0</span>
+                  <span class="w-24 px-2 py-1 text-sm font-mono text-base-content/60">1.0</span>
                 <% else %>
                   <input
                     type="number"
@@ -107,7 +108,7 @@ defmodule EstimateWeb.SettingsLive.Currencies do
                     phx-value-id={currency.id}
                     phx-click="stop_propagation"
                     disabled={!@is_admin}
-                    class={"w-24 px-2 py-1 border border-gray-200 rounded text-sm font-mono focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent #{unless @is_admin, do: "cursor-not-allowed bg-gray-50 text-gray-500"}"}
+                    class={"w-24 px-2 py-1 border border-base-300 rounded text-sm font-mono #{unless @is_admin, do: "cursor-not-allowed bg-base-200 text-base-content/60"}"}
                   />
                 <% end %>
               </div>
@@ -116,7 +117,7 @@ defmodule EstimateWeb.SettingsLive.Currencies do
                   <button
                     phx-click="confirm_delete"
                     phx-value-id={currency.id}
-                    class="text-gray-400 hover:text-red-600 transition-colors focus:outline-none"
+                    class="text-base-content/40 hover:text-error transition-colors focus:outline-none"
                   >
                     <.icon name="hero-trash" class="w-4 h-4" />
                   </button>
@@ -130,7 +131,7 @@ defmodule EstimateWeb.SettingsLive.Currencies do
             :if={@is_admin}
             for={@new_currency_form}
             phx-submit="add_currency"
-            class="px-6 py-4 grid grid-cols-12 gap-6 items-center border-t border-gray-100 bg-gray-50"
+            class="px-6 py-4 grid grid-cols-12 gap-6 items-center border-t border-base-content/10 bg-base-200"
           >
             <div class="col-span-2">
               <input
@@ -139,7 +140,7 @@ defmodule EstimateWeb.SettingsLive.Currencies do
                 value={@new_currency_form[:code].value}
                 placeholder="USD"
                 maxlength="3"
-                class="w-full px-2.5 py-1.5 border border-gray-300 rounded-md text-sm font-mono uppercase focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                class="w-full px-2.5 py-1.5 border border-base-content/20 rounded-md text-sm font-mono uppercase"
               />
             </div>
             <div class="col-span-3">
@@ -148,7 +149,7 @@ defmodule EstimateWeb.SettingsLive.Currencies do
                 name={@new_currency_form[:name].name}
                 value={@new_currency_form[:name].value}
                 placeholder="US Dollar"
-                class="w-full px-2.5 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                class="w-full px-2.5 py-1.5 border border-base-content/20 rounded-md text-sm"
               />
             </div>
             <div class="col-span-1">
@@ -158,13 +159,13 @@ defmodule EstimateWeb.SettingsLive.Currencies do
                 value={@new_currency_form[:symbol].value}
                 placeholder="$"
                 maxlength="5"
-                class="w-full px-2.5 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                class="w-full px-2.5 py-1.5 border border-base-content/20 rounded-md text-sm"
               />
             </div>
             <div class="col-span-2">
               <select
                 name={@new_currency_form[:symbol_position].name}
-                class="w-full px-2.5 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                class="w-full px-2.5 py-1.5 border border-base-content/20 rounded-md text-sm"
               >
                 <option
                   value="prefix"
@@ -188,13 +189,13 @@ defmodule EstimateWeb.SettingsLive.Currencies do
                 name={@new_currency_form[:exchange_rate].name}
                 value={@new_currency_form[:exchange_rate].value}
                 placeholder="1.0"
-                class="w-24 px-2 py-1 border border-gray-300 rounded text-sm font-mono focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                class="w-24 px-2 py-1 border border-base-content/20 rounded text-sm font-mono"
               />
             </div>
             <div class="col-span-2 text-right">
               <button
                 type="submit"
-                class="px-3 py-1 bg-gray-900 text-white text-sm rounded hover:bg-gray-800 transition-colors"
+                class="px-3 py-1 bg-neutral text-neutral-content text-sm rounded hover:bg-neutral/90 transition-colors"
               >
                 Add
               </button>
@@ -211,24 +212,24 @@ defmodule EstimateWeb.SettingsLive.Currencies do
         on_cancel={JS.push("cancel_delete")}
       >
         <div class="text-center">
-          <div class="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
-            <.icon name="hero-exclamation-triangle" class="w-6 h-6 text-red-600" />
+          <div class="w-12 h-12 rounded-full bg-error/10 flex items-center justify-center mx-auto mb-4">
+            <.icon name="hero-exclamation-triangle" class="w-6 h-6 text-error" />
           </div>
-          <h3 class="text-lg font-semibold text-gray-900 mb-2">Delete Currency</h3>
-          <p class="text-sm text-gray-500 mb-6">
-            Are you sure you want to delete <span class="font-medium text-gray-900"><%= @deleting_currency.code %></span>?
+          <h3 class="text-lg font-semibold text-base-content mb-2">Delete Currency</h3>
+          <p class="text-sm text-base-content/60 mb-6">
+            Are you sure you want to delete <span class="font-medium text-base-content"><%= @deleting_currency.code %></span>?
             This action cannot be undone.
           </p>
           <div class="flex gap-3 justify-center">
             <button
               phx-click="cancel_delete"
-              class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+              class="px-4 py-2 text-sm text-base-content/70 hover:text-base-content transition-colors"
             >
               Cancel
             </button>
             <button
               phx-click="delete_currency"
-              class="px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors font-medium"
+              class="px-4 py-2 bg-error text-error-content text-sm rounded-lg hover:bg-error/90 transition-colors font-medium"
             >
               Delete
             </button>
@@ -270,26 +271,24 @@ defmodule EstimateWeb.SettingsLive.Currencies do
 
   @impl true
   def handle_event("set_main", %{"id" => id}, socket) do
-    unless socket.assigns.is_admin do
-      {:noreply, put_flash(socket, :error, "Not authorized")}
-    else
+    require_admin(socket, fn ->
       currency = Currencies.get_currency!(id, socket.assigns.org_id)
 
       case Currencies.set_main_currency(currency) do
-      {:ok, _} ->
-        currencies = Currencies.list_currencies(socket.assigns.org_id)
-        main = Enum.find(currencies, & &1.is_main)
+        {:ok, _} ->
+          currencies = Currencies.list_currencies(socket.assigns.org_id)
+          main = Enum.find(currencies, & &1.is_main)
 
-        {:noreply,
-         socket
-         |> put_flash(:info, "#{currency.code} is now main")
-         |> assign(:currencies, currencies)
-         |> assign(:main_currency, main)}
+          {:noreply,
+           socket
+           |> put_flash(:info, "#{currency.code} is now main")
+           |> assign(:currencies, currencies)
+           |> assign(:main_currency, main)}
 
-      {:error, _} ->
-        {:noreply, put_flash(socket, :error, "Could not set main currency")}
+        {:error, _} ->
+          {:noreply, put_flash(socket, :error, "Could not set main currency")}
       end
-    end
+    end)
   end
 
   def handle_event("stop_propagation", _params, socket) do
@@ -297,9 +296,7 @@ defmodule EstimateWeb.SettingsLive.Currencies do
   end
 
   def handle_event("update_field", %{"id" => id, "field" => field, "value" => value}, socket) do
-    unless socket.assigns.is_admin do
-      {:noreply, put_flash(socket, :error, "Not authorized")}
-    else
+    require_admin(socket, fn ->
       currency = Currencies.get_currency!(id, socket.assigns.org_id)
       attrs = %{field => value}
 
@@ -311,13 +308,11 @@ defmodule EstimateWeb.SettingsLive.Currencies do
         {:error, _} ->
           {:noreply, put_flash(socket, :error, "Could not update #{field}")}
       end
-    end
+    end)
   end
 
   def handle_event("toggle_position", %{"id" => id}, socket) do
-    unless socket.assigns.is_admin do
-      {:noreply, put_flash(socket, :error, "Not authorized")}
-    else
+    require_admin(socket, fn ->
       currency = Currencies.get_currency!(id, socket.assigns.org_id)
       new_position = if currency.symbol_position == "prefix", do: "suffix", else: "prefix"
 
@@ -329,71 +324,67 @@ defmodule EstimateWeb.SettingsLive.Currencies do
         {:error, _} ->
           {:noreply, put_flash(socket, :error, "Could not update symbol position")}
       end
-    end
+    end)
   end
 
   def handle_event("update_rate", %{"id" => id, "value" => rate_str}, socket) do
-    unless socket.assigns.is_admin do
-      {:noreply, put_flash(socket, :error, "Not authorized")}
-    else
+    require_admin(socket, fn ->
       currency = Currencies.get_currency!(id, socket.assigns.org_id)
 
       case Decimal.parse(rate_str) do
-      {rate, _} ->
-        if Decimal.gt?(rate, 0) do
-          case Currencies.update_currency(currency, %{exchange_rate: rate}) do
-            {:ok, _} ->
-              currencies = Currencies.list_currencies(socket.assigns.org_id)
-              {:noreply, assign(socket, :currencies, currencies)}
+        {rate, _} ->
+          if Decimal.gt?(rate, 0) do
+            case Currencies.update_currency(currency, %{exchange_rate: rate}) do
+              {:ok, _} ->
+                currencies = Currencies.list_currencies(socket.assigns.org_id)
+                {:noreply, assign(socket, :currencies, currencies)}
 
-            {:error, _} ->
-              {:noreply, put_flash(socket, :error, "Could not update rate")}
+              {:error, _} ->
+                {:noreply, put_flash(socket, :error, "Could not update rate")}
+            end
+          else
+            {:noreply, put_flash(socket, :error, "Rate must be positive")}
           end
-        else
-          {:noreply, put_flash(socket, :error, "Rate must be positive")}
-        end
 
-      :error ->
-        {:noreply, put_flash(socket, :error, "Invalid rate")}
+        :error ->
+          {:noreply, put_flash(socket, :error, "Invalid rate")}
       end
-    end
+    end)
   end
 
   def handle_event("add_currency", %{"currency" => params}, socket) do
-    unless socket.assigns.is_admin do
-      {:noreply, put_flash(socket, :error, "Not authorized")}
-    else
+    require_admin(socket, fn ->
       case Currencies.create_currency(socket.assigns.org_id, params) do
-      {:ok, _} ->
-        currencies = Currencies.list_currencies(socket.assigns.org_id)
+        {:ok, _} ->
+          currencies = Currencies.list_currencies(socket.assigns.org_id)
 
-        {:noreply,
-         socket
-         |> put_flash(:info, "Currency added")
-         |> assign(:currencies, currencies)
-         |> assign(
-           :new_currency_form,
-           to_form(
-             %{
-               "code" => "",
-               "name" => "",
-               "symbol" => "",
-               "symbol_position" => "prefix",
-               "exchange_rate" => "1.0"
-             },
-             as: "currency"
-           )
-         )}
+          {:noreply,
+           socket
+           |> put_flash(:info, "Currency added")
+           |> assign(:currencies, currencies)
+           |> assign(
+             :new_currency_form,
+             to_form(
+               %{
+                 "code" => "",
+                 "name" => "",
+                 "symbol" => "",
+                 "symbol_position" => "prefix",
+                 "exchange_rate" => "1.0"
+               },
+               as: "currency"
+             )
+           )}
 
-      {:error, _changeset} ->
-        {:noreply,
-         put_flash(
-           socket,
-           :error,
-           "Could not add currency. Check code is unique and 3 characters."
-         )}
+        {:error, _changeset} ->
+          {:noreply,
+           put_flash(
+             socket,
+             :error,
+             "Could not add currency. Check code is unique and 3 characters."
+           )}
       end
-    end
+    end)
   end
 
   def handle_event("confirm_delete", %{"id" => id}, socket) do
@@ -406,12 +397,7 @@ defmodule EstimateWeb.SettingsLive.Currencies do
   end
 
   def handle_event("delete_currency", _params, socket) do
-    unless socket.assigns.is_admin do
-      {:noreply,
-       socket
-       |> put_flash(:error, "Not authorized")
-       |> assign(:deleting_currency, nil)}
-    else
+    require_admin(socket, fn ->
       currency = socket.assigns.deleting_currency
 
       case Currencies.delete_currency(currency) do
@@ -436,6 +422,6 @@ defmodule EstimateWeb.SettingsLive.Currencies do
            |> put_flash(:error, "Could not delete currency")
            |> assign(:deleting_currency, nil)}
       end
-    end
+    end)
   end
 end

@@ -25,8 +25,8 @@ defmodule EstimateWeb.Layouts do
       href={@href}
       class={[
         "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-        @active && "bg-gray-100 text-gray-900",
-        !@active && "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+        @active && "bg-base-200 text-base-content",
+        !@active && "text-base-content/70 hover:bg-base-200 hover:text-base-content"
       ]}
     >
       <.icon name={@icon} class="w-5 h-5" />
@@ -48,8 +48,8 @@ defmodule EstimateWeb.Layouts do
       href={@href}
       class={[
         "block px-3 py-1.5 rounded-lg text-sm transition-colors",
-        @active && "bg-gray-100 text-gray-900 font-medium",
-        !@active && "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+        @active && "bg-base-200 text-base-content font-medium",
+        !@active && "text-base-content/70 hover:bg-base-200 hover:text-base-content"
       ]}
     >
       {@label}

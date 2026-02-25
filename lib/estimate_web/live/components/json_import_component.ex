@@ -14,18 +14,18 @@ defmodule EstimateWeb.Components.JsonImportComponent do
     <div class="space-y-3">
       <div>
         <div class="flex items-center justify-between mb-1.5">
-          <label class="block text-xs font-medium text-gray-500">
+          <label class="block text-xs font-medium text-base-content/60">
             Paste JSON
           </label>
           <div class="flex items-center gap-3">
             <button
               type="button"
               phx-click={@download_event}
-              class="text-xs text-blue-600 hover:text-blue-700 hover:underline"
+              class="text-xs text-info hover:text-info/80 hover:underline"
             >
               Download example schema
             </button>
-            <label class="text-xs text-blue-600 hover:text-blue-700 hover:underline cursor-pointer">
+            <label class="text-xs text-info hover:text-info/80 hover:underline cursor-pointer">
               Or upload file
               <input
                 type="file"
@@ -42,17 +42,17 @@ defmodule EstimateWeb.Components.JsonImportComponent do
           rows="12"
           phx-debounce="500"
           placeholder={"{\n  \"epics\": [\n    {\n      \"name\": \"Epic name\",\n      \"tasks\": [\n        { \"name\": \"Task name\", \"priority\": \"must\" }\n      ]\n    }\n  ]\n}"}
-          class={"w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm font-mono resize-none #{if @json_error, do: "border-red-300", else: "border-gray-300"}"}
+          class={"w-full px-3 py-2 border rounded-lg text-sm font-mono resize-none #{if @json_error, do: "border-error/50", else: "border-base-content/20"}"}
         ><%= @json_input %></textarea>
       </div>
 
-      <p :if={@json_error} class="text-sm text-red-600">{@json_error}</p>
+      <p :if={@json_error} class="text-sm text-error">{@json_error}</p>
 
       <div
         :if={@json_parsed && !@json_error}
-        class="bg-green-50 border border-green-200 rounded-lg p-3"
+        class="bg-success/10 border border-success/20 rounded-lg p-3"
       >
-        <p class="text-sm text-green-700 font-medium">
+        <p class="text-sm text-success font-medium">
           <.icon name="hero-check-circle" class="w-4 h-4 inline-block -mt-0.5 mr-1" />
           {length(@json_parsed.epics)} epics, {Enum.sum(
             Enum.map(@json_parsed.epics, fn e -> length(e.tasks) end)

@@ -6,7 +6,7 @@ defmodule EstimateWeb.UserLive.ResetPassword do
   def render(assigns) do
     ~H"""
     <div class="w-full">
-      <h1 class="text-3xl font-bold text-center text-gray-900 mb-8">
+      <h1 class="text-3xl font-bold text-center text-base-content mb-8">
         Reset Password
       </h1>
 
@@ -18,7 +18,7 @@ defmodule EstimateWeb.UserLive.ResetPassword do
       >
         <div
           :if={@form.errors != []}
-          class="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm"
+          class="p-3 bg-error/10 border border-error/20 rounded-lg text-error text-sm"
         >
           Oops, something went wrong! Please check the errors below.
         </div>
@@ -30,9 +30,9 @@ defmodule EstimateWeb.UserLive.ResetPassword do
             value={@form[:password].value}
             placeholder="New password"
             required
-            class={"w-full px-4 py-3 border rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent #{if @form[:password].errors != [], do: "border-red-500", else: "border-gray-300"}"}
+            class={"w-full px-4 py-3 border rounded-lg text-base-content placeholder-base-content/60 #{if @form[:password].errors != [], do: "border-error", else: "border-base-content/20"}"}
           />
-          <p :for={error <- @form[:password].errors} class="mt-1 text-sm text-red-600">
+          <p :for={error <- @form[:password].errors} class="mt-1 text-sm text-error">
             {translate_error(error)}
           </p>
         </div>
@@ -44,9 +44,9 @@ defmodule EstimateWeb.UserLive.ResetPassword do
             value={@form[:password_confirmation].value}
             placeholder="Confirm new password"
             required
-            class={"w-full px-4 py-3 border rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent #{if @form[:password_confirmation].errors != [], do: "border-red-500", else: "border-gray-300"}"}
+            class={"w-full px-4 py-3 border rounded-lg text-base-content placeholder-base-content/60 #{if @form[:password_confirmation].errors != [], do: "border-error", else: "border-base-content/20"}"}
           />
-          <p :for={error <- @form[:password_confirmation].errors} class="mt-1 text-sm text-red-600">
+          <p :for={error <- @form[:password_confirmation].errors} class="mt-1 text-sm text-error">
             {translate_error(error)}
           </p>
         </div>
@@ -54,18 +54,18 @@ defmodule EstimateWeb.UserLive.ResetPassword do
         <button
           type="submit"
           phx-disable-with="Resetting..."
-          class="w-full py-3 px-4 bg-gray-900 text-white font-medium rounded-lg hover:bg-gray-800 transition-colors"
+          class="w-full py-3 px-4 bg-neutral text-neutral-content font-medium rounded-lg hover:bg-neutral/90 transition-colors"
         >
           Reset Password
         </button>
       </form>
 
-      <p class="mt-8 text-center text-gray-600">
-        <.link navigate={~p"/users/register"} class="text-blue-600 hover:text-blue-700 font-medium">
+      <p class="mt-8 text-center text-base-content/70">
+        <.link navigate={~p"/users/register"} class="text-info hover:text-info font-medium">
           Sign Up
         </.link>
-        <span class="mx-2 text-gray-300">|</span>
-        <.link navigate={~p"/users/log_in"} class="text-blue-600 hover:text-blue-700 font-medium">
+        <span class="mx-2 text-base-content/30">|</span>
+        <.link navigate={~p"/users/log_in"} class="text-info hover:text-info font-medium">
           Sign In
         </.link>
       </p>

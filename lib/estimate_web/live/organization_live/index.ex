@@ -8,10 +8,10 @@ defmodule EstimateWeb.OrganizationLive.Index do
   def render(assigns) do
     ~H"""
     <div class="w-full max-w-2xl mx-auto">
-      <h1 class="text-3xl font-bold text-center text-gray-900 mb-2">
+      <h1 class="text-3xl font-bold text-center text-base-content mb-2">
         Select an Organization
       </h1>
-      <p class="text-center text-gray-500 mb-8">
+      <p class="text-center text-base-content/60 mb-8">
         Choose an organization to continue
       </p>
 
@@ -19,45 +19,45 @@ defmodule EstimateWeb.OrganizationLive.Index do
         <.link
           :for={{org, role} <- @organizations}
           navigate={~p"/org/#{org.id}"}
-          class="flex items-center gap-4 p-4 bg-white border border-gray-200 rounded-xl hover:border-gray-300 hover:shadow-sm transition-all group"
+          class="flex items-center gap-4 p-4 bg-base-100 border border-base-300 rounded-xl hover:border-base-content/20 hover:shadow-sm transition-all group"
         >
           <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold text-lg shrink-0">
             {String.first(org.name)}
           </div>
           <div class="flex-1 min-w-0">
-            <h3 class="font-semibold text-gray-900 truncate">{org.name}</h3>
-            <span class="text-sm text-gray-500 capitalize">{role}</span>
+            <h3 class="font-semibold text-base-content truncate">{org.name}</h3>
+            <span class="text-sm text-base-content/60 capitalize">{role}</span>
           </div>
-          <div class="text-gray-400 group-hover:text-gray-600 transition-colors">
+          <div class="text-base-content/40 group-hover:text-base-content/70 transition-colors">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
             </svg>
           </div>
         </.link>
 
-        <div :if={@organizations == []} class="text-center py-12 text-gray-500">
+        <div :if={@organizations == []} class="text-center py-12 text-base-content/60">
           You're not a member of any organization yet.
         </div>
       </div>
 
       <%!-- Join with Code --%>
-      <div class="mt-6 p-4 bg-white border border-gray-200 rounded-xl">
+      <div class="mt-6 p-4 bg-base-100 border border-base-300 rounded-xl">
         <form phx-submit="join_with_code" class="flex gap-3 items-end">
           <div class="flex-1">
-            <label class="block text-xs font-medium text-gray-500 mb-1.5">Have an invite code?</label>
+            <label class="block text-xs font-medium text-base-content/60 mb-1.5">Have an invite code?</label>
             <input
               type="text"
               name="code"
               value={@invite_code}
               placeholder="e.g. XK7F2MPA"
               maxlength="8"
-              class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent focus:bg-white text-sm font-mono tracking-wider uppercase"
+              class="w-full px-3 py-2 bg-base-200 border border-base-300 rounded-lg text-sm font-mono tracking-wider uppercase"
             />
           </div>
           <button
             type="submit"
             phx-disable-with="Joining..."
-            class="px-4 py-2 bg-gray-900 text-white text-sm rounded-lg hover:bg-gray-800 transition-colors font-medium"
+            class="px-4 py-2 bg-neutral text-neutral-content text-sm rounded-lg hover:bg-neutral/90 transition-colors font-medium"
           >
             Join
           </button>
@@ -66,16 +66,16 @@ defmodule EstimateWeb.OrganizationLive.Index do
 
       <div class="relative my-8">
         <div class="absolute inset-0 flex items-center">
-          <div class="w-full border-t border-gray-200"></div>
+          <div class="w-full border-t border-base-300"></div>
         </div>
         <div class="relative flex justify-center text-sm">
-          <span class="px-4 bg-gray-50 text-gray-500">or</span>
+          <span class="px-4 bg-base-200 text-base-content/60">or</span>
         </div>
       </div>
 
       <.link
         patch={~p"/organizations/new"}
-        class="flex items-center justify-center gap-2 w-full py-3 px-4 border-2 border-dashed border-gray-300 rounded-xl text-gray-600 hover:border-gray-400 hover:text-gray-900 transition-colors"
+        class="flex items-center justify-center gap-2 w-full py-3 px-4 border-2 border-dashed border-base-content/20 rounded-xl text-base-content/70 hover:border-base-content/40 hover:text-base-content transition-colors"
       >
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -90,8 +90,8 @@ defmodule EstimateWeb.OrganizationLive.Index do
         on_cancel={JS.patch(~p"/organizations")}
       >
         <div class="text-center mb-6">
-          <h2 class="text-2xl font-bold text-gray-900">Create Organization</h2>
-          <p class="text-gray-500 mt-1">Start collaborating with your team</p>
+          <h2 class="text-2xl font-bold text-base-content">Create Organization</h2>
+          <p class="text-base-content/60 mt-1">Start collaborating with your team</p>
         </div>
 
         <form id="org-form" phx-submit="save" phx-change="validate" class="space-y-4">
@@ -102,12 +102,12 @@ defmodule EstimateWeb.OrganizationLive.Index do
               value={@form && @form[:name].value}
               placeholder="Organization Name"
               required
-              class="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+              class="w-full px-4 py-3 border border-base-content/20 rounded-lg text-base-content placeholder-base-content/60"
             />
             <p
               :for={error <- @form[:name].errors}
               :if={@form && @form[:name].errors != []}
-              class="mt-1 text-sm text-red-600"
+              class="mt-1 text-sm text-error"
             >
               {translate_error(error)}
             </p>
@@ -116,7 +116,7 @@ defmodule EstimateWeb.OrganizationLive.Index do
           <button
             type="submit"
             phx-disable-with="Creating..."
-            class="w-full py-3 px-4 bg-gray-900 text-white font-medium rounded-lg hover:bg-gray-800 transition-colors"
+            class="w-full py-3 px-4 bg-neutral text-neutral-content font-medium rounded-lg hover:bg-neutral/90 transition-colors"
           >
             Create Organization
           </button>
@@ -177,7 +177,7 @@ defmodule EstimateWeb.OrganizationLive.Index do
          |> assign(:invite_code, code)}
 
       invite ->
-        case Organizations.accept_invite(invite, user.id) do
+        case Organizations.accept_invite(invite, user) do
           {:ok, _} ->
             {:noreply,
              socket

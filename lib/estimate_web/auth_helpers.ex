@@ -1,6 +1,8 @@
 defmodule EstimateWeb.AuthHelpers do
   @moduledoc false
 
-  def admin?(%{role: role}), do: role in ["owner", "admin"]
+  alias Estimate.Accounts.Membership
+
+  def admin?(%{role: role}), do: role in Membership.admin_roles()
   def admin?(_), do: false
 end

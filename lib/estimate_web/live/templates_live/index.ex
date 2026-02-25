@@ -4,6 +4,7 @@ defmodule EstimateWeb.TemplatesLive.Index do
   alias Estimate.Templates
   import EstimateWeb.Components.JsonImportComponent
   import EstimateWeb.JsonImportHelpers
+  import EstimateWeb.LiveHelpers
 
   @impl true
   def render(assigns) do
@@ -11,8 +12,8 @@ defmodule EstimateWeb.TemplatesLive.Index do
     <div class="max-w-5xl mx-auto">
       <div class="flex items-center justify-between mb-6">
         <div>
-          <h1 class="text-2xl font-bold text-gray-900">Estimation Templates</h1>
-          <p class="text-sm text-gray-500 mt-1">
+          <h1 class="text-2xl font-bold text-base-content">Estimation Templates</h1>
+          <p class="text-sm text-base-content/60 mt-1">
             Reusable epic & task structures for new estimations
           </p>
         </div>
@@ -21,19 +22,19 @@ defmodule EstimateWeb.TemplatesLive.Index do
       <%!-- Template Cards --%>
       <div class="grid gap-4 mb-6">
         <%= for template <- @templates do %>
-          <div class="bg-white border border-gray-200 rounded-xl p-5 hover:border-gray-300 transition-colors group">
+          <div class="bg-base-100 border border-base-300 rounded-xl p-5 hover:border-base-content/20 transition-colors group">
             <div class="flex items-start justify-between">
               <.link
                 navigate={~p"/org/#{@org_id}/templates/#{template.id}"}
                 class="flex-1 min-w-0"
               >
-                <h3 class="text-base font-semibold text-gray-900 group-hover:text-gray-700">
+                <h3 class="text-base font-semibold text-base-content group-hover:text-base-content/80">
                   {template.name}
                 </h3>
-                <p :if={template.description} class="text-sm text-gray-500 mt-1 line-clamp-2">
+                <p :if={template.description} class="text-sm text-base-content/60 mt-1 line-clamp-2">
                   {template.description}
                 </p>
-                <div class="flex items-center gap-4 mt-3 text-xs text-gray-400">
+                <div class="flex items-center gap-4 mt-3 text-xs text-base-content/40">
                   <span class="flex items-center gap-1">
                     <.icon name="hero-rectangle-stack" class="w-3.5 h-3.5" />
                     {length(template.epics)} epics
@@ -48,7 +49,7 @@ defmodule EstimateWeb.TemplatesLive.Index do
                 :if={@is_admin}
                 phx-click="confirm_delete"
                 phx-value-id={template.id}
-                class="p-1.5 text-gray-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-all"
+                class="p-1.5 text-base-content/40 hover:text-error opacity-0 group-hover:opacity-100 transition-all"
               >
                 <.icon name="hero-trash" class="w-4 h-4" />
               </button>
@@ -57,23 +58,23 @@ defmodule EstimateWeb.TemplatesLive.Index do
         <% end %>
 
         <%= if Enum.empty?(@templates) do %>
-          <div class="bg-white border border-gray-200 rounded-xl p-12 text-center">
-            <.icon name="hero-rectangle-stack" class="w-12 h-12 text-gray-300 mx-auto" />
-            <p class="mt-3 text-gray-500">No templates yet</p>
-            <p class="text-sm text-gray-400 mt-1">Create one below to get started</p>
+          <div class="bg-base-100 border border-base-300 rounded-xl p-12 text-center">
+            <.icon name="hero-rectangle-stack" class="w-12 h-12 text-base-content/30 mx-auto" />
+            <p class="mt-3 text-base-content/60">No templates yet</p>
+            <p class="text-sm text-base-content/40 mt-1">Create one below to get started</p>
           </div>
         <% end %>
       </div>
 
       <%!-- New Template --%>
-      <div :if={@is_admin} class="bg-white border border-gray-200 rounded-xl">
+      <div :if={@is_admin} class="bg-base-100 border border-base-300 rounded-xl">
         <div class="px-6 pt-4 pb-2">
           <div class="flex gap-2">
             <button
               type="button"
               phx-click="set_creation_mode"
               phx-value-mode="manual"
-              class={"px-3 py-2 text-sm font-medium rounded-lg border-2 transition-colors #{if @creation_mode == "manual", do: "border-gray-900 bg-gray-900 text-white", else: "border-gray-200 text-gray-600 hover:border-gray-300"}"}
+              class={"px-3 py-2 text-sm font-medium rounded-lg border-2 transition-colors #{if @creation_mode == "manual", do: "border-neutral bg-neutral text-neutral-content", else: "border-base-300 text-base-content/70 hover:border-base-content/20"}"}
             >
               <.icon name="hero-plus" class="w-4 h-4 inline-block mr-1 -mt-0.5" /> Manual
             </button>
@@ -81,7 +82,7 @@ defmodule EstimateWeb.TemplatesLive.Index do
               type="button"
               phx-click="set_creation_mode"
               phx-value-mode="json"
-              class={"px-3 py-2 text-sm font-medium rounded-lg border-2 transition-colors #{if @creation_mode == "json", do: "border-gray-900 bg-gray-900 text-white", else: "border-gray-200 text-gray-600 hover:border-gray-300"}"}
+              class={"px-3 py-2 text-sm font-medium rounded-lg border-2 transition-colors #{if @creation_mode == "json", do: "border-neutral bg-neutral text-neutral-content", else: "border-base-300 text-base-content/70 hover:border-base-content/20"}"}
             >
               <.icon name="hero-arrow-up-tray" class="w-4 h-4 inline-block mr-1 -mt-0.5" />
               Import JSON
@@ -98,11 +99,11 @@ defmodule EstimateWeb.TemplatesLive.Index do
                 value=""
                 placeholder="New template name..."
                 required
-                class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                class="flex-1 px-3 py-2 border border-base-content/20 rounded-lg text-sm"
               />
               <button
                 type="submit"
-                class="px-4 py-2 bg-gray-900 text-white text-sm rounded-lg hover:bg-gray-800 transition-colors font-medium"
+                class="px-4 py-2 bg-neutral text-neutral-content text-sm rounded-lg hover:bg-neutral/90 transition-colors font-medium"
               >
                 Create Template
               </button>
@@ -117,14 +118,14 @@ defmodule EstimateWeb.TemplatesLive.Index do
             />
 
             <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">Template Name</label>
+              <label class="block text-xs font-medium text-base-content/60 mb-1.5">Template Name</label>
               <input
                 type="text"
                 name="template_name"
                 value={@template_name}
                 placeholder="Template name (auto-filled from JSON)..."
                 required
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                class="w-full px-3 py-2 border border-base-content/20 rounded-lg text-sm"
               />
             </div>
 
@@ -133,7 +134,7 @@ defmodule EstimateWeb.TemplatesLive.Index do
                 type="submit"
                 disabled={!@json_parsed}
                 phx-disable-with="Importing..."
-                class={"px-4 py-2 bg-gray-900 text-white text-sm rounded-lg hover:bg-gray-800 transition-colors font-medium #{if !@json_parsed, do: "opacity-50 cursor-not-allowed"}"}
+                class={"px-4 py-2 bg-neutral text-neutral-content text-sm rounded-lg hover:bg-neutral/90 transition-colors font-medium #{if !@json_parsed, do: "opacity-50 cursor-not-allowed"}"}
               >
                 Import Template
               </button>
@@ -150,24 +151,24 @@ defmodule EstimateWeb.TemplatesLive.Index do
         on_cancel={JS.push("cancel_delete")}
       >
         <div class="text-center">
-          <div class="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
-            <.icon name="hero-exclamation-triangle" class="w-6 h-6 text-red-600" />
+          <div class="w-12 h-12 rounded-full bg-error/10 flex items-center justify-center mx-auto mb-4">
+            <.icon name="hero-exclamation-triangle" class="w-6 h-6 text-error" />
           </div>
-          <h3 class="text-lg font-semibold text-gray-900 mb-2">Delete Template</h3>
-          <p class="text-sm text-gray-500 mb-6">
-            Are you sure you want to delete <span class="font-medium text-gray-900">{@deleting_template.name}</span>?
+          <h3 class="text-lg font-semibold text-base-content mb-2">Delete Template</h3>
+          <p class="text-sm text-base-content/60 mb-6">
+            Are you sure you want to delete <span class="font-medium text-base-content">{@deleting_template.name}</span>?
             This action cannot be undone.
           </p>
           <div class="flex gap-3 justify-center">
             <button
               phx-click="cancel_delete"
-              class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+              class="px-4 py-2 text-sm text-base-content/70 hover:text-base-content transition-colors"
             >
               Cancel
             </button>
             <button
               phx-click="delete_template"
-              class="px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors font-medium"
+              class="px-4 py-2 bg-error text-neutral-content text-sm rounded-lg hover:bg-error/90 transition-colors font-medium"
             >
               Delete
             </button>
@@ -250,9 +251,7 @@ defmodule EstimateWeb.TemplatesLive.Index do
   end
 
   def handle_event("create_template_from_json", %{"template_name" => name}, socket) do
-    unless socket.assigns.is_admin do
-      {:noreply, put_flash(socket, :error, "Not authorized")}
-    else
+    require_admin(socket, fn ->
       parsed = socket.assigns.json_parsed
 
       if parsed do
@@ -271,13 +270,11 @@ defmodule EstimateWeb.TemplatesLive.Index do
       else
         {:noreply, put_flash(socket, :error, "No valid JSON to import")}
       end
-    end
+    end)
   end
 
   def handle_event("create_template", %{"name" => name}, socket) when name != "" do
-    unless socket.assigns.is_admin do
-      {:noreply, put_flash(socket, :error, "Not authorized")}
-    else
+    require_admin(socket, fn ->
       case Templates.create_estimation_template(socket.assigns.org_id, %{"name" => name}) do
         {:ok, template} ->
           {:noreply,
@@ -287,7 +284,7 @@ defmodule EstimateWeb.TemplatesLive.Index do
         {:error, _changeset} ->
           {:noreply, put_flash(socket, :error, "Could not create template")}
       end
-    end
+    end)
   end
 
   def handle_event("create_template", _params, socket), do: {:noreply, socket}
@@ -302,12 +299,7 @@ defmodule EstimateWeb.TemplatesLive.Index do
   end
 
   def handle_event("delete_template", _params, socket) do
-    unless socket.assigns.is_admin do
-      {:noreply,
-       socket
-       |> put_flash(:error, "Not authorized")
-       |> assign(:deleting_template, nil)}
-    else
+    require_admin(socket, fn ->
       template = socket.assigns.deleting_template
 
       case Templates.delete_estimation_template(template) do
@@ -326,6 +318,6 @@ defmodule EstimateWeb.TemplatesLive.Index do
            |> put_flash(:error, "Could not delete template")
            |> assign(:deleting_template, nil)}
       end
-    end
+    end)
   end
 end

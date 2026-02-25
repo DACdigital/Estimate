@@ -8,7 +8,7 @@ defmodule EstimateWeb.UserLive.Registration do
   def render(assigns) do
     ~H"""
     <div class="w-full">
-      <h1 class="text-3xl font-bold text-center text-gray-900 mb-8">
+      <h1 class="text-3xl font-bold text-center text-base-content mb-8">
         Create your account
       </h1>
 
@@ -25,7 +25,7 @@ defmodule EstimateWeb.UserLive.Registration do
 
         <div
           :if={@check_errors}
-          class="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm"
+          class="p-3 bg-error/10 border border-error/20 rounded-lg text-error text-sm"
         >
           Oops, something went wrong! Please check the errors below.
         </div>
@@ -37,9 +37,9 @@ defmodule EstimateWeb.UserLive.Registration do
             value={@form[:name].value}
             placeholder="Full Name"
             required
-            class={"w-full px-4 py-3 border rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent #{if @form[:name].errors != [], do: "border-red-500", else: "border-gray-300"}"}
+            class={"w-full px-4 py-3 border rounded-lg text-base-content placeholder-base-content/60 #{if @form[:name].errors != [], do: "border-error", else: "border-base-content/20"}"}
           />
-          <p :for={error <- @form[:name].errors} class="mt-1 text-sm text-red-600">
+          <p :for={error <- @form[:name].errors} class="mt-1 text-sm text-error">
             {translate_error(error)}
           </p>
         </div>
@@ -51,9 +51,9 @@ defmodule EstimateWeb.UserLive.Registration do
             value={@form[:email].value}
             placeholder="Email Address"
             required
-            class={"w-full px-4 py-3 border rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent #{if @form[:email].errors != [], do: "border-red-500", else: "border-gray-300"}"}
+            class={"w-full px-4 py-3 border rounded-lg text-base-content placeholder-base-content/60 #{if @form[:email].errors != [], do: "border-error", else: "border-base-content/20"}"}
           />
-          <p :for={error <- @form[:email].errors} class="mt-1 text-sm text-red-600">
+          <p :for={error <- @form[:email].errors} class="mt-1 text-sm text-error">
             {translate_error(error)}
           </p>
         </div>
@@ -64,19 +64,19 @@ defmodule EstimateWeb.UserLive.Registration do
             name="user[password]"
             placeholder="Password"
             required
-            class={"w-full px-4 py-3 border rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent #{if @form[:password].errors != [], do: "border-red-500", else: "border-gray-300"}"}
+            class={"w-full px-4 py-3 border rounded-lg text-base-content placeholder-base-content/60 #{if @form[:password].errors != [], do: "border-error", else: "border-base-content/20"}"}
           />
-          <p :for={error <- @form[:password].errors} class="mt-1 text-sm text-red-600">
+          <p :for={error <- @form[:password].errors} class="mt-1 text-sm text-error">
             {translate_error(error)}
           </p>
         </div>
 
         <div class="relative my-6">
           <div class="absolute inset-0 flex items-center">
-            <div class="w-full border-t border-gray-200"></div>
+            <div class="w-full border-t border-base-300"></div>
           </div>
           <div class="relative flex justify-center text-sm">
-            <span class="px-4 bg-gray-50 text-gray-500">Organization</span>
+            <span class="px-4 bg-base-200 text-base-content/60">Organization</span>
           </div>
         </div>
 
@@ -88,10 +88,10 @@ defmodule EstimateWeb.UserLive.Registration do
               checked={@has_invite_code}
               class="sr-only peer"
             />
-            <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-gray-900 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-gray-900">
+            <div class="w-9 h-5 bg-base-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-base-content rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-base-100 after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-base-100 after:border-base-content/20 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-neutral">
             </div>
           </label>
-          <span class="text-sm text-gray-600">I have an invite code</span>
+          <span class="text-sm text-base-content/70">I have an invite code</span>
         </div>
 
         <%= if @has_invite_code do %>
@@ -102,9 +102,9 @@ defmodule EstimateWeb.UserLive.Registration do
               value={@invite_code}
               placeholder="e.g. XK7F2MPA"
               maxlength="8"
-              class={"w-full px-4 py-3 border rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent font-mono tracking-wider uppercase #{if @invite_code_error, do: "border-red-500", else: "border-gray-300"}"}
+              class={"w-full px-4 py-3 border rounded-lg text-base-content placeholder-base-content/60 font-mono tracking-wider uppercase #{if @invite_code_error, do: "border-error", else: "border-base-content/20"}"}
             />
-            <p :if={@invite_code_error} class="mt-1 text-sm text-red-600">
+            <p :if={@invite_code_error} class="mt-1 text-sm text-error">
               {@invite_code_error}
             </p>
           </div>
@@ -116,19 +116,19 @@ defmodule EstimateWeb.UserLive.Registration do
               value={@org_form[:name].value}
               placeholder="Organization Name"
               required
-              class={"w-full px-4 py-3 border rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent #{if @org_form[:name].errors != [], do: "border-red-500", else: "border-gray-300"}"}
+              class={"w-full px-4 py-3 border rounded-lg text-base-content placeholder-base-content/60 #{if @org_form[:name].errors != [], do: "border-error", else: "border-base-content/20"}"}
             />
-            <p :for={error <- @org_form[:name].errors} class="mt-1 text-sm text-red-600">
+            <p :for={error <- @org_form[:name].errors} class="mt-1 text-sm text-error">
               {translate_error(error)}
             </p>
-            <p class="mt-1 text-xs text-gray-500">You can invite team members later</p>
+            <p class="mt-1 text-xs text-base-content/60">You can invite team members later</p>
           </div>
         <% end %>
 
         <button
           type="submit"
           phx-disable-with="Creating account..."
-          class="w-full py-3 px-4 bg-gray-900 text-white font-medium rounded-lg hover:bg-gray-800 transition-colors mt-6"
+          class="w-full py-3 px-4 bg-neutral text-neutral-content font-medium rounded-lg hover:bg-neutral/90 transition-colors mt-6"
         >
           Create Account
         </button>
@@ -140,9 +140,9 @@ defmodule EstimateWeb.UserLive.Registration do
         <.google_button href={~p"/auth/google"} />
       </div>
 
-      <p class="mt-8 text-center text-gray-600">
+      <p class="mt-8 text-center text-base-content/70">
         Already have an account?
-        <.link navigate={~p"/users/log_in"} class="text-blue-600 hover:text-blue-700 font-medium">
+        <.link navigate={~p"/users/log_in"} class="text-info hover:text-info font-medium">
           Sign In
         </.link>
       </p>
@@ -183,7 +183,7 @@ defmodule EstimateWeb.UserLive.Registration do
              |> assign_form(Accounts.change_user_registration(user))}
 
           invite ->
-            case Organizations.accept_invite(invite, user.id) do
+            case Organizations.accept_invite(invite, user) do
               {:ok, _} ->
                 changeset = Accounts.change_user_registration(user)
                 {:noreply, socket |> assign(trigger_submit: true) |> assign_form(changeset)}

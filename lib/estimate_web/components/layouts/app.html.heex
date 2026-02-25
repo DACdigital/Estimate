@@ -1,24 +1,24 @@
-<div class="flex h-screen bg-gray-50">
+<div class="flex h-screen bg-base-200">
   <!-- Sidebar -->
-  <aside class="w-64 bg-white border-r border-gray-200 flex flex-col">
+  <aside class="w-64 bg-base-100 border-r border-base-300 flex flex-col">
     <!-- Logo -->
-    <div class="h-16 flex items-center px-6 border-b border-gray-200">
-      <a href="/" class="text-xl font-semibold text-gray-900">EstiMate</a>
+    <div class="h-16 flex items-center px-6 border-b border-base-300">
+      <a href="/" class="text-xl font-semibold text-base-content">EstiMate</a>
     </div>
     
 <!-- Org selector -->
-    <div :if={assigns[:current_organization]} class="px-4 py-3 border-b border-gray-100">
+    <div :if={assigns[:current_organization]} class="px-4 py-3 border-b border-base-content/10">
       <a
         href="/organizations"
-        class="flex items-center gap-3 px-2 py-2 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer"
+        class="flex items-center gap-3 px-2 py-2 rounded-lg bg-base-200 hover:bg-base-300 transition-colors cursor-pointer"
       >
         <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold text-sm">
           {String.first(@current_organization.name)}
         </div>
         <div class="flex-1 min-w-0">
-          <p class="text-sm font-medium text-gray-900 truncate">{@current_organization.name}</p>
+          <p class="text-sm font-medium text-base-content truncate">{@current_organization.name}</p>
         </div>
-        <span class="text-gray-400">
+        <span class="text-base-content/40">
           <.icon name="hero-chevron-up-down" class="w-4 h-4" />
         </span>
       </a>
@@ -49,8 +49,8 @@
         label="Projects"
         active={assigns[:active_tab] == :projects}
       />
-      <div :if={assigns[:org_id]} class="pt-4 mt-4 border-t border-gray-100">
-        <div class="flex items-center gap-3 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-gray-400">
+      <div :if={assigns[:org_id]} class="pt-4 mt-4 border-t border-base-content/10">
+        <div class="flex items-center gap-3 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-base-content/40">
           <.icon name="hero-book-open" class="w-5 h-5" />
           <span>Library</span>
         </div>
@@ -68,8 +68,8 @@
         </div>
       </div>
 
-      <div class="pt-4 mt-4 border-t border-gray-100">
-        <div class="flex items-center gap-3 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-gray-400">
+      <div class="pt-4 mt-4 border-t border-base-content/10">
+        <div class="flex items-center gap-3 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-base-content/40">
           <.icon name="hero-cog-6-tooth" class="w-5 h-5" />
           <span>Settings</span>
         </div>
@@ -84,16 +84,16 @@
     </nav>
     
 <!-- User section -->
-    <div :if={assigns[:current_user]} class="border-t border-gray-200 p-4">
+    <div :if={assigns[:current_user]} class="border-t border-base-300 p-4">
       <div class="flex items-center gap-3">
         <.avatar name={@current_user.name || @current_user.email} seed={@current_user.id} size={:sm} />
         <div class="flex-1 min-w-0">
-          <p class="text-sm font-medium text-gray-900 truncate">
+          <p class="text-sm font-medium text-base-content truncate">
             {@current_user.name || @current_user.email}
           </p>
-          <p class="text-xs text-gray-500 truncate">{@current_user.email}</p>
+          <p class="text-xs text-base-content/60 truncate">{@current_user.email}</p>
         </div>
-        <.link href={~p"/users/log_out"} method="delete" class="text-gray-400 hover:text-gray-600">
+        <.link href={~p"/users/log_out"} method="delete" class="text-base-content/40 hover:text-base-content/70">
           <.icon name="hero-arrow-right-on-rectangle" class="w-5 h-5" />
         </.link>
       </div>
@@ -103,7 +103,7 @@
 <!-- Main content -->
   <div class="flex-1 flex flex-col overflow-hidden">
     <!-- Top bar -->
-    <header class="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8">
+    <header class="h-16 bg-base-100 border-b border-base-300 flex items-center justify-between px-8">
       <div class="w-80">
         <%= if assigns[:org_id] do %>
           <.live_component
@@ -115,13 +115,13 @@
           <div class="relative">
             <.icon
               name="hero-magnifying-glass"
-              class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
+              class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-base-content/40"
             />
             <input
               type="text"
               placeholder="Search..."
               disabled
-              class="w-full pl-9 pr-3 py-1.5 text-sm bg-gray-50 border border-gray-200 rounded-lg text-gray-400 cursor-not-allowed placeholder:text-gray-400"
+              class="w-full pl-9 pr-3 py-1.5 text-sm bg-base-200 border border-base-300 rounded-lg text-base-content/40 cursor-not-allowed placeholder:text-base-content/40"
             />
           </div>
         <% end %>

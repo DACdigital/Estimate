@@ -17,20 +17,20 @@ defmodule EstimateWeb.ProjectLive.Show do
     ~H"""
     <div class="max-w-5xl mx-auto">
       <%!-- Breadcrumb --%>
-      <nav class="flex items-center space-x-2 text-sm text-gray-500 mb-6">
+      <nav class="flex items-center space-x-2 text-sm text-base-content/60 mb-6">
         <.link
           :if={@project.customer}
           navigate={~p"/org/#{@org_id}/customers/#{@project.customer.id}"}
-          class="hover:text-gray-900"
+          class="hover:text-base-content"
         >
           {@project.customer.name}
         </.link>
-        <span class="text-gray-300">›</span>
-        <span class="text-gray-900 font-medium">{@project.name}</span>
-        <span :if={@current_estimation && @current_estimation.currency} class="text-gray-300 ml-2">
+        <span class="text-base-content/30">›</span>
+        <span class="text-base-content font-medium">{@project.name}</span>
+        <span :if={@current_estimation && @current_estimation.currency} class="text-base-content/30 ml-2">
           •
         </span>
-        <span :if={@current_estimation && @current_estimation.currency} class="text-gray-400">
+        <span :if={@current_estimation && @current_estimation.currency} class="text-base-content/40">
           {@current_estimation.currency.code}
         </span>
       </nav>
@@ -41,13 +41,13 @@ defmodule EstimateWeb.ProjectLive.Show do
           <.avatar name={@project.name} seed={@project.id} size={:xl} />
           <div>
             <div class="flex items-center gap-3">
-              <h1 class="text-2xl font-bold text-gray-900">{@project.name}</h1>
+              <h1 class="text-2xl font-bold text-base-content">{@project.name}</h1>
               <span class={"text-xs px-2 py-0.5 rounded-full #{project_status_class(@project.status)}"}>
                 {@project.status}
               </span>
             </div>
             <div class="flex items-center gap-3 mt-1">
-              <span :if={Project.composite_key(@project)} class="text-sm font-mono text-gray-400">
+              <span :if={Project.composite_key(@project)} class="text-sm font-mono text-base-content/40">
                 {Project.composite_key(@project)}
               </span>
             </div>
@@ -56,23 +56,23 @@ defmodule EstimateWeb.ProjectLive.Show do
       </div>
 
       <%!-- Tabs --%>
-      <div class="border-b border-gray-200 mb-6">
+      <div class="border-b border-base-300 mb-6">
         <nav class="flex gap-6">
           <.link
             patch={~p"/org/#{@org_id}/projects/#{@project.id}"}
-            class={"pb-3 px-1 text-sm font-medium border-b-2 transition-colors #{if @tab == :overview, do: "border-gray-900 text-gray-900", else: "border-transparent text-gray-500 hover:text-gray-700"}"}
+            class={"pb-3 px-1 text-sm font-medium border-b-2 transition-colors #{if @tab == :overview, do: "border-base-content text-base-content", else: "border-transparent text-base-content/60 hover:text-base-content/80"}"}
           >
             Overview
           </.link>
           <.link
             patch={~p"/org/#{@org_id}/projects/#{@project.id}/collaborators"}
-            class={"pb-3 px-1 text-sm font-medium border-b-2 transition-colors #{if @tab == :collaborators, do: "border-gray-900 text-gray-900", else: "border-transparent text-gray-500 hover:text-gray-700"}"}
+            class={"pb-3 px-1 text-sm font-medium border-b-2 transition-colors #{if @tab == :collaborators, do: "border-base-content text-base-content", else: "border-transparent text-base-content/60 hover:text-base-content/80"}"}
           >
             Collaborators
           </.link>
           <.link
             patch={~p"/org/#{@org_id}/projects/#{@project.id}/estimations"}
-            class={"pb-3 px-1 text-sm font-medium border-b-2 transition-colors #{if @tab == :estimations, do: "border-gray-900 text-gray-900", else: "border-transparent text-gray-500 hover:text-gray-700"}"}
+            class={"pb-3 px-1 text-sm font-medium border-b-2 transition-colors #{if @tab == :estimations, do: "border-base-content text-base-content", else: "border-transparent text-base-content/60 hover:text-base-content/80"}"}
           >
             Estimations
           </.link>
@@ -96,7 +96,7 @@ defmodule EstimateWeb.ProjectLive.Show do
         show
         on_cancel={JS.push("close_estimation_modal")}
       >
-        <h2 class="text-xl font-semibold text-gray-900 mb-4">New Estimation</h2>
+        <h2 class="text-xl font-semibold text-base-content mb-4">New Estimation</h2>
 
         <%!-- Source Selection --%>
         <div class="flex gap-2 mb-6">
@@ -104,7 +104,7 @@ defmodule EstimateWeb.ProjectLive.Show do
             type="button"
             phx-click="set_estimation_source"
             phx-value-source="fresh"
-            class={"flex-1 px-3 py-2.5 text-sm font-medium rounded-lg border-2 transition-colors #{if @estimation_source == "fresh", do: "border-gray-900 bg-gray-900 text-white", else: "border-gray-200 text-gray-600 hover:border-gray-300"}"}
+            class={"flex-1 px-3 py-2.5 text-sm font-medium rounded-lg border-2 transition-colors #{if @estimation_source == "fresh", do: "border-base-content bg-neutral text-neutral-content", else: "border-base-300 text-base-content/70 hover:border-base-content/20"}"}
           >
             <.icon name="hero-plus" class="w-4 h-4 inline-block mr-1.5 -mt-0.5" /> Start fresh
           </button>
@@ -113,7 +113,7 @@ defmodule EstimateWeb.ProjectLive.Show do
             phx-click="set_estimation_source"
             phx-value-source="copy"
             disabled={Enum.empty?(@estimations)}
-            class={"flex-1 px-3 py-2.5 text-sm font-medium rounded-lg border-2 transition-colors #{if @estimation_source == "copy", do: "border-gray-900 bg-gray-900 text-white", else: "border-gray-200 text-gray-600 hover:border-gray-300"} #{if Enum.empty?(@estimations), do: "opacity-50 cursor-not-allowed"}"}
+            class={"flex-1 px-3 py-2.5 text-sm font-medium rounded-lg border-2 transition-colors #{if @estimation_source == "copy", do: "border-base-content bg-neutral text-neutral-content", else: "border-base-300 text-base-content/70 hover:border-base-content/20"} #{if Enum.empty?(@estimations), do: "opacity-50 cursor-not-allowed"}"}
           >
             <.icon name="hero-document-duplicate" class="w-4 h-4 inline-block mr-1.5 -mt-0.5" />
             Copy existing
@@ -123,7 +123,7 @@ defmodule EstimateWeb.ProjectLive.Show do
             phx-click="set_estimation_source"
             phx-value-source="template"
             disabled={Enum.empty?(@estimation_templates)}
-            class={"flex-1 px-3 py-2.5 text-sm font-medium rounded-lg border-2 transition-colors #{if @estimation_source == "template", do: "border-gray-900 bg-gray-900 text-white", else: "border-gray-200 text-gray-600 hover:border-gray-300"} #{if Enum.empty?(@estimation_templates), do: "opacity-50 cursor-not-allowed"}"}
+            class={"flex-1 px-3 py-2.5 text-sm font-medium rounded-lg border-2 transition-colors #{if @estimation_source == "template", do: "border-base-content bg-neutral text-neutral-content", else: "border-base-300 text-base-content/70 hover:border-base-content/20"} #{if Enum.empty?(@estimation_templates), do: "opacity-50 cursor-not-allowed"}"}
           >
             <.icon name="hero-rectangle-stack" class="w-4 h-4 inline-block mr-1.5 -mt-0.5" />
             From template
@@ -132,7 +132,7 @@ defmodule EstimateWeb.ProjectLive.Show do
             type="button"
             phx-click="set_estimation_source"
             phx-value-source="json"
-            class={"flex-1 px-3 py-2.5 text-sm font-medium rounded-lg border-2 transition-colors #{if @estimation_source == "json", do: "border-gray-900 bg-gray-900 text-white", else: "border-gray-200 text-gray-600 hover:border-gray-300"}"}
+            class={"flex-1 px-3 py-2.5 text-sm font-medium rounded-lg border-2 transition-colors #{if @estimation_source == "json", do: "border-base-content bg-neutral text-neutral-content", else: "border-base-300 text-base-content/70 hover:border-base-content/20"}"}
           >
             <.icon name="hero-arrow-up-tray" class="w-4 h-4 inline-block mr-1.5 -mt-0.5" />
             Import JSON
@@ -159,11 +159,11 @@ defmodule EstimateWeb.ProjectLive.Show do
 
             <%!-- Copy source selector --%>
             <div :if={@estimation_source == "copy"}>
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">Copy from</label>
+              <label class="block text-xs font-medium text-base-content/60 mb-1.5">Copy from</label>
               <select
                 name="source_estimation_id"
                 phx-change="validate_estimation"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
+                class="w-full px-3 py-2 border border-base-content/20 rounded-lg text-sm"
               >
                 <%= for est <- @estimations do %>
                   <option
@@ -180,7 +180,7 @@ defmodule EstimateWeb.ProjectLive.Show do
             </div>
 
             <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">Estimation Name *</label>
+              <label class="block text-xs font-medium text-base-content/60 mb-1.5">Estimation Name *</label>
               <input
                 type="text"
                 name={@estimation_form[:name].name}
@@ -189,25 +189,25 @@ defmodule EstimateWeb.ProjectLive.Show do
                   if @estimation_source == "copy", do: "Copy of ...", else: "Q1 2026 Estimate"
                 }
                 required
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
+                class="w-full px-3 py-2 border border-base-content/20 rounded-lg text-sm"
               />
             </div>
 
             <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">Description</label>
+              <label class="block text-xs font-medium text-base-content/60 mb-1.5">Description</label>
               <textarea
                 name={@estimation_form[:description].name}
                 rows="2"
                 placeholder="Optional description..."
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm resize-none"
+                class="w-full px-3 py-2 border border-base-content/20 rounded-lg text-sm resize-none"
               ><%= @estimation_form[:description].value %></textarea>
             </div>
 
             <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">Currency</label>
+              <label class="block text-xs font-medium text-base-content/60 mb-1.5">Currency</label>
               <select
                 name="currency_id"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
+                class="w-full px-3 py-2 border border-base-content/20 rounded-lg text-sm"
               >
                 <%= for currency <- @currencies do %>
                   <option
@@ -222,31 +222,31 @@ defmodule EstimateWeb.ProjectLive.Show do
 
             <%!-- Roles section for fresh start and JSON import --%>
             <div :if={@estimation_source in ["fresh", "json"]}>
-              <label class="block text-xs font-medium text-gray-500 mb-2">Roles</label>
-              <div class="space-y-2 max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-3">
+              <label class="block text-xs font-medium text-base-content/60 mb-2">Roles</label>
+              <div class="space-y-2 max-h-48 overflow-y-auto border border-base-300 rounded-lg p-3">
                 <%= for template <- @role_templates do %>
                   <% rate = Enum.find(template.rates, fn r -> r.currency_id == @modal_currency_id end) %>
-                  <label class="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer">
+                  <label class="flex items-center justify-between p-2 hover:bg-base-200 rounded cursor-pointer">
                     <div class="flex items-center gap-3">
                       <input
                         type="checkbox"
                         name="template_ids[]"
                         value={template.id}
                         checked={template.id in @selected_template_ids}
-                        class="w-4 h-4 text-gray-900 border-gray-300 rounded focus:ring-gray-900"
+                        class="w-4 h-4 text-base-content border-base-content/20 rounded focus:ring-base-content"
                       />
-                      <span class="text-sm font-medium text-gray-900">{template.name}</span>
-                      <span class="text-xs text-gray-400 font-mono">({template.abbreviation})</span>
+                      <span class="text-sm font-medium text-base-content">{template.name}</span>
+                      <span class="text-xs text-base-content/40 font-mono">({template.abbreviation})</span>
                     </div>
-                    <span class="text-sm text-gray-500">
+                    <span class="text-sm text-base-content/60">
                       {if rate, do: format_rate(rate.hourly_rate, @modal_currency), else: "-"}
                     </span>
                   </label>
                 <% end %>
                 <%= if Enum.empty?(@role_templates) do %>
-                  <p class="text-sm text-gray-500 text-center py-4">
+                  <p class="text-sm text-base-content/60 text-center py-4">
                     No roles defined.
-                    <.link navigate={~p"/org/#{@org_id}/roles"} class="text-blue-600 hover:underline">
+                    <.link navigate={~p"/org/#{@org_id}/roles"} class="text-info hover:underline">
                       Add roles
                     </.link>
                     first.
@@ -257,12 +257,12 @@ defmodule EstimateWeb.ProjectLive.Show do
 
             <%!-- Template mode: template selector + roles --%>
             <div :if={@estimation_source == "template"}>
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">
+              <label class="block text-xs font-medium text-base-content/60 mb-1.5">
                 Estimation Template
               </label>
               <select
                 name="estimation_template_id"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
+                class="w-full px-3 py-2 border border-base-content/20 rounded-lg text-sm"
               >
                 <%= for tmpl <- @estimation_templates do %>
                   <option
@@ -278,23 +278,23 @@ defmodule EstimateWeb.ProjectLive.Show do
             </div>
 
             <div :if={@estimation_source == "template"}>
-              <label class="block text-xs font-medium text-gray-500 mb-2">Roles</label>
-              <div class="space-y-2 max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-3">
+              <label class="block text-xs font-medium text-base-content/60 mb-2">Roles</label>
+              <div class="space-y-2 max-h-48 overflow-y-auto border border-base-300 rounded-lg p-3">
                 <%= for template <- @role_templates do %>
                   <% rate = Enum.find(template.rates, fn r -> r.currency_id == @modal_currency_id end) %>
-                  <label class="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer">
+                  <label class="flex items-center justify-between p-2 hover:bg-base-200 rounded cursor-pointer">
                     <div class="flex items-center gap-3">
                       <input
                         type="checkbox"
                         name="template_ids[]"
                         value={template.id}
                         checked={template.id in @selected_template_ids}
-                        class="w-4 h-4 text-gray-900 border-gray-300 rounded focus:ring-gray-900"
+                        class="w-4 h-4 text-base-content border-base-content/20 rounded focus:ring-base-content"
                       />
-                      <span class="text-sm font-medium text-gray-900">{template.name}</span>
-                      <span class="text-xs text-gray-400 font-mono">({template.abbreviation})</span>
+                      <span class="text-sm font-medium text-base-content">{template.name}</span>
+                      <span class="text-xs text-base-content/40 font-mono">({template.abbreviation})</span>
                     </div>
-                    <span class="text-sm text-gray-500">
+                    <span class="text-sm text-base-content/60">
                       {if rate, do: format_rate(rate.hourly_rate, @modal_currency), else: "-"}
                     </span>
                   </label>
@@ -302,15 +302,15 @@ defmodule EstimateWeb.ProjectLive.Show do
               </div>
             </div>
 
-            <div :if={@estimation_source == "template"} class="bg-gray-50 rounded-lg p-4">
+            <div :if={@estimation_source == "template"} class="bg-base-200 rounded-lg p-4">
               <div class="flex items-start gap-3">
                 <.icon
                   name="hero-information-circle"
-                  class="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5"
+                  class="w-5 h-5 text-base-content/40 flex-shrink-0 mt-0.5"
                 />
-                <div class="text-sm text-gray-600">
-                  <p class="font-medium text-gray-700">What will be created:</p>
-                  <ul class="mt-1 space-y-0.5 text-gray-500">
+                <div class="text-sm text-base-content/70">
+                  <p class="font-medium text-base-content/80">What will be created:</p>
+                  <ul class="mt-1 space-y-0.5 text-base-content/60">
                     <li>• Epic & task structure from template</li>
                     <li>• Roles from selection above</li>
                     <li>• No hour estimates</li>
@@ -320,15 +320,15 @@ defmodule EstimateWeb.ProjectLive.Show do
             </div>
 
             <%!-- Info for copy mode --%>
-            <div :if={@estimation_source == "copy"} class="bg-gray-50 rounded-lg p-4">
+            <div :if={@estimation_source == "copy"} class="bg-base-200 rounded-lg p-4">
               <div class="flex items-start gap-3">
                 <.icon
                   name="hero-information-circle"
-                  class="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5"
+                  class="w-5 h-5 text-base-content/40 flex-shrink-0 mt-0.5"
                 />
-                <div class="text-sm text-gray-600">
-                  <p class="font-medium text-gray-700">What will be copied:</p>
-                  <ul class="mt-1 space-y-0.5 text-gray-500">
+                <div class="text-sm text-base-content/70">
+                  <p class="font-medium text-base-content/80">What will be copied:</p>
+                  <ul class="mt-1 space-y-0.5 text-base-content/60">
                     <li>• All epics and tasks</li>
                     <li>• All hour estimates</li>
                     <li>• Roles and rates</li>
@@ -342,7 +342,7 @@ defmodule EstimateWeb.ProjectLive.Show do
             <button
               type="button"
               phx-click="close_estimation_modal"
-              class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+              class="px-4 py-2 text-sm text-base-content/70 hover:text-base-content transition-colors"
             >
               Cancel
             </button>
@@ -352,7 +352,7 @@ defmodule EstimateWeb.ProjectLive.Show do
               phx-disable-with={
                 if @estimation_source == "copy", do: "Copying...", else: "Creating..."
               }
-              class={"px-4 py-2 bg-gray-900 text-white text-sm rounded-lg hover:bg-gray-800 transition-colors font-medium #{if @estimation_source == "json" && !@json_parsed, do: "opacity-50 cursor-not-allowed"}"}
+              class={"px-4 py-2 bg-neutral text-neutral-content text-sm rounded-lg hover:bg-neutral/90 transition-colors font-medium #{if @estimation_source == "json" && !@json_parsed, do: "opacity-50 cursor-not-allowed"}"}
             >
               {if @estimation_source == "copy", do: "Create Copy", else: "Create"}
             </button>
@@ -368,24 +368,24 @@ defmodule EstimateWeb.ProjectLive.Show do
         on_cancel={JS.push("cancel_delete_project")}
       >
         <div class="text-center">
-          <div class="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
-            <.icon name="hero-exclamation-triangle" class="w-6 h-6 text-red-600" />
+          <div class="w-12 h-12 rounded-full bg-error/10 flex items-center justify-center mx-auto mb-4">
+            <.icon name="hero-exclamation-triangle" class="w-6 h-6 text-error" />
           </div>
-          <h3 class="text-lg font-semibold text-gray-900 mb-2">Delete Project</h3>
-          <p class="text-sm text-gray-500 mb-6">
-            Are you sure you want to delete <span class="font-medium text-gray-900"><%= @project.name %></span>?
+          <h3 class="text-lg font-semibold text-base-content mb-2">Delete Project</h3>
+          <p class="text-sm text-base-content/60 mb-6">
+            Are you sure you want to delete <span class="font-medium text-base-content"><%= @project.name %></span>?
             This will also delete all estimations. This action cannot be undone.
           </p>
           <div class="flex gap-3 justify-center">
             <button
               phx-click="cancel_delete_project"
-              class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900"
+              class="px-4 py-2 text-sm text-base-content/70 hover:text-base-content"
             >
               Cancel
             </button>
             <button
               phx-click="delete_project"
-              class="px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 font-medium"
+              class="px-4 py-2 bg-error text-neutral-content text-sm rounded-lg hover:bg-error/90 font-medium"
             >
               Delete Project
             </button>
@@ -401,13 +401,13 @@ defmodule EstimateWeb.ProjectLive.Show do
         on_cancel={JS.push("cancel_remove_collaborator")}
       >
         <div class="text-center">
-          <div class="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
-            <.icon name="hero-exclamation-triangle" class="w-6 h-6 text-red-600" />
+          <div class="w-12 h-12 rounded-full bg-error/10 flex items-center justify-center mx-auto mb-4">
+            <.icon name="hero-exclamation-triangle" class="w-6 h-6 text-error" />
           </div>
-          <h3 class="text-lg font-semibold text-gray-900 mb-2">Remove Collaborator</h3>
-          <p class="text-sm text-gray-500 mb-6">
+          <h3 class="text-lg font-semibold text-base-content mb-2">Remove Collaborator</h3>
+          <p class="text-sm text-base-content/60 mb-6">
             Are you sure you want to remove
-            <span class="font-medium text-gray-900">
+            <span class="font-medium text-base-content">
               {@removing_collaborator.user.name || @removing_collaborator.user.email}
             </span>
             from this project?
@@ -415,13 +415,13 @@ defmodule EstimateWeb.ProjectLive.Show do
           <div class="flex gap-3 justify-center">
             <button
               phx-click="cancel_remove_collaborator"
-              class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+              class="px-4 py-2 text-sm text-base-content/70 hover:text-base-content transition-colors"
             >
               Cancel
             </button>
             <button
               phx-click="remove_collaborator"
-              class="px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors font-medium"
+              class="px-4 py-2 bg-error text-neutral-content text-sm rounded-lg hover:bg-error/90 transition-colors font-medium"
             >
               Remove
             </button>
@@ -445,13 +445,13 @@ defmodule EstimateWeb.ProjectLive.Show do
           dashboard_tab={@dashboard_tab}
         />
       <% else %>
-        <div class="bg-white border border-gray-200 rounded-xl p-8 text-center">
-          <.icon name="hero-calculator" class="w-12 h-12 text-gray-300 mx-auto" />
-          <p class="mt-3 text-gray-500">No estimations yet</p>
+        <div class="bg-base-100 border border-base-300 rounded-xl p-8 text-center">
+          <.icon name="hero-calculator" class="w-12 h-12 text-base-content/30 mx-auto" />
+          <p class="mt-3 text-base-content/60">No estimations yet</p>
           <.link
             :if={@can_edit_project}
             navigate={~p"/org/#{@org_id}/projects/#{@project.id}/estimations/new"}
-            class="mt-4 inline-block px-4 py-2 bg-gray-900 text-white text-sm rounded-lg hover:bg-gray-800 transition-colors font-medium"
+            class="mt-4 inline-block px-4 py-2 bg-neutral text-neutral-content text-sm rounded-lg hover:bg-neutral/90 transition-colors font-medium"
           >
             Create Estimation
           </.link>
@@ -460,47 +460,47 @@ defmodule EstimateWeb.ProjectLive.Show do
 
       <%!-- Project Details Card --%>
       <.form for={@form} id="project-form" phx-submit="save" phx-change="validate">
-        <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+        <div class="bg-base-100 border border-base-300 rounded-xl overflow-hidden">
           <div class="p-6 space-y-4">
-            <h2 class="text-lg font-semibold text-gray-900">Project Details</h2>
+            <h2 class="text-lg font-semibold text-base-content">Project Details</h2>
 
             <%!-- Top row: Name, Key, Status --%>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div class="md:col-span-1">
-                <label class="block text-xs font-medium text-gray-500 mb-1.5">Project Name *</label>
+                <label class="block text-xs font-medium text-base-content/60 mb-1.5">Project Name *</label>
                 <input
                   type="text"
                   name={@form[:name].name}
                   value={@form[:name].value}
                   placeholder="Website Redesign"
                   required
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
+                  class="w-full px-3 py-2 border border-base-content/20 rounded-lg text-sm"
                 />
               </div>
 
               <div>
-                <label class="block text-xs font-medium text-gray-500 mb-1.5">Project Key</label>
+                <label class="block text-xs font-medium text-base-content/60 mb-1.5">Project Key</label>
                 <div class="flex items-center gap-1">
-                  <span class="px-3 py-2 bg-gray-100 border border-gray-300 rounded-l-lg text-sm text-gray-500 font-mono">
+                  <span class="px-3 py-2 bg-base-200 border border-base-content/20 rounded-l-lg text-sm text-base-content/60 font-mono">
                     {@customer_key || "---"}
                   </span>
-                  <span class="text-gray-400">-</span>
+                  <span class="text-base-content/40">-</span>
                   <input
                     type="text"
                     name={@form[:key].name}
                     value={@form[:key].value}
                     placeholder="PROJ"
                     maxlength="10"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-r-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm font-mono uppercase"
+                    class="w-full px-3 py-2 border border-base-content/20 rounded-r-lg text-sm font-mono uppercase"
                   />
                 </div>
               </div>
 
               <div>
-                <label class="block text-xs font-medium text-gray-500 mb-1.5">Status</label>
+                <label class="block text-xs font-medium text-base-content/60 mb-1.5">Status</label>
                 <select
                   name={@form[:status].name}
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
+                  class="w-full px-3 py-2 border border-base-content/20 rounded-lg text-sm"
                 >
                   <option value="active" selected={@form[:status].value == "active"}>Active</option>
                   <option value="completed" selected={@form[:status].value == "completed"}>
@@ -515,10 +515,10 @@ defmodule EstimateWeb.ProjectLive.Show do
 
             <%!-- Default Currency --%>
             <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">Default Currency</label>
+              <label class="block text-xs font-medium text-base-content/60 mb-1.5">Default Currency</label>
               <select
                 name={@form[:currency_id].name}
-                class="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
+                class="w-full max-w-md px-3 py-2 border border-base-content/20 rounded-lg text-sm"
               >
                 <option value="">None</option>
                 <%= for currency <- @currencies do %>
@@ -530,71 +530,71 @@ defmodule EstimateWeb.ProjectLive.Show do
                   </option>
                 <% end %>
               </select>
-              <p class="text-xs text-gray-400 mt-1">Used as default for new estimations</p>
+              <p class="text-xs text-base-content/40 mt-1">Used as default for new estimations</p>
             </div>
 
             <%!-- Short Description --%>
             <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">Short Description</label>
+              <label class="block text-xs font-medium text-base-content/60 mb-1.5">Short Description</label>
               <input
                 type="text"
                 name={@form[:short_description].name}
                 value={@form[:short_description].value}
                 placeholder="One-liner about the project"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
+                class="w-full px-3 py-2 border border-base-content/20 rounded-lg text-sm"
               />
             </div>
 
             <%!-- Detailed Description --%>
             <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">
+              <label class="block text-xs font-medium text-base-content/60 mb-1.5">
                 Detailed Description
               </label>
               <textarea
                 name={@form[:detailed_description].name}
                 rows="4"
                 placeholder="Comprehensive scope and details..."
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm resize-none"
+                class="w-full px-3 py-2 border border-base-content/20 rounded-lg text-sm resize-none"
               ><%= @form[:detailed_description].value %></textarea>
             </div>
 
             <%!-- Repository URL --%>
             <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">Repository URL</label>
+              <label class="block text-xs font-medium text-base-content/60 mb-1.5">Repository URL</label>
               <input
                 type="url"
                 name={@form[:repository_url].name}
                 value={@form[:repository_url].value}
                 placeholder="https://github.com/org/repo"
-                class="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
+                class="w-full max-w-md px-3 py-2 border border-base-content/20 rounded-lg text-sm"
               />
             </div>
 
             <%!-- Customer (readonly) --%>
             <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">Customer</label>
+              <label class="block text-xs font-medium text-base-content/60 mb-1.5">Customer</label>
               <%= if @project.customer do %>
                 <.link
                   navigate={~p"/org/#{@org_id}/customers/#{@project.customer.id}"}
-                  class="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700"
+                  class="inline-flex items-center gap-1 text-sm text-info hover:text-info"
                 >
                   {@project.customer.name}
                   <.icon name="hero-arrow-top-right-on-square" class="w-3.5 h-3.5" />
                 </.link>
               <% else %>
-                <span class="text-sm text-gray-400">Not set</span>
+                <span class="text-sm text-base-content/40">Not set</span>
               <% end %>
             </div>
           </div>
 
           <div
             :if={@can_edit_project}
-            class="px-6 py-3 bg-gray-50 border-t border-gray-200 flex justify-end"
+            class="px-6 py-3 bg-base-200 border-t border-base-300 flex justify-end"
           >
             <button
               type="submit"
               phx-disable-with="Saving..."
-              class="px-4 py-1.5 bg-gray-900 text-white text-sm rounded-md hover:bg-gray-800 transition-colors font-medium"
+              class="px-4 py-1.5 bg-neutral text-neutral-content text-sm rounded-md hover:bg-neutral/90 transition-colors font-medium"
             >
               Save
             </button>
@@ -603,15 +603,15 @@ defmodule EstimateWeb.ProjectLive.Show do
       </.form>
 
       <%!-- Danger Zone --%>
-      <div :if={@can_delete_project} class="bg-white border border-red-200 rounded-xl overflow-hidden">
+      <div :if={@can_delete_project} class="bg-base-100 border border-error/30 rounded-xl overflow-hidden">
         <div class="p-6">
-          <h2 class="text-lg font-semibold text-red-600">Danger Zone</h2>
-          <p class="text-sm text-gray-500 mt-1">
+          <h2 class="text-lg font-semibold text-error">Danger Zone</h2>
+          <p class="text-sm text-base-content/60 mt-1">
             Permanently delete this project and all its data.
           </p>
           <button
             phx-click="confirm_delete_project"
-            class="mt-4 px-4 py-2 border border-red-300 text-red-600 text-sm rounded-lg hover:bg-red-50 transition-colors font-medium"
+            class="mt-4 px-4 py-2 border border-error/30 text-error text-sm rounded-lg hover:bg-error/10 transition-colors font-medium"
           >
             Delete Project
           </button>
@@ -671,18 +671,18 @@ defmodule EstimateWeb.ProjectLive.Show do
       |> assign(:epics, epics)
 
     ~H"""
-    <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
-      <div class="px-6 py-4 border-b border-gray-100">
+    <div class="bg-base-100 border border-base-300 rounded-xl overflow-hidden">
+      <div class="px-6 py-4 border-b border-base-content/10">
         <div class="flex items-start justify-between">
           <div>
-            <h2 class="text-lg font-semibold text-gray-900">Project Summary & Cost Estimates</h2>
-            <p class="text-sm text-gray-500 mt-0.5">
+            <h2 class="text-lg font-semibold text-base-content">Project Summary & Cost Estimates</h2>
+            <p class="text-sm text-base-content/60 mt-0.5">
               Hours and costs with overhead calculations ({if @currency, do: @currency.code, else: "-"})
             </p>
           </div>
           <div class="text-right">
-            <p class="text-xs text-gray-400">Based on</p>
-            <p class="text-sm font-medium text-gray-700">{@estimation.name}</p>
+            <p class="text-xs text-base-content/40">Based on</p>
+            <p class="text-sm font-medium text-base-content/80">{@estimation.name}</p>
           </div>
         </div>
       </div>
@@ -690,66 +690,66 @@ defmodule EstimateWeb.ProjectLive.Show do
       <div class="p-6">
         <%!-- Summary Cards --%>
         <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
-          <div class="border border-gray-200 rounded-lg p-4">
-            <p class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Base</p>
-            <p class="text-2xl font-bold text-gray-900">{format_hours_h(@base_hours)}</p>
-            <p class="text-sm text-gray-500">{format_cost(@base_cost, @currency)}</p>
+          <div class="border border-base-300 rounded-lg p-4">
+            <p class="text-[10px] font-semibold text-base-content/60 uppercase tracking-wide mb-1">Base</p>
+            <p class="text-2xl font-bold text-base-content">{format_hours_h(@base_hours)}</p>
+            <p class="text-sm text-base-content/60">{format_cost(@base_cost, @currency)}</p>
           </div>
 
-          <div class="border border-gray-200 rounded-lg p-4">
-            <p class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">
+          <div class="border border-base-300 rounded-lg p-4">
+            <p class="text-[10px] font-semibold text-base-content/60 uppercase tracking-wide mb-1">
               PM Overhead
             </p>
-            <p class="text-2xl font-bold text-gray-900">{format_hours_h(@pm_hours)}</p>
-            <p class="text-sm text-gray-500">{format_cost(@pm_cost, @currency)}</p>
+            <p class="text-2xl font-bold text-base-content">{format_hours_h(@pm_hours)}</p>
+            <p class="text-sm text-base-content/60">{format_cost(@pm_cost, @currency)}</p>
           </div>
 
-          <div class="border border-gray-200 rounded-lg p-4">
-            <p class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">
+          <div class="border border-base-300 rounded-lg p-4">
+            <p class="text-[10px] font-semibold text-base-content/60 uppercase tracking-wide mb-1">
               QA Overhead
             </p>
-            <p class="text-2xl font-bold text-gray-900">{format_hours_h(@qa_hours)}</p>
-            <p class="text-sm text-gray-500">{format_cost(@qa_cost, @currency)}</p>
+            <p class="text-2xl font-bold text-base-content">{format_hours_h(@qa_hours)}</p>
+            <p class="text-sm text-base-content/60">{format_cost(@qa_cost, @currency)}</p>
           </div>
 
-          <div class="border border-gray-200 rounded-lg p-4">
-            <p class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">
+          <div class="border border-base-300 rounded-lg p-4">
+            <p class="text-[10px] font-semibold text-base-content/60 uppercase tracking-wide mb-1">
               Risk Buffer
             </p>
-            <p class="text-2xl font-bold text-gray-900">{format_hours_h(@risk_hours)}</p>
-            <p class="text-sm text-gray-500">{format_cost(@risk_cost, @currency)}</p>
+            <p class="text-2xl font-bold text-base-content">{format_hours_h(@risk_hours)}</p>
+            <p class="text-sm text-base-content/60">{format_cost(@risk_cost, @currency)}</p>
           </div>
 
-          <div class="bg-gray-900 rounded-lg p-4">
-            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">
+          <div class="bg-neutral rounded-lg p-4">
+            <p class="text-[10px] font-semibold text-base-content/40 uppercase tracking-wide mb-1">
               Final Total
             </p>
-            <p class="text-2xl font-bold text-white">{format_hours_h(@total_hours)}</p>
-            <p class="text-sm text-gray-300">{format_cost(@total_cost, @currency)}</p>
+            <p class="text-2xl font-bold text-neutral-content">{format_hours_h(@total_hours)}</p>
+            <p class="text-sm text-base-content/30">{format_cost(@total_cost, @currency)}</p>
           </div>
         </div>
 
         <%!-- Dashboard Tabs --%>
-        <div class="mt-6 border-b border-gray-200">
+        <div class="mt-6 border-b border-base-300">
           <nav class="flex gap-6">
             <button
               phx-click="set_dashboard_tab"
               phx-value-tab="by_role"
-              class={"pb-2 px-1 text-sm font-medium border-b-2 transition-colors #{if @dashboard_tab == :by_role, do: "border-gray-900 text-gray-900", else: "border-transparent text-gray-500 hover:text-gray-700"}"}
+              class={"pb-2 px-1 text-sm font-medium border-b-2 transition-colors #{if @dashboard_tab == :by_role, do: "border-base-content text-base-content", else: "border-transparent text-base-content/60 hover:text-base-content/80"}"}
             >
               By Role
             </button>
             <button
               phx-click="set_dashboard_tab"
               phx-value-tab="by_epic"
-              class={"pb-2 px-1 text-sm font-medium border-b-2 transition-colors #{if @dashboard_tab == :by_epic, do: "border-gray-900 text-gray-900", else: "border-transparent text-gray-500 hover:text-gray-700"}"}
+              class={"pb-2 px-1 text-sm font-medium border-b-2 transition-colors #{if @dashboard_tab == :by_epic, do: "border-base-content text-base-content", else: "border-transparent text-base-content/60 hover:text-base-content/80"}"}
             >
               By Epic
             </button>
             <button
               phx-click="set_dashboard_tab"
               phx-value-tab="by_priority"
-              class={"pb-2 px-1 text-sm font-medium border-b-2 transition-colors #{if @dashboard_tab == :by_priority, do: "border-gray-900 text-gray-900", else: "border-transparent text-gray-500 hover:text-gray-700"}"}
+              class={"pb-2 px-1 text-sm font-medium border-b-2 transition-colors #{if @dashboard_tab == :by_priority, do: "border-base-content text-base-content", else: "border-transparent text-base-content/60 hover:text-base-content/80"}"}
             >
               By Priority
             </button>
@@ -777,7 +777,7 @@ defmodule EstimateWeb.ProjectLive.Show do
     <div class="overflow-x-auto">
       <table class="w-full text-sm">
         <thead>
-          <tr class="border-b border-gray-200 text-[11px] font-medium text-gray-500 uppercase tracking-wider">
+          <tr class="border-b border-base-300 text-[11px] font-medium text-base-content/60 uppercase tracking-wider">
             <th class="px-3 py-2 text-left">Role</th>
             <th class="px-3 py-2 text-right">Rate</th>
             <th class="px-3 py-2 text-right">Base</th>
@@ -787,7 +787,7 @@ defmodule EstimateWeb.ProjectLive.Show do
             <th class="px-3 py-2 text-right">Final</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-gray-100">
+        <tbody class="divide-y divide-base-content/10">
           <%= for role <- @roles, Decimal.compare(Calculator.role_hours(@epics, role.id), 0) == :gt do %>
             <% base_h = Calculator.role_hours(@epics, role.id) %>
             <% base_c = Decimal.mult(base_h, role.hourly_rate) %>
@@ -799,77 +799,77 @@ defmodule EstimateWeb.ProjectLive.Show do
             <% risk_c = Calculator.role_overhead_cost(base_c, role.risk_buffer) %>
             <% final_h = base_h |> Decimal.add(pm_h) |> Decimal.add(qa_h) |> Decimal.add(risk_h) %>
             <% final_c = base_c |> Decimal.add(pm_c) |> Decimal.add(qa_c) |> Decimal.add(risk_c) %>
-            <tr class="hover:bg-gray-50">
+            <tr class="hover:bg-base-200">
               <td class="px-3 py-3">
-                <span class="font-medium text-gray-900">{role.name}</span>
-                <span class="text-gray-400 ml-1">({role.abbreviation})</span>
+                <span class="font-medium text-base-content">{role.name}</span>
+                <span class="text-base-content/40 ml-1">({role.abbreviation})</span>
               </td>
-              <td class="px-3 py-3 text-right text-gray-500">
+              <td class="px-3 py-3 text-right text-base-content/60">
                 {format_cost(role.hourly_rate, @currency)}/h
               </td>
               <td class="px-3 py-3 text-right">
-                <div class="text-gray-900">{format_hours_h(base_h)}</div>
-                <div class="text-xs text-gray-400">{format_cost(base_c, @currency)}</div>
+                <div class="text-base-content">{format_hours_h(base_h)}</div>
+                <div class="text-xs text-base-content/40">{format_cost(base_c, @currency)}</div>
               </td>
               <td class="px-3 py-3 text-right">
-                <div class="text-gray-900">{format_hours_h(pm_h)}</div>
-                <div class="text-xs text-gray-400">{format_cost(pm_c, @currency)}</div>
+                <div class="text-base-content">{format_hours_h(pm_h)}</div>
+                <div class="text-xs text-base-content/40">{format_cost(pm_c, @currency)}</div>
               </td>
               <td class="px-3 py-3 text-right">
-                <div class="text-gray-900">{format_hours_h(qa_h)}</div>
-                <div class="text-xs text-gray-400">{format_cost(qa_c, @currency)}</div>
+                <div class="text-base-content">{format_hours_h(qa_h)}</div>
+                <div class="text-xs text-base-content/40">{format_cost(qa_c, @currency)}</div>
               </td>
               <td class="px-3 py-3 text-right">
-                <div class="text-gray-900">{format_hours_h(risk_h)}</div>
-                <div class="text-xs text-gray-400">{format_cost(risk_c, @currency)}</div>
+                <div class="text-base-content">{format_hours_h(risk_h)}</div>
+                <div class="text-xs text-base-content/40">{format_cost(risk_c, @currency)}</div>
               </td>
               <td class="px-3 py-3 text-right">
-                <div class="font-semibold text-gray-900">{format_hours_h(final_h)}</div>
-                <div class="text-xs font-medium text-gray-600">{format_cost(final_c, @currency)}</div>
+                <div class="font-semibold text-base-content">{format_hours_h(final_h)}</div>
+                <div class="text-xs font-medium text-base-content/70">{format_cost(final_c, @currency)}</div>
               </td>
             </tr>
           <% end %>
         </tbody>
         <tfoot>
-          <tr class="border-t-2 border-gray-300 bg-gray-50">
-            <td class="px-3 py-3 font-semibold text-gray-900" colspan="2">Total</td>
+          <tr class="border-t-2 border-base-content/20 bg-base-200">
+            <td class="px-3 py-3 font-semibold text-base-content" colspan="2">Total</td>
             <td class="px-3 py-3 text-right">
-              <div class="font-semibold text-gray-900">
+              <div class="font-semibold text-base-content">
                 {format_hours_h(Calculator.calc_total_hours(@epics))}
               </div>
-              <div class="text-xs text-gray-500">
+              <div class="text-xs text-base-content/60">
                 {format_cost(Calculator.calc_base_cost(@epics, @roles), @currency)}
               </div>
             </td>
             <td class="px-3 py-3 text-right">
-              <div class="font-semibold text-gray-900">
+              <div class="font-semibold text-base-content">
                 {format_hours_h(Calculator.calc_overhead_hours(@epics, @roles, :pm_overhead))}
               </div>
-              <div class="text-xs text-gray-500">
+              <div class="text-xs text-base-content/60">
                 {format_cost(Calculator.calc_overhead_cost(@epics, @roles, :pm_overhead), @currency)}
               </div>
             </td>
             <td class="px-3 py-3 text-right">
-              <div class="font-semibold text-gray-900">
+              <div class="font-semibold text-base-content">
                 {format_hours_h(Calculator.calc_overhead_hours(@epics, @roles, :qa_overhead))}
               </div>
-              <div class="text-xs text-gray-500">
+              <div class="text-xs text-base-content/60">
                 {format_cost(Calculator.calc_overhead_cost(@epics, @roles, :qa_overhead), @currency)}
               </div>
             </td>
             <td class="px-3 py-3 text-right">
-              <div class="font-semibold text-gray-900">
+              <div class="font-semibold text-base-content">
                 {format_hours_h(Calculator.calc_overhead_hours(@epics, @roles, :risk_buffer))}
               </div>
-              <div class="text-xs text-gray-500">
+              <div class="text-xs text-base-content/60">
                 {format_cost(Calculator.calc_overhead_cost(@epics, @roles, :risk_buffer), @currency)}
               </div>
             </td>
             <td class="px-3 py-3 text-right">
               <% total_h = Calculator.calc_total_with_overhead_hours(@epics, @roles) %>
               <% total_c = Calculator.calc_total_with_overhead_cost(@epics, @roles) %>
-              <div class="font-semibold text-gray-900">{format_hours_h(total_h)}</div>
-              <div class="text-xs font-medium text-gray-600">{format_cost(total_c, @currency)}</div>
+              <div class="font-semibold text-base-content">{format_hours_h(total_h)}</div>
+              <div class="text-xs font-medium text-base-content/70">{format_cost(total_c, @currency)}</div>
             </td>
           </tr>
         </tfoot>
@@ -883,7 +883,7 @@ defmodule EstimateWeb.ProjectLive.Show do
     <div class="overflow-x-auto">
       <table class="w-full text-sm">
         <thead>
-          <tr class="border-b border-gray-200 text-[11px] font-medium text-gray-500 uppercase tracking-wider">
+          <tr class="border-b border-base-300 text-[11px] font-medium text-base-content/60 uppercase tracking-wider">
             <th class="px-3 py-2 text-left">Epic</th>
             <th class="px-3 py-2 text-right">Tasks</th>
             <th class="px-3 py-2 text-right">Base Hours</th>
@@ -891,35 +891,35 @@ defmodule EstimateWeb.ProjectLive.Show do
             <th class="px-3 py-2 text-right">With Overhead</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-gray-100">
+        <tbody class="divide-y divide-base-content/10">
           <%= for epic <- @epics do %>
             <% base_h = Calculator.epic_hours(epic) %>
             <% base_c = Calculator.epic_base_cost(epic, @roles) %>
             <% total_c = Calculator.epic_total_with_overhead(epic, @roles) %>
-            <tr class="hover:bg-gray-50">
-              <td class="px-3 py-3 font-medium text-gray-900">{epic.name}</td>
-              <td class="px-3 py-3 text-right text-gray-500">{length(epic.tasks)}</td>
-              <td class="px-3 py-3 text-right text-gray-900">{format_hours_h(base_h)}</td>
-              <td class="px-3 py-3 text-right text-gray-600">{format_cost(base_c, @currency)}</td>
-              <td class="px-3 py-3 text-right font-semibold text-gray-900">
+            <tr class="hover:bg-base-200">
+              <td class="px-3 py-3 font-medium text-base-content">{epic.name}</td>
+              <td class="px-3 py-3 text-right text-base-content/60">{length(epic.tasks)}</td>
+              <td class="px-3 py-3 text-right text-base-content">{format_hours_h(base_h)}</td>
+              <td class="px-3 py-3 text-right text-base-content/70">{format_cost(base_c, @currency)}</td>
+              <td class="px-3 py-3 text-right font-semibold text-base-content">
                 {format_cost(total_c, @currency)}
               </td>
             </tr>
           <% end %>
         </tbody>
         <tfoot>
-          <tr class="border-t-2 border-gray-300 bg-gray-50 font-semibold">
-            <td class="px-3 py-3 text-gray-900">Total</td>
-            <td class="px-3 py-3 text-right text-gray-600">
+          <tr class="border-t-2 border-base-content/20 bg-base-200 font-semibold">
+            <td class="px-3 py-3 text-base-content">Total</td>
+            <td class="px-3 py-3 text-right text-base-content/70">
               {Enum.reduce(@epics, 0, fn e, acc -> acc + length(e.tasks) end)}
             </td>
-            <td class="px-3 py-3 text-right text-gray-900">
+            <td class="px-3 py-3 text-right text-base-content">
               {format_hours_h(Calculator.calc_total_hours(@epics))}
             </td>
-            <td class="px-3 py-3 text-right text-gray-600">
+            <td class="px-3 py-3 text-right text-base-content/70">
               {format_cost(Calculator.calc_base_cost(@epics, @roles), @currency)}
             </td>
-            <td class="px-3 py-3 text-right text-gray-900">
+            <td class="px-3 py-3 text-right text-base-content">
               {format_cost(Calculator.calc_total_with_overhead_cost(@epics, @roles), @currency)}
             </td>
           </tr>
@@ -976,41 +976,41 @@ defmodule EstimateWeb.ProjectLive.Show do
     <div class="overflow-x-auto">
       <table class="w-full text-sm">
         <thead>
-          <tr class="border-b border-gray-200 text-[11px] font-medium text-gray-500 uppercase tracking-wider">
+          <tr class="border-b border-base-300 text-[11px] font-medium text-base-content/60 uppercase tracking-wider">
             <th class="px-3 py-2 text-left">Priority</th>
             <th class="px-3 py-2 text-right">Tasks</th>
             <th class="px-3 py-2 text-right">Base Hours</th>
             <th class="px-3 py-2 text-right">Total Cost</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-gray-100">
+        <tbody class="divide-y divide-base-content/10">
           <%= for data <- @priority_data do %>
-            <tr class="hover:bg-gray-50">
+            <tr class="hover:bg-base-200">
               <td class="px-3 py-3">
                 <span class={"text-xs px-2 py-1 rounded font-medium #{priority_class(data.priority)}"}>
                   {priority_label(data.priority)}
                 </span>
               </td>
-              <td class="px-3 py-3 text-right text-gray-600">{data.tasks}</td>
-              <td class="px-3 py-3 text-right text-gray-900">{format_hours_h(data.hours)}</td>
-              <td class="px-3 py-3 text-right font-semibold text-gray-900">
+              <td class="px-3 py-3 text-right text-base-content/70">{data.tasks}</td>
+              <td class="px-3 py-3 text-right text-base-content">{format_hours_h(data.hours)}</td>
+              <td class="px-3 py-3 text-right font-semibold text-base-content">
                 {format_cost(data.cost, @currency)}
               </td>
             </tr>
           <% end %>
         </tbody>
         <tfoot>
-          <tr class="border-t-2 border-gray-300 bg-gray-50 font-semibold">
-            <td class="px-3 py-3 text-gray-900">Total</td>
-            <td class="px-3 py-3 text-right text-gray-600">
+          <tr class="border-t-2 border-base-content/20 bg-base-200 font-semibold">
+            <td class="px-3 py-3 text-base-content">Total</td>
+            <td class="px-3 py-3 text-right text-base-content/70">
               {Enum.reduce(@priority_data, 0, fn d, acc -> acc + d.tasks end)}
             </td>
-            <td class="px-3 py-3 text-right text-gray-900">
+            <td class="px-3 py-3 text-right text-base-content">
               {format_hours_h(
                 Enum.reduce(@priority_data, Decimal.new(0), fn d, acc -> Decimal.add(acc, d.hours) end)
               )}
             </td>
-            <td class="px-3 py-3 text-right text-gray-900">
+            <td class="px-3 py-3 text-right text-base-content">
               {format_cost(
                 Enum.reduce(@priority_data, Decimal.new(0), fn d, acc -> Decimal.add(acc, d.cost) end),
                 @currency
@@ -1043,23 +1043,23 @@ defmodule EstimateWeb.ProjectLive.Show do
       <%!-- Add Collaborator --%>
       <div
         :if={@can_manage_collaborators}
-        class="bg-white border border-gray-200 rounded-xl"
+        class="bg-base-100 border border-base-300 rounded-xl"
       >
         <form phx-change="collaborator_form_change" phx-submit="add_collaborator" class="p-6">
-          <h2 class="text-lg font-semibold text-gray-900 mb-4">Add Collaborator</h2>
+          <h2 class="text-lg font-semibold text-base-content mb-4">Add Collaborator</h2>
           <div class="flex gap-4">
             <div class="flex-1 relative">
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">Member</label>
+              <label class="block text-xs font-medium text-base-content/60 mb-1.5">Member</label>
               <%= if @selected_member do %>
-                <div class="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">
+                <div class="flex items-center gap-2 px-3 py-2 bg-base-200 border border-base-300 rounded-lg">
                   <.avatar name={@selected_member.name || @selected_member.email} seed={@selected_member.id} size={:xs} />
-                  <span class="text-sm text-gray-900">
+                  <span class="text-sm text-base-content">
                     {@selected_member.name || @selected_member.email}
                   </span>
                   <button
                     type="button"
                     phx-click="clear_selected_member"
-                    class="ml-auto text-gray-400 hover:text-gray-600"
+                    class="ml-auto text-base-content/40 hover:text-base-content/70"
                   >
                     <.icon name="hero-x-mark" class="w-4 h-4" />
                   </button>
@@ -1067,7 +1067,7 @@ defmodule EstimateWeb.ProjectLive.Show do
               <% else %>
                 <div class="relative">
                   <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <.icon name="hero-magnifying-glass" class="w-4 h-4 text-gray-400" />
+                    <.icon name="hero-magnifying-glass" class="w-4 h-4 text-base-content/40" />
                   </div>
                   <input
                     type="text"
@@ -1078,28 +1078,28 @@ defmodule EstimateWeb.ProjectLive.Show do
                     phx-click-away="close_member_dropdown"
                     phx-debounce="100"
                     autocomplete="off"
-                    class="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent focus:bg-white text-sm"
+                    class="w-full pl-9 pr-3 py-2 bg-base-200 border border-base-300 rounded-lg text-sm"
                   />
                 </div>
                 <div
                   :if={@show_member_dropdown && @filtered_members != []}
-                  class="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto"
+                  class="absolute z-10 mt-1 w-full bg-base-100 border border-base-300 rounded-lg shadow-lg max-h-48 overflow-y-auto"
                 >
                   <button
                     :for={membership <- @filtered_members}
                     type="button"
                     phx-click="select_member"
                     phx-value-user-id={membership.user.id}
-                    class="w-full px-3 py-2 flex items-center gap-3 hover:bg-gray-50 text-left"
+                    class="w-full px-3 py-2 flex items-center gap-3 hover:bg-base-200 text-left"
                   >
                     <.avatar name={membership.user.name || membership.user.email} seed={membership.user.id} size={:sm} />
                     <div class="min-w-0">
-                      <p class="text-sm font-medium text-gray-900 truncate">
+                      <p class="text-sm font-medium text-base-content truncate">
                         {membership.user.name || membership.user.email}
                       </p>
-                      <p class="text-xs text-gray-500 truncate">{membership.user.email}</p>
+                      <p class="text-xs text-base-content/60 truncate">{membership.user.email}</p>
                     </div>
-                    <span class="ml-auto text-xs text-gray-400 capitalize flex-shrink-0">
+                    <span class="ml-auto text-xs text-base-content/40 capitalize flex-shrink-0">
                       {membership.role}
                     </span>
                   </button>
@@ -1107,10 +1107,10 @@ defmodule EstimateWeb.ProjectLive.Show do
               <% end %>
             </div>
             <div class="w-36">
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">Role</label>
+              <label class="block text-xs font-medium text-base-content/60 mb-1.5">Role</label>
               <select
                 name="collaborator_role"
-                class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent focus:bg-white text-sm"
+                class="w-full px-3 py-2 bg-base-200 border border-base-300 rounded-lg text-sm"
               >
                 <option value="viewer" selected={@selected_role == "viewer"}>Viewer</option>
                 <option value="editor" selected={@selected_role == "editor"}>Editor</option>
@@ -1121,7 +1121,7 @@ defmodule EstimateWeb.ProjectLive.Show do
               <button
                 type="submit"
                 disabled={is_nil(@selected_member)}
-                class={"px-4 py-2 bg-gray-900 text-white text-sm rounded-lg font-medium transition-colors #{if is_nil(@selected_member), do: "opacity-50 cursor-not-allowed", else: "hover:bg-gray-800"}"}
+                class={"px-4 py-2 bg-neutral text-neutral-content text-sm rounded-lg font-medium transition-colors #{if is_nil(@selected_member), do: "opacity-50 cursor-not-allowed", else: "hover:bg-neutral/90"}"}
               >
                 Add
               </button>
@@ -1131,36 +1131,36 @@ defmodule EstimateWeb.ProjectLive.Show do
       </div>
 
       <%!-- Collaborators List --%>
-      <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
-        <div class="px-6 py-4 border-b border-gray-100">
-          <h2 class="text-lg font-semibold text-gray-900">Collaborators</h2>
+      <div class="bg-base-100 border border-base-300 rounded-xl overflow-hidden">
+        <div class="px-6 py-4 border-b border-base-content/10">
+          <h2 class="text-lg font-semibold text-base-content">Collaborators</h2>
         </div>
         <%= if @collaborators == [] do %>
           <div class="px-6 py-12 text-center">
-            <div class="w-12 h-12 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
-              <.icon name="hero-users" class="w-6 h-6 text-gray-400" />
+            <div class="w-12 h-12 mx-auto mb-4 rounded-full bg-base-200 flex items-center justify-center">
+              <.icon name="hero-users" class="w-6 h-6 text-base-content/40" />
             </div>
-            <p class="text-sm font-medium text-gray-900">No collaborators</p>
-            <p class="text-sm text-gray-500 mt-1">Add team members to this project.</p>
+            <p class="text-sm font-medium text-base-content">No collaborators</p>
+            <p class="text-sm text-base-content/60 mt-1">Add team members to this project.</p>
           </div>
         <% else %>
           <div
             :for={collab <- Enum.sort_by(@collaborators, &(&1.user_id != @current_user.id))}
-            class="px-6 py-4 flex items-center justify-between border-b border-gray-100 last:border-b-0"
+            class="px-6 py-4 flex items-center justify-between border-b border-base-content/10 last:border-b-0"
           >
             <div class="flex items-center gap-3">
               <.avatar name={collab.user.name || collab.user.email} seed={collab.user.id} />
               <div>
                 <div class="flex items-center gap-2">
-                  <h3 class="text-sm font-medium text-gray-900">{collab.user.name}</h3>
+                  <h3 class="text-sm font-medium text-base-content">{collab.user.name}</h3>
                   <span
                     :if={collab.user_id == @current_user.id}
-                    class="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded-full font-medium"
+                    class="text-[10px] px-1.5 py-0.5 bg-base-200 text-base-content/60 rounded-full font-medium"
                   >
                     You
                   </span>
                 </div>
-                <p class="text-sm text-gray-500">{collab.user.email}</p>
+                <p class="text-sm text-base-content/60">{collab.user.email}</p>
               </div>
             </div>
             <div class="flex items-center gap-4">
@@ -1168,7 +1168,7 @@ defmodule EstimateWeb.ProjectLive.Show do
                 <form phx-change="change_collaborator_role" phx-value-id={collab.id}>
                   <select
                     name="role"
-                    class="text-sm px-2 py-1 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                    class="text-sm px-2 py-1 border border-base-300 rounded-lg"
                   >
                     <option value="viewer" selected={collab.role == "viewer"}>Viewer</option>
                     <option value="editor" selected={collab.role == "editor"}>Editor</option>
@@ -1176,13 +1176,13 @@ defmodule EstimateWeb.ProjectLive.Show do
                   </select>
                 </form>
               <% else %>
-                <span class="text-sm text-gray-500 capitalize">{collab.role}</span>
+                <span class="text-sm text-base-content/60 capitalize">{collab.role}</span>
               <% end %>
               <%= if can_remove_collaborator?(assigns, collab) do %>
                 <button
                   phx-click="confirm_remove_collaborator"
                   phx-value-id={collab.id}
-                  class="text-gray-400 hover:text-red-600 transition-colors"
+                  class="text-base-content/40 hover:text-error transition-colors"
                 >
                   <.icon name="hero-x-mark" class="w-5 h-5" />
                 </button>
@@ -1197,13 +1197,13 @@ defmodule EstimateWeb.ProjectLive.Show do
 
   defp tab_estimations(assigns) do
     ~H"""
-    <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
-      <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-        <h2 class="text-lg font-semibold text-gray-900">Estimations</h2>
+    <div class="bg-base-100 border border-base-300 rounded-xl overflow-hidden">
+      <div class="px-6 py-4 border-b border-base-content/10 flex items-center justify-between">
+        <h2 class="text-lg font-semibold text-base-content">Estimations</h2>
         <button
           :if={@can_edit_project}
           phx-click="open_estimation_modal"
-          class="px-3 py-1.5 bg-gray-900 text-white text-sm rounded-lg hover:bg-gray-800 transition-colors font-medium"
+          class="px-3 py-1.5 bg-neutral text-neutral-content text-sm rounded-lg hover:bg-neutral/90 transition-colors font-medium"
         >
           New Estimation
         </button>
@@ -1211,31 +1211,31 @@ defmodule EstimateWeb.ProjectLive.Show do
 
       <%= if @estimations == [] do %>
         <div class="px-6 py-12 text-center">
-          <div class="w-12 h-12 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
-            <.icon name="hero-calculator" class="w-6 h-6 text-gray-400" />
+          <div class="w-12 h-12 mx-auto mb-4 rounded-full bg-base-200 flex items-center justify-center">
+            <.icon name="hero-calculator" class="w-6 h-6 text-base-content/40" />
           </div>
-          <p class="text-sm font-medium text-gray-900">No estimations yet</p>
-          <p class="text-sm text-gray-500 mt-1">Create your first estimation to get started.</p>
+          <p class="text-sm font-medium text-base-content">No estimations yet</p>
+          <p class="text-sm text-base-content/60 mt-1">Create your first estimation to get started.</p>
         </div>
       <% else %>
         <%= for estimation <- @estimations do %>
-          <div class="flex items-center border-b border-gray-100 last:border-b-0">
+          <div class="flex items-center border-b border-base-content/10 last:border-b-0">
             <.link
               navigate={
                 ~p"/org/#{@org_id}/projects/#{@project.id}/estimations/#{estimation.id}/estimator"
               }
-              class="flex-1 px-6 py-4 hover:bg-gray-50 transition-colors"
+              class="flex-1 px-6 py-4 hover:bg-base-200 transition-colors"
             >
               <div class="flex items-center gap-2">
-                <h3 class="text-sm font-medium text-gray-900">{estimation.name}</h3>
+                <h3 class="text-sm font-medium text-base-content">{estimation.name}</h3>
                 <span
                   :if={estimation.is_current}
-                  class="text-[10px] px-1.5 py-0.5 bg-green-100 text-green-700 rounded font-medium"
+                  class="text-[10px] px-1.5 py-0.5 bg-success/10 text-success rounded font-medium"
                 >
                   Current
                 </span>
               </div>
-              <p class="text-xs text-gray-500 mt-0.5">
+              <p class="text-xs text-base-content/60 mt-0.5">
                 {length(estimation.roles)} roles · Updated {Calendar.strftime(
                   estimation.updated_at,
                   "%b %d, %Y"
@@ -1247,12 +1247,12 @@ defmodule EstimateWeb.ProjectLive.Show do
                 :if={!estimation.is_current}
                 phx-click="set_current_estimation"
                 phx-value-id={estimation.id}
-                class="text-xs text-gray-400 hover:text-gray-600 px-2 py-1 rounded hover:bg-gray-100"
+                class="text-xs text-base-content/40 hover:text-base-content/70 px-2 py-1 rounded hover:bg-base-300"
                 title="Set as current"
               >
                 Set current
               </button>
-              <span :if={estimation.is_current} class="text-xs text-green-600 px-2 py-1">
+              <span :if={estimation.is_current} class="text-xs text-success px-2 py-1">
                 <.icon name="hero-check-circle-solid" class="w-4 h-4" />
               </span>
             </div>

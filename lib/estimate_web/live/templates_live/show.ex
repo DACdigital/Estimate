@@ -4,18 +4,19 @@ defmodule EstimateWeb.TemplatesLive.Show do
   alias Estimate.Templates
 
   import EstimateWeb.EstimatorLive.Helpers, only: [priority_label: 1, priority_class: 1]
+  import EstimateWeb.LiveHelpers
 
   @impl true
   def render(assigns) do
     ~H"""
     <div class="max-w-5xl mx-auto">
       <%!-- Breadcrumb --%>
-      <nav class="flex items-center space-x-2 text-sm text-gray-500 mb-6">
-        <.link navigate={~p"/org/#{@org_id}/templates"} class="hover:text-gray-900">
+      <nav class="flex items-center space-x-2 text-sm text-base-content/60 mb-6">
+        <.link navigate={~p"/org/#{@org_id}/templates"} class="hover:text-base-content">
           Templates
         </.link>
-        <span class="text-gray-300">&rsaquo;</span>
-        <span class="text-gray-900 font-medium">{@template.name}</span>
+        <span class="text-base-content/30">&rsaquo;</span>
+        <span class="text-base-content font-medium">{@template.name}</span>
       </nav>
 
       <%!-- Header --%>
@@ -26,18 +27,18 @@ defmodule EstimateWeb.TemplatesLive.Show do
               type="text"
               name="name"
               value={@template.name}
-              class="text-2xl font-bold text-gray-900 bg-transparent border-0 border-b-2 border-transparent hover:border-gray-200 focus:border-gray-900 focus:ring-0 p-0 pb-1 w-full transition-colors"
+              class="text-2xl font-bold text-base-content bg-transparent border-0 border-b-2 border-transparent hover:border-base-300 focus:border-base-content focus:ring-0 p-0 pb-1 w-full transition-colors"
             />
             <textarea
               name="description"
               rows="1"
               placeholder="Add description..."
-              class="mt-2 text-sm text-gray-500 bg-transparent border-0 border-b-2 border-transparent hover:border-gray-200 focus:border-gray-900 focus:ring-0 p-0 pb-1 w-full resize-none transition-colors"
+              class="mt-2 text-sm text-base-content/60 bg-transparent border-0 border-b-2 border-transparent hover:border-base-300 focus:border-base-content focus:ring-0 p-0 pb-1 w-full resize-none transition-colors"
             >{@template.description}</textarea>
           </form>
         <% else %>
-          <h1 class="text-2xl font-bold text-gray-900">{@template.name}</h1>
-          <p :if={@template.description} class="mt-2 text-sm text-gray-500">
+          <h1 class="text-2xl font-bold text-base-content">{@template.name}</h1>
+          <p :if={@template.description} class="mt-2 text-sm text-base-content/60">
             {@template.description}
           </p>
         <% end %>
@@ -47,33 +48,33 @@ defmodule EstimateWeb.TemplatesLive.Show do
       <div :if={@is_admin} class="flex items-center justify-end gap-4 mb-4">
         <button
           phx-click="add_epic"
-          class="px-4 py-2 bg-gray-900 text-white text-sm rounded-lg hover:bg-gray-800 transition-colors font-medium"
+          class="px-4 py-2 bg-neutral text-neutral-content text-sm rounded-lg hover:bg-neutral/90 transition-colors font-medium"
         >
           Add Epic
         </button>
       </div>
 
       <%!-- Template Structure --%>
-      <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      <div class="bg-base-100 border border-base-300 rounded-xl overflow-hidden">
         <div id="epics-container" phx-hook="TemplateSortable" data-group="epics" data-sort-key="epics">
           <%= for epic <- @template.epics do %>
             <div
               id={"epic-#{epic.id}"}
               data-id={epic.id}
-              class="border-b border-gray-100 last:border-b-0"
+              class="border-b border-base-content/10 last:border-b-0"
             >
               <%!-- Epic Row --%>
-              <div class="flex items-center gap-3 px-4 py-3 bg-gray-50 group">
-                <div class="drag-handle cursor-grab text-gray-300 hover:text-gray-500">
+              <div class="flex items-center gap-3 px-4 py-3 bg-base-200 group">
+                <div class="drag-handle cursor-grab text-base-content/30 hover:text-base-content/60">
                   <.icon name="hero-bars-3" class="w-4 h-4" />
                 </div>
                 <div class="flex-1 min-w-0">
-                  <span class="font-semibold text-sm text-gray-900">{epic.name}</span>
+                  <span class="font-semibold text-sm text-base-content">{epic.name}</span>
                   <button
                     :if={epic.description}
                     phx-click="edit_epic"
                     phx-value-id={epic.id}
-                    class="ml-1.5 text-gray-400 hover:text-gray-600"
+                    class="ml-1.5 text-base-content/40 hover:text-base-content/70"
                     title={epic.description}
                   >
                     <.icon name="hero-document-text" class="w-3.5 h-3.5" />
@@ -83,7 +84,7 @@ defmodule EstimateWeb.TemplatesLive.Show do
                   <button
                     phx-click="edit_epic"
                     phx-value-id={epic.id}
-                    class="p-1 text-gray-400 hover:text-gray-600 rounded"
+                    class="p-1 text-base-content/40 hover:text-base-content/70 rounded"
                     title="Edit epic"
                   >
                     <.icon name="hero-pencil" class="w-3.5 h-3.5" />
@@ -91,7 +92,7 @@ defmodule EstimateWeb.TemplatesLive.Show do
                   <button
                     phx-click="add_task"
                     phx-value-epic-id={epic.id}
-                    class="p-1 text-gray-400 hover:text-gray-600 rounded"
+                    class="p-1 text-base-content/40 hover:text-base-content/70 rounded"
                     title="Add task"
                   >
                     <.icon name="hero-plus" class="w-3.5 h-3.5" />
@@ -99,7 +100,7 @@ defmodule EstimateWeb.TemplatesLive.Show do
                   <button
                     phx-click="confirm_delete_epic"
                     phx-value-id={epic.id}
-                    class="p-1 text-gray-400 hover:text-red-600 rounded"
+                    class="p-1 text-base-content/40 hover:text-error rounded"
                     title="Delete epic"
                   >
                     <.icon name="hero-trash" class="w-3.5 h-3.5" />
@@ -114,27 +115,27 @@ defmodule EstimateWeb.TemplatesLive.Show do
                 data-group={"tasks-#{epic.id}"}
                 data-sort-key={"tasks-#{epic.id}"}
                 data-epic-id={epic.id}
-                class="divide-y divide-gray-50"
+                class="divide-y divide-base-content/5"
               >
                 <%= for task <- epic.tasks do %>
                   <div
                     id={"task-#{task.id}"}
                     data-id={task.id}
-                    class="flex items-center gap-3 px-4 py-2.5 pl-10 group/task hover:bg-gray-50/50"
+                    class="flex items-center gap-3 px-4 py-2.5 pl-10 group/task hover:bg-base-200/50"
                   >
-                    <div class="drag-handle cursor-grab text-gray-200 hover:text-gray-400">
+                    <div class="drag-handle cursor-grab text-base-content/20 hover:text-base-content/40">
                       <.icon name="hero-bars-3" class="w-3.5 h-3.5" />
                     </div>
                     <span class={"inline-flex px-1.5 py-0.5 text-xs font-medium rounded #{priority_class(task.priority)}"}>
                       {priority_label(task.priority)}
                     </span>
-                    <span class="text-sm text-gray-700 flex-1 min-w-0 truncate">{task.name}</span>
+                    <span class="text-sm text-base-content/80 flex-1 min-w-0 truncate">{task.name}</span>
                     <button
                       :if={task.description}
                       phx-click="edit_task"
                       phx-value-id={task.id}
                       phx-value-epic-id={epic.id}
-                      class="text-gray-300 hover:text-gray-500"
+                      class="text-base-content/30 hover:text-base-content/60"
                       title={task.description}
                     >
                       <.icon name="hero-document-text" class="w-3.5 h-3.5" />
@@ -144,7 +145,7 @@ defmodule EstimateWeb.TemplatesLive.Show do
                         phx-click="edit_task"
                         phx-value-id={task.id}
                         phx-value-epic-id={epic.id}
-                        class="p-1 text-gray-400 hover:text-gray-600 rounded"
+                        class="p-1 text-base-content/40 hover:text-base-content/70 rounded"
                         title="Edit task"
                       >
                         <.icon name="hero-pencil" class="w-3.5 h-3.5" />
@@ -153,7 +154,7 @@ defmodule EstimateWeb.TemplatesLive.Show do
                         phx-click="confirm_delete_task"
                         phx-value-id={task.id}
                         phx-value-epic-id={epic.id}
-                        class="p-1 text-gray-400 hover:text-red-600 rounded"
+                        class="p-1 text-base-content/40 hover:text-error rounded"
                         title="Delete task"
                       >
                         <.icon name="hero-trash" class="w-3.5 h-3.5" />
@@ -168,9 +169,9 @@ defmodule EstimateWeb.TemplatesLive.Show do
 
         <%= if Enum.empty?(@template.epics) do %>
           <div class="px-6 py-12 text-center">
-            <.icon name="hero-rectangle-stack" class="w-12 h-12 text-gray-300 mx-auto" />
-            <p class="mt-2 text-gray-500">No epics yet</p>
-            <p class="text-sm text-gray-400 mt-1">Click "Add Epic" to get started</p>
+            <.icon name="hero-rectangle-stack" class="w-12 h-12 text-base-content/30 mx-auto" />
+            <p class="mt-2 text-base-content/60">No epics yet</p>
+            <p class="text-sm text-base-content/40 mt-1">Click "Add Epic" to get started</p>
           </div>
         <% end %>
       </div>
@@ -182,42 +183,42 @@ defmodule EstimateWeb.TemplatesLive.Show do
         show
         on_cancel={JS.push("close_modal")}
       >
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">
+        <h3 class="text-lg font-semibold text-base-content mb-4">
           {if @current_epic_id, do: "Edit Epic", else: "New Epic"}
         </h3>
         <.form for={@epic_form} phx-submit="save_epic">
           <input type="hidden" name="epic_id" value={@current_epic_id} />
           <div class="space-y-4">
             <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">Name *</label>
+              <label class="block text-xs font-medium text-base-content/60 mb-1.5">Name *</label>
               <input
                 type="text"
                 name="name"
                 value={@epic_form[:name].value}
                 required
                 autofocus
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                class="w-full px-3 py-2 border border-base-content/20 rounded-lg text-sm"
               />
             </div>
             <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">Description</label>
+              <label class="block text-xs font-medium text-base-content/60 mb-1.5">Description</label>
               <textarea
                 name="description"
                 rows="3"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent resize-none"
+                class="w-full px-3 py-2 border border-base-content/20 rounded-lg text-sm resize-none"
               ><%= @epic_form[:description].value %></textarea>
             </div>
             <div class="flex justify-end gap-3 pt-2">
               <button
                 type="button"
                 phx-click="close_modal"
-                class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900"
+                class="px-4 py-2 text-sm text-base-content/70 hover:text-base-content"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                class="px-4 py-2 bg-gray-900 text-white text-sm rounded-lg hover:bg-gray-800 font-medium"
+                class="px-4 py-2 bg-neutral text-neutral-content text-sm rounded-lg hover:bg-neutral/90 font-medium"
               >
                 Save
               </button>
@@ -233,7 +234,7 @@ defmodule EstimateWeb.TemplatesLive.Show do
         show
         on_cancel={JS.push("close_modal")}
       >
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">
+        <h3 class="text-lg font-semibold text-base-content mb-4">
           {if @current_task_id, do: "Edit Task", else: "New Task"}
         </h3>
         <.form for={@task_form} phx-submit="save_task">
@@ -241,29 +242,29 @@ defmodule EstimateWeb.TemplatesLive.Show do
           <input type="hidden" name="epic_id" value={@current_epic_id} />
           <div class="space-y-4">
             <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">Name *</label>
+              <label class="block text-xs font-medium text-base-content/60 mb-1.5">Name *</label>
               <input
                 type="text"
                 name="name"
                 value={@task_form[:name].value}
                 required
                 autofocus
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                class="w-full px-3 py-2 border border-base-content/20 rounded-lg text-sm"
               />
             </div>
             <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">Description</label>
+              <label class="block text-xs font-medium text-base-content/60 mb-1.5">Description</label>
               <textarea
                 name="description"
                 rows="3"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent resize-none"
+                class="w-full px-3 py-2 border border-base-content/20 rounded-lg text-sm resize-none"
               ><%= @task_form[:description].value %></textarea>
             </div>
             <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">Priority</label>
+              <label class="block text-xs font-medium text-base-content/60 mb-1.5">Priority</label>
               <select
                 name="priority"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                class="w-full px-3 py-2 border border-base-content/20 rounded-lg text-sm"
               >
                 <%= for p <- ~w(must should could wont) do %>
                   <option value={p} selected={@task_form[:priority].value == p}>
@@ -276,13 +277,13 @@ defmodule EstimateWeb.TemplatesLive.Show do
               <button
                 type="button"
                 phx-click="close_modal"
-                class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900"
+                class="px-4 py-2 text-sm text-base-content/70 hover:text-base-content"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                class="px-4 py-2 bg-gray-900 text-white text-sm rounded-lg hover:bg-gray-800 font-medium"
+                class="px-4 py-2 bg-neutral text-neutral-content text-sm rounded-lg hover:bg-neutral/90 font-medium"
               >
                 Save
               </button>
@@ -299,24 +300,24 @@ defmodule EstimateWeb.TemplatesLive.Show do
         on_cancel={JS.push("cancel_delete")}
       >
         <div class="text-center">
-          <div class="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
-            <.icon name="hero-exclamation-triangle" class="w-6 h-6 text-red-600" />
+          <div class="w-12 h-12 rounded-full bg-error/10 flex items-center justify-center mx-auto mb-4">
+            <.icon name="hero-exclamation-triangle" class="w-6 h-6 text-error" />
           </div>
-          <h3 class="text-lg font-semibold text-gray-900 mb-2">Delete Epic</h3>
-          <p class="text-sm text-gray-500 mb-6">
-            Delete <span class="font-medium text-gray-900">{@deleting_epic.name}</span>
+          <h3 class="text-lg font-semibold text-base-content mb-2">Delete Epic</h3>
+          <p class="text-sm text-base-content/60 mb-6">
+            Delete <span class="font-medium text-base-content">{@deleting_epic.name}</span>
             and all its tasks?
           </p>
           <div class="flex gap-3 justify-center">
             <button
               phx-click="cancel_delete"
-              class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900"
+              class="px-4 py-2 text-sm text-base-content/70 hover:text-base-content"
             >
               Cancel
             </button>
             <button
               phx-click="delete_epic"
-              class="px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 font-medium"
+              class="px-4 py-2 bg-error text-neutral-content text-sm rounded-lg hover:bg-error/90 font-medium"
             >
               Delete
             </button>
@@ -332,23 +333,23 @@ defmodule EstimateWeb.TemplatesLive.Show do
         on_cancel={JS.push("cancel_delete")}
       >
         <div class="text-center">
-          <div class="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
-            <.icon name="hero-exclamation-triangle" class="w-6 h-6 text-red-600" />
+          <div class="w-12 h-12 rounded-full bg-error/10 flex items-center justify-center mx-auto mb-4">
+            <.icon name="hero-exclamation-triangle" class="w-6 h-6 text-error" />
           </div>
-          <h3 class="text-lg font-semibold text-gray-900 mb-2">Delete Task</h3>
-          <p class="text-sm text-gray-500 mb-6">
-            Delete <span class="font-medium text-gray-900">{@deleting_task.name}</span>?
+          <h3 class="text-lg font-semibold text-base-content mb-2">Delete Task</h3>
+          <p class="text-sm text-base-content/60 mb-6">
+            Delete <span class="font-medium text-base-content">{@deleting_task.name}</span>?
           </p>
           <div class="flex gap-3 justify-center">
             <button
               phx-click="cancel_delete"
-              class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900"
+              class="px-4 py-2 text-sm text-base-content/70 hover:text-base-content"
             >
               Cancel
             </button>
             <button
               phx-click="delete_task"
-              class="px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 font-medium"
+              class="px-4 py-2 bg-error text-neutral-content text-sm rounded-lg hover:bg-error/90 font-medium"
             >
               Delete
             </button>
@@ -381,9 +382,7 @@ defmodule EstimateWeb.TemplatesLive.Show do
 
   @impl true
   def handle_event("update_template", params, socket) do
-    unless socket.assigns.is_admin do
-      {:noreply, put_flash(socket, :error, "Not authorized")}
-    else
+    require_admin(socket, fn ->
       attrs = %{
         "name" => params["name"],
         "description" => params["description"]
@@ -397,7 +396,7 @@ defmodule EstimateWeb.TemplatesLive.Show do
         {:error, _} ->
           {:noreply, socket}
       end
-    end
+    end)
   end
 
   ## Epic events
@@ -424,9 +423,7 @@ defmodule EstimateWeb.TemplatesLive.Show do
   end
 
   def handle_event("save_epic", %{"epic_id" => "", "name" => name} = params, socket) do
-    unless socket.assigns.is_admin do
-      {:noreply, put_flash(socket, :error, "Not authorized")}
-    else
+    require_admin(socket, fn ->
       position = length(socket.assigns.template.epics)
 
       attrs = %{
@@ -443,13 +440,11 @@ defmodule EstimateWeb.TemplatesLive.Show do
         {:error, _} ->
           {:noreply, put_flash(socket, :error, "Could not create epic")}
       end
-    end
+    end)
   end
 
   def handle_event("save_epic", %{"epic_id" => id, "name" => name} = params, socket) do
-    unless socket.assigns.is_admin do
-      {:noreply, put_flash(socket, :error, "Not authorized")}
-    else
+    require_admin(socket, fn ->
       epic = find_epic(socket.assigns.template, id)
 
       case Templates.update_template_epic(epic, %{
@@ -462,7 +457,7 @@ defmodule EstimateWeb.TemplatesLive.Show do
         {:error, _} ->
           {:noreply, put_flash(socket, :error, "Could not update epic")}
       end
-    end
+    end)
   end
 
   def handle_event("confirm_delete_epic", %{"id" => id}, socket) do
@@ -471,9 +466,7 @@ defmodule EstimateWeb.TemplatesLive.Show do
   end
 
   def handle_event("delete_epic", _params, socket) do
-    unless socket.assigns.is_admin do
-      {:noreply, put_flash(socket, :error, "Not authorized")}
-    else
+    require_admin(socket, fn ->
       case Templates.delete_template_epic(socket.assigns.deleting_epic) do
         {:ok, _} ->
           {:noreply,
@@ -485,7 +478,7 @@ defmodule EstimateWeb.TemplatesLive.Show do
         {:error, _} ->
           {:noreply, put_flash(socket, :error, "Could not delete epic")}
       end
-    end
+    end)
   end
 
   ## Task events
@@ -528,9 +521,7 @@ defmodule EstimateWeb.TemplatesLive.Show do
         %{"task_id" => "", "epic_id" => epic_id, "name" => name} = params,
         socket
       ) do
-    unless socket.assigns.is_admin do
-      {:noreply, put_flash(socket, :error, "Not authorized")}
-    else
+    require_admin(socket, fn ->
       epic = find_epic(socket.assigns.template, epic_id)
       position = length(epic.tasks)
 
@@ -549,7 +540,7 @@ defmodule EstimateWeb.TemplatesLive.Show do
         {:error, _} ->
           {:noreply, put_flash(socket, :error, "Could not create task")}
       end
-    end
+    end)
   end
 
   def handle_event(
@@ -557,9 +548,7 @@ defmodule EstimateWeb.TemplatesLive.Show do
         %{"task_id" => id, "epic_id" => epic_id, "name" => name} = params,
         socket
       ) do
-    unless socket.assigns.is_admin do
-      {:noreply, put_flash(socket, :error, "Not authorized")}
-    else
+    require_admin(socket, fn ->
       task = find_task(socket.assigns.template, epic_id, id)
 
       attrs = %{
@@ -575,7 +564,7 @@ defmodule EstimateWeb.TemplatesLive.Show do
         {:error, _} ->
           {:noreply, put_flash(socket, :error, "Could not update task")}
       end
-    end
+    end)
   end
 
   def handle_event("confirm_delete_task", %{"id" => id, "epic-id" => epic_id}, socket) do
@@ -584,9 +573,7 @@ defmodule EstimateWeb.TemplatesLive.Show do
   end
 
   def handle_event("delete_task", _params, socket) do
-    unless socket.assigns.is_admin do
-      {:noreply, put_flash(socket, :error, "Not authorized")}
-    else
+    require_admin(socket, fn ->
       case Templates.delete_template_task(socket.assigns.deleting_task) do
         {:ok, _} ->
           {:noreply,
@@ -598,27 +585,23 @@ defmodule EstimateWeb.TemplatesLive.Show do
         {:error, _} ->
           {:noreply, put_flash(socket, :error, "Could not delete task")}
       end
-    end
+    end)
   end
 
   ## Reorder events
 
   def handle_event("reorder_epics", %{"ids" => ids}, socket) do
-    unless socket.assigns.is_admin do
-      {:noreply, put_flash(socket, :error, "Not authorized")}
-    else
+    require_admin(socket, fn ->
       Templates.reorder_template_epics(socket.assigns.template.id, ids)
       {:noreply, reload_template(socket)}
-    end
+    end)
   end
 
   def handle_event("reorder_tasks", %{"epic_id" => epic_id, "ids" => ids}, socket) do
-    unless socket.assigns.is_admin do
-      {:noreply, put_flash(socket, :error, "Not authorized")}
-    else
+    require_admin(socket, fn ->
       Templates.reorder_template_tasks(epic_id, ids)
       {:noreply, reload_template(socket)}
-    end
+    end)
   end
 
   ## Common events

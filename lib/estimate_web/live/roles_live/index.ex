@@ -3,19 +3,20 @@ defmodule EstimateWeb.RolesLive.Index do
 
   alias Estimate.Accounts
   alias Estimate.Organizations.Currencies
+  import EstimateWeb.LiveHelpers
 
   @impl true
   def render(assigns) do
     ~H"""
     <div class="max-w-6xl mx-auto space-y-6">
       <%!-- Hourly Rates Table --%>
-      <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      <div class="bg-base-100 border border-base-300 rounded-xl overflow-hidden">
         <div class="p-6">
-          <h2 class="text-xl font-semibold text-gray-900">Roles</h2>
-          <p class="mt-1 text-sm text-gray-500">
+          <h2 class="text-xl font-semibold text-base-content">Roles</h2>
+          <p class="mt-1 text-sm text-base-content/60">
             Define organization-wide roles. These are available when creating estimations.
           </p>
-          <p class="mt-1 text-xs text-gray-400">
+          <p class="mt-1 text-xs text-base-content/40">
             Currency columns are based on your <.link
               navigate={~p"/org/#{@org_id}/settings/currencies"}
               class="text-violet-500 hover:text-violet-700 underline"
@@ -24,15 +25,15 @@ defmodule EstimateWeb.RolesLive.Index do
           </p>
         </div>
 
-        <div class="border-t border-gray-200 overflow-x-auto">
+        <div class="border-t border-base-300 overflow-x-auto">
           <table class="w-full">
             <thead>
-              <tr class="bg-gray-50 text-[11px] font-medium text-gray-500 uppercase tracking-wider">
+              <tr class="bg-base-200 text-[11px] font-medium text-base-content/60 uppercase tracking-wider">
                 <th class="px-6 py-3 whitespace-nowrap text-left">Role</th>
                 <%= for currency <- @currencies do %>
                   <th class="py-3 whitespace-nowrap text-center w-24">
                     {currency.code}
-                    <span class="text-gray-400 font-normal">({currency.symbol})</span>
+                    <span class="text-base-content/40 font-normal">({currency.symbol})</span>
                   </th>
                 <% end %>
                 <th class="py-3 whitespace-nowrap text-center w-20">PM %</th>
@@ -41,9 +42,9 @@ defmodule EstimateWeb.RolesLive.Index do
                 <th class="px-4 py-3 w-20"></th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-gray-100">
+            <tbody class="divide-y divide-base-content/10">
               <%= for template <- @role_templates do %>
-                <tr class="group hover:bg-gray-50/50 transition-colors">
+                <tr class="group hover:bg-base-200/50 transition-colors">
                   <td class="px-6 py-4">
                     <%= if @editing_template_id == template.id do %>
                       <.form
@@ -56,7 +57,7 @@ defmodule EstimateWeb.RolesLive.Index do
                           type="text"
                           name="name"
                           value={template.name}
-                          class="w-36 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                          class="w-36 px-2 py-1 border border-base-content/20 rounded text-sm"
                           autofocus
                         />
                         <input
@@ -64,18 +65,18 @@ defmodule EstimateWeb.RolesLive.Index do
                           name="abbreviation"
                           value={template.abbreviation}
                           maxlength="5"
-                          class="w-14 px-2 py-1 border border-gray-300 rounded text-sm font-mono uppercase focus:outline-none focus:ring-2 focus:ring-gray-900"
+                          class="w-14 px-2 py-1 border border-base-content/20 rounded text-sm font-mono uppercase"
                         />
                         <button
                           type="submit"
-                          class="px-2 py-1 bg-gray-900 text-white text-xs rounded hover:bg-gray-800"
+                          class="px-2 py-1 bg-neutral text-neutral-content text-xs rounded hover:bg-neutral/90"
                         >
                           Save
                         </button>
                         <button
                           type="button"
                           phx-click="cancel_edit"
-                          class="text-gray-500 text-xs hover:text-gray-700"
+                          class="text-base-content/60 text-xs hover:text-base-content/80"
                         >
                           Cancel
                         </button>
@@ -86,8 +87,8 @@ defmodule EstimateWeb.RolesLive.Index do
                           {template.abbreviation}
                         </span>
                         <div class="min-w-0">
-                          <p class="text-sm font-medium text-gray-900 truncate">{template.name}</p>
-                          <p class="text-xs text-gray-400 font-mono">{template.abbreviation}</p>
+                          <p class="text-sm font-medium text-base-content truncate">{template.name}</p>
+                          <p class="text-xs text-base-content/40 font-mono">{template.abbreviation}</p>
                         </div>
                       </div>
                     <% end %>
@@ -106,7 +107,7 @@ defmodule EstimateWeb.RolesLive.Index do
                         phx-value-currency-id={currency.id}
                         phx-value-rate-id={if rate, do: rate.id, else: ""}
                         disabled={!@is_admin}
-                        class={"w-16 px-2 py-1.5 border border-gray-200 rounded-md text-sm font-mono text-center focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent #{if @is_admin, do: "hover:border-gray-300", else: "cursor-not-allowed bg-gray-50 text-gray-500"}"}
+                        class={"w-16 px-2 py-1.5 border border-base-content/15 rounded-md text-sm font-mono text-center #{if @is_admin, do: "hover:border-base-content/20", else: "cursor-not-allowed bg-base-200 text-base-content/60"}"}
                       />
                     </td>
                   <% end %>
@@ -121,7 +122,7 @@ defmodule EstimateWeb.RolesLive.Index do
                       phx-value-template-id={template.id}
                       phx-value-field="pm_overhead"
                       disabled={!@is_admin}
-                      class={"w-14 px-2 py-1.5 border border-gray-200 rounded-md text-sm font-mono text-center focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent #{if @is_admin, do: "hover:border-gray-300", else: "cursor-not-allowed bg-gray-50 text-gray-500"}"}
+                      class={"w-14 px-2 py-1.5 border border-base-content/15 rounded-md text-sm font-mono text-center #{if @is_admin, do: "hover:border-base-content/20", else: "cursor-not-allowed bg-base-200 text-base-content/60"}"}
                     />
                   </td>
                   <td class="py-4 text-center w-20">
@@ -135,7 +136,7 @@ defmodule EstimateWeb.RolesLive.Index do
                       phx-value-template-id={template.id}
                       phx-value-field="qa_overhead"
                       disabled={!@is_admin}
-                      class={"w-14 px-2 py-1.5 border border-gray-200 rounded-md text-sm font-mono text-center focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent #{if @is_admin, do: "hover:border-gray-300", else: "cursor-not-allowed bg-gray-50 text-gray-500"}"}
+                      class={"w-14 px-2 py-1.5 border border-base-content/15 rounded-md text-sm font-mono text-center #{if @is_admin, do: "hover:border-base-content/20", else: "cursor-not-allowed bg-base-200 text-base-content/60"}"}
                     />
                   </td>
                   <td class="py-4 text-center w-20">
@@ -149,7 +150,7 @@ defmodule EstimateWeb.RolesLive.Index do
                       phx-value-template-id={template.id}
                       phx-value-field="risk_buffer"
                       disabled={!@is_admin}
-                      class={"w-14 px-2 py-1.5 border border-gray-200 rounded-md text-sm font-mono text-center focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent #{if @is_admin, do: "hover:border-gray-300", else: "cursor-not-allowed bg-gray-50 text-gray-500"}"}
+                      class={"w-14 px-2 py-1.5 border border-base-content/15 rounded-md text-sm font-mono text-center #{if @is_admin, do: "hover:border-base-content/20", else: "cursor-not-allowed bg-base-200 text-base-content/60"}"}
                     />
                   </td>
                   <td class="px-4 py-4">
@@ -158,7 +159,7 @@ defmodule EstimateWeb.RolesLive.Index do
                         :if={@is_admin}
                         phx-click="edit_template"
                         phx-value-id={template.id}
-                        class="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors focus:outline-none"
+                        class="p-1.5 text-base-content/40 hover:text-base-content/70 hover:bg-base-300 rounded transition-colors focus:outline-none"
                         title="Edit name"
                       >
                         <.icon name="hero-pencil" class="w-4 h-4" />
@@ -167,7 +168,7 @@ defmodule EstimateWeb.RolesLive.Index do
                         :if={@is_admin}
                         phx-click="confirm_delete"
                         phx-value-id={template.id}
-                        class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors focus:outline-none"
+                        class="p-1.5 text-base-content/40 hover:text-error hover:bg-error/10 rounded transition-colors focus:outline-none"
                         title="Delete"
                       >
                         <.icon name="hero-trash" class="w-4 h-4" />
@@ -181,8 +182,8 @@ defmodule EstimateWeb.RolesLive.Index do
 
           <%= if Enum.empty?(@role_templates) do %>
             <div class="px-6 py-12 text-center">
-              <.icon name="hero-user-group" class="w-12 h-12 text-gray-300 mx-auto" />
-              <p class="mt-2 text-gray-500">No roles yet</p>
+              <.icon name="hero-user-group" class="w-12 h-12 text-base-content/30 mx-auto" />
+              <p class="mt-2 text-base-content/60">No roles yet</p>
             </div>
           <% end %>
         </div>
@@ -191,7 +192,7 @@ defmodule EstimateWeb.RolesLive.Index do
           :if={@is_admin}
           for={@new_form}
           phx-submit="add_template"
-          class="px-6 py-4 bg-gray-50 border-t border-gray-200"
+          class="px-6 py-4 bg-base-200 border-t border-base-300"
         >
           <div class="flex items-center gap-3">
             <input
@@ -199,7 +200,7 @@ defmodule EstimateWeb.RolesLive.Index do
               name="name"
               value=""
               placeholder="Role name (e.g. Project Manager)"
-              class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+              class="flex-1 px-3 py-2 border border-base-content/20 rounded-lg text-sm"
             />
             <input
               type="text"
@@ -207,11 +208,11 @@ defmodule EstimateWeb.RolesLive.Index do
               value=""
               placeholder="PM"
               maxlength="5"
-              class="w-16 px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono uppercase text-center focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+              class="w-16 px-3 py-2 border border-base-content/20 rounded-lg text-sm font-mono uppercase text-center"
             />
             <button
               type="submit"
-              class="px-4 py-2 bg-gray-900 text-white text-sm rounded-lg hover:bg-gray-800 transition-colors font-medium"
+              class="px-4 py-2 bg-neutral text-neutral-content text-sm rounded-lg hover:bg-neutral/90 transition-colors font-medium"
             >
               Add Role
             </button>
@@ -227,24 +228,24 @@ defmodule EstimateWeb.RolesLive.Index do
         on_cancel={JS.push("cancel_delete")}
       >
         <div class="text-center">
-          <div class="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
-            <.icon name="hero-exclamation-triangle" class="w-6 h-6 text-red-600" />
+          <div class="w-12 h-12 rounded-full bg-error/10 flex items-center justify-center mx-auto mb-4">
+            <.icon name="hero-exclamation-triangle" class="w-6 h-6 text-error" />
           </div>
-          <h3 class="text-lg font-semibold text-gray-900 mb-2">Delete Role</h3>
-          <p class="text-sm text-gray-500 mb-6">
-            Are you sure you want to delete <span class="font-medium text-gray-900"><%= @deleting_template.name %></span>?
+          <h3 class="text-lg font-semibold text-base-content mb-2">Delete Role</h3>
+          <p class="text-sm text-base-content/60 mb-6">
+            Are you sure you want to delete <span class="font-medium text-base-content"><%= @deleting_template.name %></span>?
             This action cannot be undone.
           </p>
           <div class="flex gap-3 justify-center">
             <button
               phx-click="cancel_delete"
-              class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+              class="px-4 py-2 text-sm text-base-content/70 hover:text-base-content transition-colors"
             >
               Cancel
             </button>
             <button
               phx-click="delete_template"
-              class="px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors font-medium"
+              class="px-4 py-2 bg-error text-error-content text-sm rounded-lg hover:bg-error/90 transition-colors font-medium"
             >
               Delete
             </button>
@@ -283,9 +284,7 @@ defmodule EstimateWeb.RolesLive.Index do
   end
 
   def handle_event("add_template", %{"name" => name, "abbreviation" => abbr}, socket) do
-    unless socket.assigns.is_admin do
-      {:noreply, put_flash(socket, :error, "Not authorized")}
-    else
+    require_admin(socket, fn ->
       case Accounts.create_role_template(socket.assigns.org_id, %{
              "name" => name,
              "abbreviation" => abbr
@@ -301,7 +300,7 @@ defmodule EstimateWeb.RolesLive.Index do
         {:error, _changeset} ->
           {:noreply, put_flash(socket, :error, "Could not add role. Check name and abbreviation.")}
       end
-    end
+    end)
   end
 
   def handle_event(
@@ -309,9 +308,7 @@ defmodule EstimateWeb.RolesLive.Index do
         %{"template_id" => id, "name" => name, "abbreviation" => abbr},
         socket
       ) do
-    unless socket.assigns.is_admin do
-      {:noreply, put_flash(socket, :error, "Not authorized")}
-    else
+    require_admin(socket, fn ->
       template = Accounts.get_role_template!(id)
 
       case Accounts.update_role_template(template, %{"name" => name, "abbreviation" => abbr}) do
@@ -327,7 +324,7 @@ defmodule EstimateWeb.RolesLive.Index do
         {:error, _changeset} ->
           {:noreply, put_flash(socket, :error, "Could not update role.")}
       end
-    end
+    end)
   end
 
   def handle_event("confirm_delete", %{"id" => id}, socket) do
@@ -340,12 +337,7 @@ defmodule EstimateWeb.RolesLive.Index do
   end
 
   def handle_event("delete_template", _params, socket) do
-    unless socket.assigns.is_admin do
-      {:noreply,
-       socket
-       |> put_flash(:error, "Not authorized")
-       |> assign(:deleting_template, nil)}
-    else
+    require_admin(socket, fn ->
       template = socket.assigns.deleting_template
 
       case Accounts.delete_role_template(template) do
@@ -364,13 +356,11 @@ defmodule EstimateWeb.RolesLive.Index do
            |> put_flash(:error, "Could not delete role")
            |> assign(:deleting_template, nil)}
       end
-    end
+    end)
   end
 
   def handle_event("update_overhead", params, socket) do
-    unless socket.assigns.is_admin do
-      {:noreply, put_flash(socket, :error, "Not authorized")}
-    else
+    require_admin(socket, fn ->
       %{"template-id" => template_id, "field" => field, "value" => value} = params
 
       if field not in ~w(pm_overhead qa_overhead risk_buffer) do
@@ -397,13 +387,11 @@ defmodule EstimateWeb.RolesLive.Index do
             {:noreply, put_flash(socket, :error, "Invalid number")}
         end
       end
-    end
+    end)
   end
 
   def handle_event("update_rate", params, socket) do
-    unless socket.assigns.is_admin do
-      {:noreply, put_flash(socket, :error, "Not authorized")}
-    else
+    require_admin(socket, fn ->
       %{
         "template-id" => template_id,
         "currency-id" => currency_id,
@@ -444,7 +432,7 @@ defmodule EstimateWeb.RolesLive.Index do
             {:noreply, put_flash(socket, :error, "Invalid rate")}
           end
       end
-    end
+    end)
   end
 
   defp format_percent(decimal), do: decimal |> Decimal.round(0) |> Decimal.to_integer()

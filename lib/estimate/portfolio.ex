@@ -13,8 +13,7 @@ defmodule Estimate.Portfolio do
   def list_projects(org_id) do
     Repo.ensure_org_context(fn ->
       from(p in Project,
-        join: c in assoc(p, :customer),
-        where: c.organization_id == ^org_id,
+        where: p.organization_id == ^org_id,
         preload: [:customer, :currency],
         order_by: [desc: p.updated_at]
       )
@@ -39,8 +38,7 @@ defmodule Estimate.Portfolio do
       from(p in Project,
         join: pc in ProjectCollaborator,
         on: pc.project_id == p.id,
-        join: c in assoc(p, :customer),
-        where: pc.user_id == ^user_id and c.organization_id == ^org_id,
+        where: pc.user_id == ^user_id and p.organization_id == ^org_id,
         preload: [:customer, :currency],
         order_by: [desc: p.updated_at]
       )
@@ -209,6 +207,44 @@ defmodule Estimate.Portfolio do
 
   def change_project(%Project{} = project, attrs \\ %{}) do
     Project.changeset(project, attrs)
+  end
+
+  @doc """
+  Projects in org where user is the only owner (no other collaborator with role="owner").
+  Returns `[{project, estimation_count}]` with `:customer` preloaded.
+  """
+  def list_sole_owned_projects(user_id, org_id) do
+    Repo.ensure_org_context(fn ->
+      co_owner_exists =
+        from(pc2 in ProjectCollaborator,
+          where:
+            pc2.project_id == parent_as(:project).id and
+              pc2.role == "owner" and
+              pc2.user_id != ^user_id
+        )
+
+      results =
+        from(p in Project,
+          as: :project,
+          join: pc in ProjectCollaborator,
+          on: pc.project_id == p.id,
+          where:
+            p.organization_id == ^org_id and
+              pc.user_id == ^user_id and
+              pc.role == "owner" and
+              not exists(co_owner_exists),
+          left_join: e in assoc(p, :estimations),
+          group_by: p.id,
+          select: {p, count(e.id)},
+          order_by: [asc: p.name]
+        )
+        |> Repo.all()
+
+      projects = Enum.map(results, fn {p, _} -> p end) |> Repo.preload(:customer)
+      project_map = Map.new(projects, &{&1.id, &1})
+
+      Enum.map(results, fn {p, count} -> {Map.fetch!(project_map, p.id), count} end)
+    end)
   end
 
   ## Collaborators

@@ -11,25 +11,25 @@ defmodule EstimateWeb.InviteLive.Accept do
     <div class="w-full">
       <%= if @invite do %>
         <%= if @current_user do %>
-          <h1 class="text-3xl font-bold text-center text-gray-900 mb-2">
+          <h1 class="text-3xl font-bold text-center text-base-content mb-2">
             Join {@invite.organization.name}
           </h1>
-          <p class="text-center text-gray-600 mb-8">You've been invited to join this organization</p>
+          <p class="text-center text-base-content/70 mb-8">You've been invited to join this organization</p>
 
           <div class="text-center">
-            <p class="text-gray-600 mb-6">You're signed in as <strong>{@current_user.email}</strong></p>
+            <p class="text-base-content/70 mb-6">You're signed in as <strong>{@current_user.email}</strong></p>
             <button
               phx-click="accept_invite"
-              class="w-full py-3 px-4 bg-gray-900 text-white font-medium rounded-lg hover:bg-gray-800 transition-colors"
+              class="w-full py-3 px-4 bg-neutral text-neutral-content font-medium rounded-lg hover:bg-neutral/90 transition-colors"
             >
               Accept Invitation
             </button>
           </div>
         <% else %>
-          <h1 class="text-3xl font-bold text-center text-gray-900 mb-2">
+          <h1 class="text-3xl font-bold text-center text-base-content mb-2">
             Join {@invite.organization.name}
           </h1>
-          <p class="text-center text-gray-600 mb-8">Create an account to join</p>
+          <p class="text-center text-base-content/70 mb-8">Create an account to join</p>
 
           <form
             id="registration_form"
@@ -44,9 +44,9 @@ defmodule EstimateWeb.InviteLive.Accept do
                 value={@form[:name].value}
                 placeholder="Full Name"
                 required
-                class={"w-full px-4 py-3 border rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent #{if @form[:name].errors != [], do: "border-red-500", else: "border-gray-300"}"}
+                class={"w-full px-4 py-3 border rounded-lg text-base-content placeholder-base-content/60 #{if @form[:name].errors != [], do: "border-error", else: "border-base-content/20"}"}
               />
-              <p :for={error <- @form[:name].errors} class="mt-1 text-sm text-red-600">
+              <p :for={error <- @form[:name].errors} class="mt-1 text-sm text-error">
                 {translate_error(error)}
               </p>
             </div>
@@ -59,9 +59,9 @@ defmodule EstimateWeb.InviteLive.Accept do
                 placeholder="Email Address"
                 required
                 readonly={@invite.email != nil}
-                class={"w-full px-4 py-3 border rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent #{if @invite.email, do: "bg-gray-50 text-gray-500"} #{if @form[:email].errors != [], do: "border-red-500", else: "border-gray-300"}"}
+                class={"w-full px-4 py-3 border rounded-lg text-base-content placeholder-base-content/60 #{if @invite.email, do: "bg-base-200 text-base-content/60"} #{if @form[:email].errors != [], do: "border-error", else: "border-base-content/20"}"}
               />
-              <p :for={error <- @form[:email].errors} class="mt-1 text-sm text-red-600">
+              <p :for={error <- @form[:email].errors} class="mt-1 text-sm text-error">
                 {translate_error(error)}
               </p>
             </div>
@@ -72,9 +72,9 @@ defmodule EstimateWeb.InviteLive.Accept do
                 name="user[password]"
                 placeholder="Password"
                 required
-                class={"w-full px-4 py-3 border rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent #{if @form[:password].errors != [], do: "border-red-500", else: "border-gray-300"}"}
+                class={"w-full px-4 py-3 border rounded-lg text-base-content placeholder-base-content/60 #{if @form[:password].errors != [], do: "border-error", else: "border-base-content/20"}"}
               />
-              <p :for={error <- @form[:password].errors} class="mt-1 text-sm text-red-600">
+              <p :for={error <- @form[:password].errors} class="mt-1 text-sm text-error">
                 {translate_error(error)}
               </p>
             </div>
@@ -82,7 +82,7 @@ defmodule EstimateWeb.InviteLive.Accept do
             <button
               type="submit"
               phx-disable-with="Creating account..."
-              class="w-full py-3 px-4 bg-gray-900 text-white font-medium rounded-lg hover:bg-gray-800 transition-colors"
+              class="w-full py-3 px-4 bg-neutral text-neutral-content font-medium rounded-lg hover:bg-neutral/90 transition-colors"
             >
               Create Account & Join
             </button>
@@ -94,18 +94,18 @@ defmodule EstimateWeb.InviteLive.Accept do
             <.google_button href={~p"/auth/google?#{%{return_to: @return_to}}"} />
           </div>
 
-          <p class="mt-8 text-center text-gray-600">
+          <p class="mt-8 text-center text-base-content/70">
             Already have an account?
-            <.link navigate={~p"/users/log_in?#{%{return_to: @return_to}}"} class="text-blue-600 hover:text-blue-700 font-medium">
+            <.link navigate={~p"/users/log_in?#{%{return_to: @return_to}}"} class="text-info hover:text-info/80 font-medium">
               Sign In
             </.link>
           </p>
         <% end %>
       <% else %>
-        <h1 class="text-3xl font-bold text-center text-gray-900 mb-2">
+        <h1 class="text-3xl font-bold text-center text-base-content mb-2">
           Invalid Invitation
         </h1>
-        <p class="text-center text-gray-600">This invitation link is invalid or has expired.</p>
+        <p class="text-center text-base-content/70">This invitation link is invalid or has expired.</p>
       <% end %>
     </div>
     """
@@ -145,7 +145,7 @@ defmodule EstimateWeb.InviteLive.Accept do
 
     case Accounts.register_user(user_params) do
       {:ok, user} ->
-        case Organizations.accept_invite(invite, user.id) do
+        case Organizations.accept_invite(invite, user) do
           {:ok, _} ->
             {:noreply,
              socket
@@ -168,17 +168,20 @@ defmodule EstimateWeb.InviteLive.Accept do
     invite = socket.assigns.invite
     user = socket.assigns.current_user
 
-    case Organizations.accept_invite(invite, user.id) do
+    case Organizations.accept_invite(invite, user) do
       {:ok, _} ->
         {:noreply,
          socket
          |> put_flash(:info, "Joined #{invite.organization.name}!")
          |> redirect(to: ~p"/org/#{invite.organization_id}")}
 
-      {:error, _changeset} ->
+      {:error, :email_mismatch} ->
         {:noreply,
-         socket
-         |> put_flash(:error, "Could not accept invitation. You may already be a member.")}
+         put_flash(socket, :error, "This invitation was sent to a different email address.")}
+
+      {:error, _} ->
+        {:noreply,
+         put_flash(socket, :error, "Could not accept invitation. You may already be a member.")}
     end
   end
 

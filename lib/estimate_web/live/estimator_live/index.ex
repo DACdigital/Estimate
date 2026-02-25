@@ -18,21 +18,22 @@ defmodule EstimateWeb.EstimatorLive.Index do
     <% epics = filtered_epics(@estimation, @enabled_priorities) %>
     <div class="max-w-7xl mx-auto">
       <%!-- Breadcrumb --%>
-      <nav class="flex items-center space-x-2 text-sm text-gray-500 mb-6">
-        <.link navigate={~p"/org/#{@org_id}/customers/#{@customer.id}"} class="hover:text-gray-900">
+      <nav class="flex items-center space-x-2 text-sm text-base-content/60 mb-6">
+        <.link navigate={~p"/org/#{@org_id}/customers/#{@customer.id}"} class="hover:text-base-content">
           {@customer.name}
         </.link>
-        <span class="text-gray-300">›</span>
-        <.link navigate={~p"/org/#{@org_id}/projects/#{@project.id}"} class="hover:text-gray-900">
+        <span class="text-base-content/30">›</span>
+        <.link navigate={~p"/org/#{@org_id}/projects/#{@project.id}"} class="hover:text-base-content">
           {@project.name}
         </.link>
-        <span class="text-gray-300">›</span>
-        <span class="text-gray-900 font-medium">{@estimation.name}</span>
-        <span :if={@estimation.currency} class="text-gray-300 ml-2">•</span>
-        <span :if={@estimation.currency} class="text-gray-400">{@estimation.currency.code}</span>
+        <span class="text-base-content/30">›</span>
+        <span class="text-base-content font-medium">{@estimation.name}</span>
+        <span :if={@estimation.currency} class="text-base-content/30 ml-2">•</span>
+        <span :if={@estimation.currency} class="text-base-content/40">{@estimation.currency.code}</span>
         <button
+          :if={@can_edit}
           phx-click="open_settings"
-          class="ml-2 p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
+          class="ml-2 p-1 text-base-content/40 hover:text-base-content/70 hover:bg-base-300 rounded transition-colors"
           title="Estimation settings"
         >
           <.icon name="hero-cog-6-tooth" class="w-4 h-4" />
@@ -43,42 +44,43 @@ defmodule EstimateWeb.EstimatorLive.Index do
       <div class="flex items-center justify-end gap-4 mb-4">
         <button
           phx-click="copy_json"
-          class="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1.5"
+          class="text-xs text-base-content/60 hover:text-base-content/80 flex items-center gap-1.5"
           title="Copy as JSON"
         >
           <.icon name="hero-clipboard-document" class="w-4 h-4" /> Copy JSON
         </button>
         <button
+          :if={@can_edit}
           phx-click="open_save_as_template"
-          class="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1.5"
+          class="text-xs text-base-content/60 hover:text-base-content/80 flex items-center gap-1.5"
           title="Save as estimation template"
         >
           <.icon name="hero-rectangle-stack" class="w-4 h-4" /> Save as Template
         </button>
         <button
           phx-click="toggle_all_in_rates"
-          class="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1.5"
+          class="text-xs text-base-content/60 hover:text-base-content/80 flex items-center gap-1.5"
         >
           <span
             :if={@show_all_in_rates}
-            class="w-4 h-4 rounded bg-gray-900 flex items-center justify-center"
+            class="w-4 h-4 rounded bg-neutral flex items-center justify-center"
           >
-            <.icon name="hero-check" class="w-3 h-3 text-white" />
+            <.icon name="hero-check" class="w-3 h-3 text-neutral-content" />
           </span>
-          <span :if={!@show_all_in_rates} class="w-4 h-4 rounded border border-gray-300"></span>
+          <span :if={!@show_all_in_rates} class="w-4 h-4 rounded border border-base-content/20"></span>
           All-in rates
         </button>
         <button
           phx-click="toggle_descriptions"
-          class="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1.5"
+          class="text-xs text-base-content/60 hover:text-base-content/80 flex items-center gap-1.5"
         >
           <span
             :if={@show_descriptions}
-            class="w-4 h-4 rounded bg-gray-900 flex items-center justify-center"
+            class="w-4 h-4 rounded bg-neutral flex items-center justify-center"
           >
-            <.icon name="hero-check" class="w-3 h-3 text-white" />
+            <.icon name="hero-check" class="w-3 h-3 text-neutral-content" />
           </span>
-          <span :if={!@show_descriptions} class="w-4 h-4 rounded border border-gray-300"></span>
+          <span :if={!@show_descriptions} class="w-4 h-4 rounded border border-base-content/20"></span>
           Show details
         </button>
         <div
@@ -90,10 +92,13 @@ defmodule EstimateWeb.EstimatorLive.Index do
           <button
             :for={
               {priority, label, active_cls, inactive_cls} <- [
-                {"must", "M", "bg-red-600 text-white", "bg-red-100 text-red-300"},
-                {"should", "S", "bg-amber-500 text-white", "bg-amber-100 text-amber-300"},
-                {"could", "C", "bg-blue-600 text-white", "bg-blue-100 text-blue-300"},
-                {"wont", "W", "bg-gray-600 text-white", "bg-gray-200 text-gray-400"}
+                {"must", "M", "bg-error text-error-content",
+                  "bg-error/10 dark:bg-error/20 text-error/30 dark:text-error/60"},
+                {"should", "S", "bg-warning text-warning-content",
+                  "bg-warning/10 dark:bg-warning/20 text-warning/30 dark:text-warning/60"},
+                {"could", "C", "bg-info text-info-content",
+                  "bg-info/10 dark:bg-info/20 text-info/30 dark:text-info/60"},
+                {"wont", "W", "bg-neutral text-neutral-content", "bg-base-300 text-base-content/40"}
               ]
             }
             phx-click="toggle_priority"
@@ -106,29 +111,30 @@ defmodule EstimateWeb.EstimatorLive.Index do
           </button>
         </div>
         <button
+          :if={@can_edit}
           phx-click="add_epic"
-          class="px-4 py-2 bg-gray-900 text-white text-sm rounded-lg hover:bg-gray-800 transition-colors font-medium"
+          class="px-4 py-2 bg-neutral text-neutral-content text-sm rounded-lg hover:bg-neutral/90 transition-colors font-medium"
         >
           Add Epic
         </button>
       </div>
 
       <%!-- Estimation Table Card --%>
-      <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      <div class="bg-base-100 border border-base-300 rounded-xl overflow-hidden">
         <div class="overflow-x-auto">
           <table class="w-full">
             <thead>
-              <tr class="bg-gray-50 border-b border-gray-100">
-                <th class="px-6 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-72 min-w-72">
+              <tr class="bg-base-200 border-b border-base-content/10">
+                <th class="px-6 py-2.5 text-left text-xs font-medium text-base-content/60 uppercase tracking-wider w-72 min-w-72">
                   Task
                 </th>
                 <th
                   :for={role <- @estimation.roles}
-                  class="px-3 py-2.5 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-24 min-w-24"
+                  class="px-3 py-2.5 text-center text-xs font-medium text-base-content/60 uppercase tracking-wider w-24 min-w-24"
                 >
                   <div class="relative group/role">
                     <div>{role.abbreviation}</div>
-                    <span class="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1 px-2 py-1 bg-gray-900 text-white text-[10px] font-normal normal-case rounded shadow-lg opacity-0 group-hover/role:opacity-100 transition-opacity whitespace-nowrap z-50">
+                    <span class="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1 px-2 py-1 bg-neutral text-neutral-content text-[10px] font-normal normal-case rounded shadow-lg opacity-0 group-hover/role:opacity-100 transition-opacity whitespace-nowrap z-50">
                       {role.name}
                     </span>
                   </div>
@@ -137,46 +143,51 @@ defmodule EstimateWeb.EstimatorLive.Index do
                     currency={@estimation.currency}
                     editing_rate={@editing_rate}
                     show_all_in_rates={@show_all_in_rates}
+                    can_edit={@can_edit}
                   />
                 </th>
-                <th class="px-4 py-2.5 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
+                <th class="px-4 py-2.5 text-center text-xs font-medium text-base-content/60 uppercase tracking-wider w-24">
                   Hours
                 </th>
-                <th class="px-4 py-2.5 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-28">
+                <th class="px-4 py-2.5 text-center text-xs font-medium text-base-content/60 uppercase tracking-wider w-28">
                   Cost
                 </th>
               </tr>
             </thead>
-            <tbody id="epics-container" phx-hook="Sortable" data-group="epics">
+            <tbody id="epics-container" phx-hook={if @can_edit, do: "Sortable"} data-group="epics">
               <%= for epic <- epics do %>
                 <%!-- Epic Header Row --%>
-                <tr class="bg-gray-50 border-t border-gray-100" data-id={epic.id}>
+                <tr class="bg-base-200 border-t border-base-content/10" data-id={epic.id}>
                   <td colspan={length(@estimation.roles) + 3} class="px-6 py-3">
                     <div class="flex items-center justify-between">
                       <div class="flex items-center gap-3">
-                        <span class="cursor-move text-gray-400 hover:text-gray-600 drag-handle">
+                        <span :if={@can_edit} class="cursor-move text-base-content/40 hover:text-base-content/70 drag-handle">
                           <.icon name="hero-bars-3" class="w-4 h-4" />
                         </span>
-                        <span
-                          class="font-semibold text-gray-900 cursor-pointer hover:text-gray-600"
-                          phx-click="edit_epic"
-                          phx-value-id={epic.id}
-                        >
-                          {epic.name}
-                        </span>
+                        <%= if @can_edit do %>
+                          <span
+                            class="font-semibold text-base-content cursor-pointer hover:text-base-content/70"
+                            phx-click="edit_epic"
+                            phx-value-id={epic.id}
+                          >
+                            {epic.name}
+                          </span>
+                        <% else %>
+                          <span class="font-semibold text-base-content">{epic.name}</span>
+                        <% end %>
                       </div>
-                      <div class="flex items-center gap-3">
+                      <div :if={@can_edit} class="flex items-center gap-3">
                         <button
                           phx-click="add_task"
                           phx-value-epic-id={epic.id}
-                          class="text-sm text-gray-500 hover:text-gray-900 transition-colors"
+                          class="text-sm text-base-content/60 hover:text-base-content transition-colors"
                         >
                           + Add Task
                         </button>
                         <button
                           phx-click="confirm_delete_epic"
                           phx-value-id={epic.id}
-                          class="text-sm text-gray-400 hover:text-red-600 transition-colors"
+                          class="text-sm text-base-content/40 hover:text-error transition-colors"
                         >
                           <.icon name="hero-trash" class="w-4 h-4" />
                         </button>
@@ -193,42 +204,46 @@ defmodule EstimateWeb.EstimatorLive.Index do
                 >
                   <td class="px-6 py-1.5">
                     <div class="flex items-start gap-3">
-                      <span class="cursor-move text-gray-300 hover:text-gray-500 drag-handle opacity-0 group-hover:opacity-100 transition-opacity mt-1">
+                      <span :if={@can_edit} class="cursor-move text-base-content/30 hover:text-base-content/60 drag-handle opacity-0 group-hover:opacity-100 transition-opacity mt-1">
                         <.icon name="hero-bars-3" class="w-3 h-3" />
                       </span>
                       <span class="relative group/priority flex items-center mt-0.5">
                         <span class={"w-5 h-5 flex items-center justify-center text-[10px] rounded font-medium cursor-help #{priority_class(task.priority)}"}>
                           {String.first(priority_label(task.priority))}
                         </span>
-                        <span class="pointer-events-none absolute left-0 bottom-full mb-2 w-48 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 group-hover/priority:opacity-100 transition-opacity z-50">
+                        <span class="pointer-events-none absolute left-0 bottom-full mb-2 w-48 px-3 py-2 bg-neutral text-neutral-content text-xs rounded-lg shadow-lg opacity-0 group-hover/priority:opacity-100 transition-opacity z-50">
                           <span class="font-semibold">{priority_label(task.priority)}</span>
-                          <span class="block mt-1 text-gray-300 leading-relaxed">
+                          <span class="block mt-1 text-neutral-content/60 leading-relaxed">
                             {priority_description(task.priority)}
                           </span>
-                          <span class="absolute top-full left-3 border-4 border-transparent border-t-gray-900">
+                          <span class="absolute top-full left-3 border-4 border-transparent border-t-neutral">
                           </span>
                         </span>
                       </span>
                       <div class="min-w-0 flex-1">
                         <div class="flex items-center gap-2">
-                          <span
-                            class="text-sm text-gray-700 cursor-pointer hover:text-gray-900"
-                            phx-click="edit_task"
-                            phx-value-id={task.id}
-                          >
-                            {task.name}
-                          </span>
-                          <button
-                            phx-click="confirm_delete_task"
-                            phx-value-id={task.id}
-                            class="flex items-center text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <.icon name="hero-x-mark" class="w-4 h-4" />
-                          </button>
+                          <%= if @can_edit do %>
+                            <span
+                              class="text-sm text-base-content/80 cursor-pointer hover:text-base-content"
+                              phx-click="edit_task"
+                              phx-value-id={task.id}
+                            >
+                              {task.name}
+                            </span>
+                            <button
+                              phx-click="confirm_delete_task"
+                              phx-value-id={task.id}
+                              class="flex items-center text-base-content/30 hover:text-error opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <.icon name="hero-x-mark" class="w-4 h-4" />
+                            </button>
+                          <% else %>
+                            <span class="text-sm text-base-content/80">{task.name}</span>
+                          <% end %>
                         </div>
                         <p
                           :if={@show_descriptions && task.description && task.description != ""}
-                          class="text-xs text-gray-400 leading-snug mt-0.5"
+                          class="text-xs text-base-content/40 leading-snug mt-0.5"
                         >
                           {task.description}
                         </p>
@@ -241,12 +256,13 @@ defmodule EstimateWeb.EstimatorLive.Index do
                       role_id={role.id}
                       estimates={task.estimates}
                       editing={@editing}
+                      can_edit={@can_edit}
                     />
                   </td>
-                  <td class="px-4 py-1.5 text-center text-sm font-mono text-gray-600">
+                  <td class="px-4 py-1.5 text-center text-sm font-mono text-base-content/70">
                     {format_hours(Calculator.task_total_hours(task))}
                   </td>
-                  <td class="px-4 py-1.5 text-center text-sm font-mono text-gray-600">
+                  <td class="px-4 py-1.5 text-center text-sm font-mono text-base-content/70">
                     {format_cost(
                       Calculator.task_total_cost(
                         task,
@@ -257,20 +273,20 @@ defmodule EstimateWeb.EstimatorLive.Index do
                   </td>
                 </tr>
                 <%!-- Epic Total Row (only shown if 2+ tasks) --%>
-                <tr :if={length(epic.tasks) > 1} class="border-t border-gray-100">
-                  <td class="px-6 py-1.5 text-right text-xs text-gray-400">
+                <tr :if={length(epic.tasks) > 1} class="border-t border-base-content/10">
+                  <td class="px-6 py-1.5 text-right text-xs text-base-content/40">
                     Subtotal
                   </td>
                   <td
                     :for={role <- @estimation.roles}
-                    class="px-3 py-1.5 text-center text-xs font-mono text-gray-400"
+                    class="px-3 py-1.5 text-center text-xs font-mono text-base-content/40"
                   >
                     {format_hours(Calculator.epic_role_hours(epic, role.id))}
                   </td>
-                  <td class="px-4 py-1.5 text-center text-sm font-mono text-gray-500">
+                  <td class="px-4 py-1.5 text-center text-sm font-mono text-base-content/60">
                     {format_hours(Calculator.epic_hours(epic))}
                   </td>
-                  <td class="px-4 py-1.5 text-center text-sm font-mono text-gray-500">
+                  <td class="px-4 py-1.5 text-center text-sm font-mono text-base-content/60">
                     {format_cost(
                       Calculator.epic_total_cost(
                         epic,
@@ -283,7 +299,7 @@ defmodule EstimateWeb.EstimatorLive.Index do
               <% end %>
             </tbody>
             <tfoot>
-              <tr class="bg-gray-900 text-white">
+              <tr class="bg-neutral text-neutral-content">
                 <td class="px-6 py-3 text-right font-semibold">
                   Total
                 </td>
@@ -309,13 +325,14 @@ defmodule EstimateWeb.EstimatorLive.Index do
 
         <%!-- Empty State --%>
         <%= if Enum.empty?(epics) do %>
-          <div class="px-6 py-16 text-center border-t border-gray-200">
-            <.icon name="hero-rectangle-stack" class="w-12 h-12 text-gray-300 mx-auto" />
-            <p class="mt-3 text-gray-500">No epics yet</p>
-            <p class="text-sm text-gray-400 mt-1">Add your first epic to start estimating</p>
+          <div class="px-6 py-16 text-center border-t border-base-300">
+            <.icon name="hero-rectangle-stack" class="w-12 h-12 text-base-content/30 mx-auto" />
+            <p class="mt-3 text-base-content/60">No epics yet</p>
+            <p class="text-sm text-base-content/40 mt-1">Add your first epic to start estimating</p>
             <button
+              :if={@can_edit}
               phx-click="add_epic"
-              class="mt-4 px-4 py-2 bg-gray-900 text-white text-sm rounded-lg hover:bg-gray-800 transition-colors font-medium"
+              class="mt-4 px-4 py-2 bg-neutral text-neutral-content text-sm rounded-lg hover:bg-neutral/90 transition-colors font-medium"
             >
               Add Epic
             </button>

@@ -38,13 +38,13 @@
   --color-accent-content: oklch(96% 0.016 293.756);
   --color-neutral: oklch(37% 0.044 257.287);
   --color-neutral-content: oklch(98% 0.003 247.858);
-  --color-info: oklch(58% 0.158 241.966);
+  --color-info: oklch(72% 0.155 241.966);
   --color-info-content: oklch(97% 0.013 236.62);
-  --color-success: oklch(60% 0.118 184.704);
+  --color-success: oklch(72% 0.115 184.704);
   --color-success-content: oklch(98% 0.014 180.72);
-  --color-warning: oklch(66% 0.179 58.318);
+  --color-warning: oklch(75% 0.15 58.318);
   --color-warning-content: oklch(98% 0.022 95.277);
-  --color-error: oklch(58% 0.253 17.585);
+  --color-error: oklch(70% 0.19 17.585);
   --color-error-content: oklch(96% 0.015 12.422);
   --radius-selector: 0.25rem;
   --radius-field: 0.25rem;
@@ -107,6 +107,20 @@
 /* Use Fira Code for monospace font */
 @theme {
   --font-mono: "Fira Code", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+/* Consistent form field focus — subtle border, no heavy ring */
+select:not(.select),
+input:not(.input):not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
+textarea:not(.textarea) {
+  outline: none;
+}
+select:not(.select):focus,
+input:not(.input):not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):focus,
+textarea:not(.textarea):focus {
+  border-color: color-mix(in oklch, var(--color-base-content) 40%, transparent);
+  box-shadow: none;
+  outline: none;
 }
 
 /* Hide number input spinners */

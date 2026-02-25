@@ -4,7 +4,7 @@ defmodule EstimateWeb.UserLive.Login do
   def render(assigns) do
     ~H"""
     <div class="w-full">
-      <h1 class="text-3xl font-bold text-center text-gray-900 mb-8">
+      <h1 class="text-3xl font-bold text-center text-base-content mb-8">
         Log in to EstiMate
       </h1>
 
@@ -25,7 +25,7 @@ defmodule EstimateWeb.UserLive.Login do
             value={@form[:email].value}
             placeholder="Email Address"
             required
-            class="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+            class="w-full px-4 py-3 border border-base-content/20 rounded-lg text-base-content placeholder-base-content/60"
           />
         </div>
 
@@ -35,23 +35,23 @@ defmodule EstimateWeb.UserLive.Login do
             name="user[password]"
             placeholder="Password"
             required
-            class="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+            class="w-full px-4 py-3 border border-base-content/20 rounded-lg text-base-content placeholder-base-content/60"
           />
         </div>
 
         <div class="flex items-center justify-between text-sm">
           <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" name="user[remember_me]" class="rounded border-gray-300" />
-            <span class="text-gray-600">Remember me</span>
+            <input type="checkbox" name="user[remember_me]" class="rounded border-base-content/20" />
+            <span class="text-base-content/70">Remember me</span>
           </label>
-          <.link href={~p"/users/reset_password"} class="text-gray-600 hover:text-gray-900">
+          <.link href={~p"/users/reset_password"} class="text-base-content/70 hover:text-base-content">
             Forgot password?
           </.link>
         </div>
 
         <button
           type="submit"
-          class="w-full py-3 px-4 bg-gray-900 text-white font-medium rounded-lg hover:bg-gray-800 transition-colors"
+          class="w-full py-3 px-4 bg-neutral text-neutral-content font-medium rounded-lg hover:bg-neutral/90 transition-colors"
         >
           Continue with Email
         </button>
@@ -63,9 +63,9 @@ defmodule EstimateWeb.UserLive.Login do
         <.google_button href={if @return_to, do: ~p"/auth/google?#{%{return_to: @return_to}}", else: ~p"/auth/google"} />
       </div>
 
-      <p class="mt-8 text-center text-gray-600">
+      <p class="mt-8 text-center text-base-content/70">
         Don't have an account?
-        <.link navigate={~p"/users/register"} class="text-blue-600 hover:text-blue-700 font-medium">
+        <.link navigate={~p"/users/register"} class="text-info hover:text-info font-medium">
           Sign Up
         </.link>
       </p>

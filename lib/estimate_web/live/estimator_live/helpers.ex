@@ -161,11 +161,11 @@ defmodule EstimateWeb.EstimatorLive.Helpers do
   def priority_label("wont"), do: "Won't"
   def priority_label(_), do: "Must"
 
-  def priority_class("must"), do: "bg-red-100 text-red-700"
-  def priority_class("should"), do: "bg-amber-100 text-amber-700"
-  def priority_class("could"), do: "bg-blue-100 text-blue-700"
-  def priority_class("wont"), do: "bg-gray-100 text-gray-500"
-  def priority_class(_), do: "bg-red-100 text-red-700"
+  def priority_class("must"), do: "bg-error/10 dark:bg-error/20 text-error"
+  def priority_class("should"), do: "bg-warning/10 dark:bg-warning/20 text-warning"
+  def priority_class("could"), do: "bg-info/10 dark:bg-info/20 text-info"
+  def priority_class("wont"), do: "bg-base-200 text-base-content/60"
+  def priority_class(_), do: "bg-error/10 dark:bg-error/20 text-error"
 
   def priority_description("must"), do: "Critical for launch. Non-negotiable."
   def priority_description("should"), do: "Important but not vital. Include if possible."

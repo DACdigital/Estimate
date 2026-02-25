@@ -43,25 +43,25 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimatorModals do
   defp epic_modal(assigns) do
     ~H"""
     <.modal id="epic-modal" show on_cancel={JS.push("close_modal")}>
-      <h2 class="text-xl font-semibold text-gray-900 mb-6">
+      <h2 class="text-xl font-semibold text-base-content mb-6">
         {if @epic_form.data.id, do: "Edit Epic", else: "New Epic"}
       </h2>
       <.form for={@epic_form} id="epic-form" phx-submit="save_epic">
         <div class="space-y-4">
           <div>
-            <label class="block text-xs font-medium text-gray-500 mb-1.5">Epic Name *</label>
+            <label class="block text-xs font-medium text-base-content/60 mb-1.5">Epic Name *</label>
             <input
               type="text"
               name={@epic_form[:name].name}
               value={@epic_form[:name].value}
               placeholder="e.g. User Authentication"
               required
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
+              class="w-full px-3 py-2 border border-base-content/20 rounded-lg text-sm"
             />
           </div>
           <div>
             <div class="flex items-center justify-between mb-1.5">
-              <label class="block text-xs font-medium text-gray-500">Description</label>
+              <label class="block text-xs font-medium text-base-content/60">Description</label>
               <button
                 :if={@ai_configured}
                 type="button"
@@ -95,7 +95,7 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimatorModals do
               name={@epic_form[:description].name}
               rows="5"
               placeholder="Describe the epic scope, goals, and key requirements..."
-              class="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent focus:bg-white text-sm resize-y min-h-[80px]"
+              class="w-full px-3 py-2.5 bg-base-200 border border-base-content/20 rounded-lg focus:bg-base-100 text-sm resize-y min-h-[80px]"
             ><%= @epic_form[:description].value %></textarea>
           </div>
         </div>
@@ -103,14 +103,14 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimatorModals do
           <button
             type="button"
             phx-click="close_modal"
-            class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+            class="px-4 py-2 text-sm text-base-content/70 hover:text-base-content transition-colors"
           >
             Cancel
           </button>
           <button
             type="submit"
             phx-disable-with="Saving..."
-            class="px-4 py-2 bg-gray-900 text-white text-sm rounded-lg hover:bg-gray-800 transition-colors font-medium"
+            class="px-4 py-2 bg-neutral text-neutral-content text-sm rounded-lg hover:bg-neutral/90 transition-colors font-medium"
           >
             {if @epic_form.data.id, do: "Save Changes", else: "Create Epic"}
           </button>
@@ -123,27 +123,27 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimatorModals do
   defp task_modal(assigns) do
     ~H"""
     <.modal id="task-modal" show on_cancel={JS.push("close_modal")}>
-      <h2 class="text-xl font-semibold text-gray-900 mb-6">
+      <h2 class="text-xl font-semibold text-base-content mb-6">
         {if @task_form.data.id, do: "Edit Task", else: "New Task"}
       </h2>
       <.form for={@task_form} id="task-form" phx-submit="save_task" phx-change="validate_task">
         <div class="space-y-4">
           <div>
-            <label class="block text-xs font-medium text-gray-500 mb-1.5">Task Name *</label>
+            <label class="block text-xs font-medium text-base-content/60 mb-1.5">Task Name *</label>
             <input
               type="text"
               name={@task_form[:name].name}
               value={@task_form[:name].value}
               placeholder="e.g. Implement login form"
               required
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
+              class="w-full px-3 py-2 border border-base-content/20 rounded-lg text-sm"
             />
           </div>
           <div>
-            <label class="block text-xs font-medium text-gray-500 mb-1.5">Priority (MoSCoW)</label>
+            <label class="block text-xs font-medium text-base-content/60 mb-1.5">Priority (MoSCoW)</label>
             <div class="flex gap-2">
               <%= for p <- ["must", "should", "could", "wont"] do %>
-                <label class={"flex-1 text-center py-2 px-3 text-sm rounded-lg border cursor-pointer transition-colors #{if (@task_form[:priority].value || "must") == p, do: "bg-gray-900 text-white border-gray-900", else: "bg-white text-gray-600 border-gray-300 hover:border-gray-400"}"}>
+                <label class={"flex-1 text-center py-2 px-3 text-sm rounded-lg border cursor-pointer transition-colors #{if (@task_form[:priority].value || "must") == p, do: "bg-neutral text-neutral-content border-neutral", else: "bg-base-100 text-base-content/70 border-base-content/20 hover:border-base-content/40"}"}>
                   <input
                     type="radio"
                     name={@task_form[:priority].name}
@@ -158,7 +158,7 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimatorModals do
           </div>
           <div>
             <div class="flex items-center justify-between mb-1.5">
-              <label class="block text-xs font-medium text-gray-500">Description</label>
+              <label class="block text-xs font-medium text-base-content/60">Description</label>
               <button
                 :if={@ai_configured}
                 type="button"
@@ -192,7 +192,7 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimatorModals do
               name={@task_form[:description].name}
               rows="4"
               placeholder="Describe the task scope, acceptance criteria, and technical notes..."
-              class="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent focus:bg-white text-sm resize-y min-h-[64px]"
+              class="w-full px-3 py-2.5 bg-base-200 border border-base-content/20 rounded-lg focus:bg-base-100 text-sm resize-y min-h-[64px]"
             ><%= @task_form[:description].value %></textarea>
           </div>
         </div>
@@ -200,14 +200,14 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimatorModals do
           <button
             type="button"
             phx-click="close_modal"
-            class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+            class="px-4 py-2 text-sm text-base-content/70 hover:text-base-content transition-colors"
           >
             Cancel
           </button>
           <button
             type="submit"
             phx-disable-with="Saving..."
-            class="px-4 py-2 bg-gray-900 text-white text-sm rounded-lg hover:bg-gray-800 transition-colors font-medium"
+            class="px-4 py-2 bg-neutral text-neutral-content text-sm rounded-lg hover:bg-neutral/90 transition-colors font-medium"
           >
             {if @task_form.data.id, do: "Save Changes", else: "Create Task"}
           </button>
@@ -221,24 +221,24 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimatorModals do
     ~H"""
     <.modal id="delete-epic-modal" show on_cancel={JS.push("cancel_delete_epic")}>
       <div class="text-center">
-        <div class="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
-          <.icon name="hero-exclamation-triangle" class="w-6 h-6 text-red-600" />
+        <div class="w-12 h-12 rounded-full bg-error/10 flex items-center justify-center mx-auto mb-4">
+          <.icon name="hero-exclamation-triangle" class="w-6 h-6 text-error" />
         </div>
-        <h3 class="text-lg font-semibold text-gray-900 mb-2">Delete Epic</h3>
-        <p class="text-sm text-gray-500 mb-6">
-          Are you sure you want to delete <span class="font-medium text-gray-900"><%= @deleting_epic.name %></span>?
+        <h3 class="text-lg font-semibold text-base-content mb-2">Delete Epic</h3>
+        <p class="text-sm text-base-content/60 mb-6">
+          Are you sure you want to delete <span class="font-medium text-base-content"><%= @deleting_epic.name %></span>?
           This will also delete all its tasks and estimates.
         </p>
         <div class="flex gap-3 justify-center">
           <button
             phx-click="cancel_delete_epic"
-            class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+            class="px-4 py-2 text-sm text-base-content/70 hover:text-base-content transition-colors"
           >
             Cancel
           </button>
           <button
             phx-click="delete_epic"
-            class="px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors font-medium"
+            class="px-4 py-2 bg-error text-error-content text-sm rounded-lg hover:bg-error/90 transition-colors font-medium"
           >
             Delete
           </button>
@@ -252,23 +252,23 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimatorModals do
     ~H"""
     <.modal id="delete-task-modal" show on_cancel={JS.push("cancel_delete_task")}>
       <div class="text-center">
-        <div class="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
-          <.icon name="hero-exclamation-triangle" class="w-6 h-6 text-red-600" />
+        <div class="w-12 h-12 rounded-full bg-error/10 flex items-center justify-center mx-auto mb-4">
+          <.icon name="hero-exclamation-triangle" class="w-6 h-6 text-error" />
         </div>
-        <h3 class="text-lg font-semibold text-gray-900 mb-2">Delete Task</h3>
-        <p class="text-sm text-gray-500 mb-6">
-          Are you sure you want to delete <span class="font-medium text-gray-900"><%= @deleting_task.name %></span>?
+        <h3 class="text-lg font-semibold text-base-content mb-2">Delete Task</h3>
+        <p class="text-sm text-base-content/60 mb-6">
+          Are you sure you want to delete <span class="font-medium text-base-content"><%= @deleting_task.name %></span>?
         </p>
         <div class="flex gap-3 justify-center">
           <button
             phx-click="cancel_delete_task"
-            class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+            class="px-4 py-2 text-sm text-base-content/70 hover:text-base-content transition-colors"
           >
             Cancel
           </button>
           <button
             phx-click="delete_task"
-            class="px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors font-medium"
+            class="px-4 py-2 bg-error text-error-content text-sm rounded-lg hover:bg-error/90 transition-colors font-medium"
           >
             Delete
           </button>
@@ -281,24 +281,24 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimatorModals do
   defp settings_modal(assigns) do
     ~H"""
     <.modal id="settings-modal" show on_cancel={JS.push("close_modal")}>
-      <h2 class="text-xl font-semibold text-gray-900 mb-6">Estimation Settings</h2>
+      <h2 class="text-xl font-semibold text-base-content mb-6">Estimation Settings</h2>
       <.form for={@settings_form} id="settings-form" phx-submit="save_settings">
         <div class="space-y-6">
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">Estimation Name</label>
+              <label class="block text-xs font-medium text-base-content/60 mb-1.5">Estimation Name</label>
               <input
                 type="text"
                 name="name"
                 value={@estimation.name}
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
+                class="w-full px-3 py-2 border border-base-content/20 rounded-lg text-sm"
               />
             </div>
             <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">Currency</label>
+              <label class="block text-xs font-medium text-base-content/60 mb-1.5">Currency</label>
               <select
                 name="currency_id"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
+                class="w-full px-3 py-2 border border-base-content/20 rounded-lg text-sm"
               >
                 <%= for currency <- @currencies do %>
                   <option
@@ -313,11 +313,11 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimatorModals do
           </div>
 
           <div>
-            <label class="block text-xs font-medium text-gray-500 mb-2">Roles & Overheads</label>
-            <div class="border border-gray-200 rounded-lg overflow-hidden">
+            <label class="block text-xs font-medium text-base-content/60 mb-2">Roles & Overheads</label>
+            <div class="border border-base-300 rounded-lg overflow-hidden">
               <table class="w-full text-sm">
                 <thead>
-                  <tr class="bg-gray-50 text-[11px] font-medium text-gray-500 uppercase tracking-wider">
+                  <tr class="bg-base-200 text-[11px] font-medium text-base-content/60 uppercase tracking-wider">
                     <th class="px-3 py-2 text-left">Role</th>
                     <th class="px-3 py-2 text-right w-20">Rate</th>
                     <th class="px-3 py-2 text-right w-16">PM %</th>
@@ -325,15 +325,15 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimatorModals do
                     <th class="px-3 py-2 text-right w-16">Risk %</th>
                   </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-100">
+                <tbody class="divide-y divide-base-content/10">
                   <%= for role <- @estimation.roles do %>
-                    <tr class="hover:bg-gray-50">
+                    <tr class="hover:bg-base-200">
                       <td class="px-3 py-2">
                         <div class="flex items-center gap-2">
                           <span class="w-6 h-6 rounded bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold text-[10px]">
                             {role.abbreviation}
                           </span>
-                          <span class="text-gray-900">{role.name}</span>
+                          <span class="text-base-content">{role.name}</span>
                         </div>
                       </td>
                       <td class="px-3 py-2">
@@ -343,7 +343,7 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimatorModals do
                           min="0"
                           name={"roles[#{role.id}][hourly_rate]"}
                           value={format_percent(role.hourly_rate)}
-                          class="w-full px-2 py-1 border border-gray-200 rounded text-sm font-mono text-right focus:outline-none focus:ring-1 focus:ring-gray-900 hover:border-gray-300"
+                          class="w-full px-2 py-1 border border-base-300 rounded text-sm font-mono text-right hover:border-base-content/30"
                         />
                       </td>
                       <td class="px-3 py-2">
@@ -354,7 +354,7 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimatorModals do
                           max="100"
                           name={"roles[#{role.id}][pm_overhead]"}
                           value={format_percent(role.pm_overhead)}
-                          class="w-full px-2 py-1 border border-gray-200 rounded text-sm font-mono text-right focus:outline-none focus:ring-1 focus:ring-gray-900 hover:border-gray-300"
+                          class="w-full px-2 py-1 border border-base-300 rounded text-sm font-mono text-right hover:border-base-content/30"
                         />
                       </td>
                       <td class="px-3 py-2">
@@ -365,7 +365,7 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimatorModals do
                           max="100"
                           name={"roles[#{role.id}][qa_overhead]"}
                           value={format_percent(role.qa_overhead)}
-                          class="w-full px-2 py-1 border border-gray-200 rounded text-sm font-mono text-right focus:outline-none focus:ring-1 focus:ring-gray-900 hover:border-gray-300"
+                          class="w-full px-2 py-1 border border-base-300 rounded text-sm font-mono text-right hover:border-base-content/30"
                         />
                       </td>
                       <td class="px-3 py-2">
@@ -376,7 +376,7 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimatorModals do
                           max="100"
                           name={"roles[#{role.id}][risk_buffer]"}
                           value={format_percent(role.risk_buffer)}
-                          class="w-full px-2 py-1 border border-gray-200 rounded text-sm font-mono text-right focus:outline-none focus:ring-1 focus:ring-gray-900 hover:border-gray-300"
+                          class="w-full px-2 py-1 border border-base-300 rounded text-sm font-mono text-right hover:border-base-content/30"
                         />
                       </td>
                     </tr>
@@ -392,7 +392,7 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimatorModals do
                 placeholder="Role name"
                 phx-keydown="add_estimation_role"
                 phx-key="Enter"
-                class="flex-1 px-2 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-900 hover:border-gray-300"
+                class="flex-1 px-2 py-1.5 border border-base-300 rounded text-sm hover:border-base-content/30"
               />
               <input
                 type="text"
@@ -401,32 +401,32 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimatorModals do
                 maxlength="5"
                 phx-keydown="add_estimation_role"
                 phx-key="Enter"
-                class="w-16 px-2 py-1.5 border border-gray-200 rounded text-sm font-mono uppercase text-center focus:outline-none focus:ring-1 focus:ring-gray-900 hover:border-gray-300"
+                class="w-16 px-2 py-1.5 border border-base-300 rounded text-sm font-mono uppercase text-center hover:border-base-content/30"
               />
               <button
                 type="button"
                 phx-click="add_estimation_role"
-                class="px-3 py-1.5 bg-gray-900 text-white text-sm rounded hover:bg-gray-800 transition-colors"
+                class="px-3 py-1.5 bg-neutral text-neutral-content text-sm rounded hover:bg-neutral/90 transition-colors"
               >
                 Add
               </button>
             </div>
 
-            <p class="text-xs text-gray-400 mt-1.5">Changes apply only to this estimation</p>
+            <p class="text-xs text-base-content/40 mt-1.5">Changes apply only to this estimation</p>
           </div>
         </div>
         <div class="mt-6 flex justify-end gap-3">
           <button
             type="button"
             phx-click="close_modal"
-            class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+            class="px-4 py-2 text-sm text-base-content/70 hover:text-base-content transition-colors"
           >
             Cancel
           </button>
           <button
             type="submit"
             phx-disable-with="Saving..."
-            class="px-4 py-2 bg-gray-900 text-white text-sm rounded-lg hover:bg-gray-800 transition-colors font-medium"
+            class="px-4 py-2 bg-neutral text-neutral-content text-sm rounded-lg hover:bg-neutral/90 transition-colors font-medium"
           >
             Save
           </button>
@@ -439,34 +439,34 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimatorModals do
   defp save_template_modal(assigns) do
     ~H"""
     <.modal id="save-template-modal" show on_cancel={JS.push("close_modal")}>
-      <h2 class="text-xl font-semibold text-gray-900 mb-4">Save as Template</h2>
-      <p class="text-sm text-gray-500 mb-4">
+      <h2 class="text-xl font-semibold text-base-content mb-4">Save as Template</h2>
+      <p class="text-sm text-base-content/60 mb-4">
         Save the epic & task structure as a reusable template. No hours or roles will be included.
       </p>
       <form phx-submit="save_as_template">
         <div>
-          <label class="block text-xs font-medium text-gray-500 mb-1.5">Template Name *</label>
+          <label class="block text-xs font-medium text-base-content/60 mb-1.5">Template Name *</label>
           <input
             type="text"
             name="template_name"
             value={@estimation.name}
             required
             autofocus
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+            class="w-full px-3 py-2 border border-base-content/20 rounded-lg text-sm"
           />
         </div>
         <div class="mt-6 flex justify-end gap-3">
           <button
             type="button"
             phx-click="close_modal"
-            class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+            class="px-4 py-2 text-sm text-base-content/70 hover:text-base-content transition-colors"
           >
             Cancel
           </button>
           <button
             type="submit"
             phx-disable-with="Saving..."
-            class="px-4 py-2 bg-gray-900 text-white text-sm rounded-lg hover:bg-gray-800 transition-colors font-medium"
+            class="px-4 py-2 bg-neutral text-neutral-content text-sm rounded-lg hover:bg-neutral/90 transition-colors font-medium"
           >
             Save Template
           </button>

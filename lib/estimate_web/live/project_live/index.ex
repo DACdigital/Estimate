@@ -13,31 +13,31 @@ defmodule EstimateWeb.ProjectLive.Index do
       <%!-- Page Header --%>
       <div class="flex items-center justify-between mb-8">
         <div>
-          <h1 class="text-2xl font-bold text-gray-900">Projects</h1>
-          <p class="mt-1 text-gray-500">Manage your project portfolio</p>
+          <h1 class="text-2xl font-bold text-base-content">Projects</h1>
+          <p class="mt-1 text-base-content/60">Manage your project portfolio</p>
         </div>
         <.link
           patch={~p"/org/#{@org_id}/projects/new"}
-          class="px-4 py-2 bg-gray-900 text-white text-sm rounded-lg hover:bg-gray-800 transition-colors font-medium"
+          class="px-4 py-2 bg-neutral text-neutral-content text-sm rounded-lg hover:bg-neutral/90 transition-colors font-medium"
         >
           New Project
         </.link>
       </div>
 
       <%!-- Project List --%>
-      <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      <div class="bg-base-100 border border-base-300 rounded-xl overflow-hidden">
         <%= if @projects == [] do %>
           <div class="px-6 py-16 text-center">
-            <div class="w-12 h-12 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
-              <.icon name="hero-folder" class="w-6 h-6 text-gray-400" />
+            <div class="w-12 h-12 mx-auto mb-4 rounded-full bg-base-200 flex items-center justify-center">
+              <.icon name="hero-folder" class="w-6 h-6 text-base-content/40" />
             </div>
-            <p class="text-sm font-medium text-gray-900">No projects yet</p>
-            <p class="text-sm text-gray-500 mt-1">Create your first project to get started.</p>
+            <p class="text-sm font-medium text-base-content">No projects yet</p>
+            <p class="text-sm text-base-content/60 mt-1">Create your first project to get started.</p>
           </div>
         <% else %>
           <div
             :for={project <- @projects}
-            class="px-6 py-5 flex items-center gap-4 border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors"
+            class="px-6 py-5 flex items-center gap-4 border-b border-base-content/10 last:border-b-0 hover:bg-base-200 transition-colors"
           >
             <.link
               navigate={~p"/org/#{@org_id}/projects/#{project.id}"}
@@ -46,19 +46,19 @@ defmodule EstimateWeb.ProjectLive.Index do
               <.avatar name={project.name} seed={project.id} size={:lg} />
               <span
                 :if={project.key && project.customer}
-                class="text-xs font-mono text-gray-400 w-20 flex-shrink-0"
+                class="text-xs font-mono text-base-content/40 w-20 flex-shrink-0"
               >
                 {Project.composite_key(project)}
               </span>
               <div class="min-w-0 flex-1">
-                <h3 class="text-sm font-medium text-gray-900 truncate">{project.name}</h3>
-                <p :if={project.customer} class="text-sm text-gray-500 truncate">
+                <h3 class="text-sm font-medium text-base-content truncate">{project.name}</h3>
+                <p :if={project.customer} class="text-sm text-base-content/60 truncate">
                   {project.customer.name}
                 </p>
               </div>
             </.link>
             <div class="flex items-center gap-3 flex-shrink-0">
-              <span :if={project.currency} class="text-xs text-gray-400 font-mono">
+              <span :if={project.currency} class="text-xs text-base-content/40 font-mono">
                 {project.currency.code}
               </span>
               <span class={"text-xs px-2 py-0.5 rounded-full #{project_status_class(project.status)}"}>
@@ -66,7 +66,7 @@ defmodule EstimateWeb.ProjectLive.Index do
               </span>
               <.link
                 patch={~p"/org/#{@org_id}/projects/#{project.id}/edit"}
-                class="text-gray-400 hover:text-gray-600 transition-colors"
+                class="text-base-content/40 hover:text-base-content/70 transition-colors"
               >
                 <.icon name="hero-pencil-square" class="w-5 h-5" />
               </.link>
@@ -88,7 +88,7 @@ defmodule EstimateWeb.ProjectLive.Index do
           )
         }
       >
-        <h2 class="text-xl font-semibold text-gray-900 mb-6">
+        <h2 class="text-xl font-semibold text-base-content mb-6">
           {if @live_action == :new, do: "New Project", else: "Edit Project"}
         </h2>
 
@@ -96,13 +96,13 @@ defmodule EstimateWeb.ProjectLive.Index do
           <div class="space-y-4">
             <%!-- Customer Selection --%>
             <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">Customer *</label>
+              <label class="block text-xs font-medium text-base-content/60 mb-1.5">Customer *</label>
               <select
                 name={@form[:customer_id].name}
                 phx-change="customer_changed"
                 required
                 disabled={@live_action == :edit}
-                class={"w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm #{if @live_action == :edit, do: "bg-gray-50 text-gray-500"}"}
+                class={"w-full px-3 py-2 border border-base-content/20 rounded-lg text-sm #{if @live_action == :edit, do: "bg-base-200 text-base-content/60"}"}
               >
                 <option value="">Select a customer</option>
                 <%= for customer <- @customers do %>
@@ -118,24 +118,24 @@ defmodule EstimateWeb.ProjectLive.Index do
 
             <%!-- Project Key (composite display) --%>
             <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">Project Key</label>
+              <label class="block text-xs font-medium text-base-content/60 mb-1.5">Project Key</label>
               <div class="flex items-center gap-1">
-                <span class="px-3 py-2 bg-gray-100 border border-gray-300 rounded-l-lg text-sm text-gray-500 font-mono">
+                <span class="px-3 py-2 bg-base-200 border border-base-content/20 rounded-l-lg text-sm text-base-content/60 font-mono">
                   {@customer_key || "---"}
                 </span>
-                <span class="text-gray-400">-</span>
+                <span class="text-base-content/40">-</span>
                 <input
                   type="text"
                   name={@form[:key].name}
                   value={@form[:key].value}
                   placeholder="PROJ"
                   maxlength="10"
-                  class="flex-1 px-3 py-2 border border-gray-300 rounded-r-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm font-mono uppercase"
+                  class="flex-1 px-3 py-2 border border-base-content/20 rounded-r-lg text-sm font-mono uppercase"
                 />
               </div>
               <p
                 :if={@customer_key && @form[:key].value && @form[:key].value != ""}
-                class="mt-1 text-xs text-gray-500"
+                class="mt-1 text-xs text-base-content/60"
               >
                 Full key:
                 <span class="font-mono">
@@ -146,10 +146,10 @@ defmodule EstimateWeb.ProjectLive.Index do
 
             <%!-- Currency --%>
             <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">Currency</label>
+              <label class="block text-xs font-medium text-base-content/60 mb-1.5">Currency</label>
               <select
                 name={@form[:currency_id].name}
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
+                class="w-full px-3 py-2 border border-base-content/20 rounded-lg text-sm"
               >
                 <option value="">None</option>
                 <%= for currency <- @currencies do %>
@@ -165,60 +165,60 @@ defmodule EstimateWeb.ProjectLive.Index do
 
             <%!-- Project Name --%>
             <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">Project Name *</label>
+              <label class="block text-xs font-medium text-base-content/60 mb-1.5">Project Name *</label>
               <input
                 type="text"
                 name={@form[:name].name}
                 value={@form[:name].value}
                 placeholder="Website Redesign"
                 required
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
+                class="w-full px-3 py-2 border border-base-content/20 rounded-lg text-sm"
               />
             </div>
 
             <%!-- Short Description --%>
             <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">Short Description</label>
+              <label class="block text-xs font-medium text-base-content/60 mb-1.5">Short Description</label>
               <input
                 type="text"
                 name={@form[:short_description].name}
                 value={@form[:short_description].value}
                 placeholder="One-liner about the project"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
+                class="w-full px-3 py-2 border border-base-content/20 rounded-lg text-sm"
               />
             </div>
 
             <%!-- Detailed Description --%>
             <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">
+              <label class="block text-xs font-medium text-base-content/60 mb-1.5">
                 Detailed Description
               </label>
               <textarea
                 name={@form[:detailed_description].name}
                 rows="4"
                 placeholder="Comprehensive scope and details..."
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm resize-none"
+                class="w-full px-3 py-2 border border-base-content/20 rounded-lg text-sm resize-none"
               ><%= @form[:detailed_description].value %></textarea>
             </div>
 
             <%!-- Repository URL --%>
             <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">Repository URL</label>
+              <label class="block text-xs font-medium text-base-content/60 mb-1.5">Repository URL</label>
               <input
                 type="url"
                 name={@form[:repository_url].name}
                 value={@form[:repository_url].value}
                 placeholder="https://github.com/org/repo"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
+                class="w-full px-3 py-2 border border-base-content/20 rounded-lg text-sm"
               />
             </div>
 
             <%!-- Status (edit only) --%>
             <div :if={@live_action == :edit}>
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">Status</label>
+              <label class="block text-xs font-medium text-base-content/60 mb-1.5">Status</label>
               <select
                 name={@form[:status].name}
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
+                class="w-full px-3 py-2 border border-base-content/20 rounded-lg text-sm"
               >
                 <option value="active" selected={@form[:status].value == "active"}>Active</option>
                 <option value="completed" selected={@form[:status].value == "completed"}>
@@ -238,14 +238,14 @@ defmodule EstimateWeb.ProjectLive.Index do
                   do: ~p"/org/#{@org_id}/projects",
                   else: ~p"/org/#{@org_id}/projects/#{@project.id}"
               }
-              class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+              class="px-4 py-2 text-sm text-base-content/70 hover:text-base-content transition-colors"
             >
               Cancel
             </.link>
             <button
               type="submit"
               phx-disable-with="Saving..."
-              class="px-4 py-2 bg-gray-900 text-white text-sm rounded-lg hover:bg-gray-800 transition-colors font-medium"
+              class="px-4 py-2 bg-neutral text-neutral-content text-sm rounded-lg hover:bg-neutral/90 transition-colors font-medium"
             >
               {if @live_action == :new, do: "Create Project", else: "Save Changes"}
             </button>
