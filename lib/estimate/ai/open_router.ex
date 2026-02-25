@@ -1,6 +1,7 @@
 defmodule Estimate.AI.OpenRouter do
   @url "https://openrouter.ai/api/v1/chat/completions"
   @models_url "https://openrouter.ai/api/v1/models"
+  @key_url "https://openrouter.ai/api/v1/key"
   @timeout 30_000
   @cache_ttl :timer.hours(1)
 
@@ -86,6 +87,30 @@ defmodule Estimate.AI.OpenRouter do
     case :ets.info(:openrouter_models) do
       :undefined -> :ets.new(:openrouter_models, [:set, :public, :named_table])
       _ -> :ok
+    end
+  end
+
+  # --- Key info / balance ---
+
+  def get_key_info(api_key) do
+    case Req.get(@key_url,
+           headers: [{"authorization", "Bearer #{api_key}"}],
+           receive_timeout: 10_000
+         ) do
+      {:ok, %{status: 200, body: %{"data" => data}}} ->
+        {:ok,
+         %{
+           usage: data["usage"],
+           limit: data["limit"],
+           limit_remaining: data["limit_remaining"],
+           is_free_tier: data["is_free_tier"]
+         }}
+
+      {:ok, %{status: status, body: body}} ->
+        {:error, "OpenRouter #{status}: #{inspect(body)}"}
+
+      {:error, reason} ->
+        {:error, inspect(reason)}
     end
   end
 

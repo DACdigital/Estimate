@@ -15,8 +15,8 @@ defmodule EstimateWeb.SettingsLive.Ai do
 
       <div class="bg-base-100 border border-base-300 rounded-xl overflow-hidden">
         <.form for={@ai_form} id="ai-settings-form" phx-submit="save_ai_settings">
-          <div class="p-6">
-            <div class="space-y-4 max-w-md">
+          <div class="p-6 flex gap-6">
+            <div class="space-y-4 max-w-md flex-1">
               <div>
                 <label class="block text-xs font-medium text-base-content/60 mb-1.5">
                   API Key
@@ -77,6 +77,22 @@ defmodule EstimateWeb.SettingsLive.Ai do
                 ><%= @ai_form[:openrouter_system_prompt].value %></textarea>
               </div>
             </div>
+            <div
+              :if={@ai_configured && !(@ai_balance.ok? && is_nil(@ai_balance.result))}
+              class="hidden sm:block"
+            >
+              <div :if={@ai_balance.loading} class="animate-pulse text-sm text-base-content/40 mt-5">
+                ...
+              </div>
+              <div :if={@ai_balance.ok? && @ai_balance.result}>
+                <label class="block text-xs font-medium text-base-content/60 mb-1.5">
+                  Current Usage
+                </label>
+                <div class="font-mono text-2xl font-medium text-base-content/80 leading-10">
+                  ${format_usd(@ai_balance.result.usage)}
+                </div>
+              </div>
+            </div>
           </div>
           <div class="px-6 py-3 bg-base-100 border-t border-base-300 flex items-center justify-between">
             <p class="text-sm text-base-content/60">API key is encrypted at rest.</p>
@@ -116,7 +132,8 @@ defmodule EstimateWeb.SettingsLive.Ai do
        |> assign(:ai_key_masked, Organizations.mask_api_key(org))
        |> assign(:model_query, org.openrouter_model || "")
        |> assign(:model_results, [])
-       |> assign(:model_dropdown_open, false)}
+       |> assign(:model_dropdown_open, false)
+       |> maybe_fetch_balance(org)}
     end
   end
 
@@ -184,13 +201,32 @@ defmodule EstimateWeb.SettingsLive.Ai do
            |> assign(:ai_form, to_form(ai_changeset, as: :ai))
            |> assign(:ai_configured, org.encrypted_openrouter_api_key != nil)
            |> assign(:ai_key_masked, Organizations.mask_api_key(org))
-           |> assign(:model_query, org.openrouter_model || "")}
+           |> assign(:model_query, org.openrouter_model || "")
+           |> maybe_fetch_balance(org)}
 
         {:error, changeset} ->
           {:noreply, assign(socket, ai_form: to_form(changeset, as: :ai))}
       end
     end)
   end
+
+  defp maybe_fetch_balance(socket, org) do
+    if org.encrypted_openrouter_api_key do
+      assign_async(socket, :ai_balance, fn ->
+        api_key = Organizations.get_decrypted_api_key(org)
+
+        case Estimate.AI.OpenRouter.get_key_info(api_key) do
+          {:ok, info} -> {:ok, %{ai_balance: info}}
+          {:error, _} -> {:ok, %{ai_balance: nil}}
+        end
+      end)
+    else
+      assign(socket, :ai_balance, %Phoenix.LiveView.AsyncResult{ok?: true, result: nil})
+    end
+  end
+
+  defp format_usd(nil), do: "0.0000"
+  defp format_usd(n), do: :erlang.float_to_binary(n / 1, decimals: 4)
 
   defp format_context(nil), do: ""
   defp format_context(n) when n >= 1_000_000, do: "#{div(n, 1_000_000)}M ctx"
