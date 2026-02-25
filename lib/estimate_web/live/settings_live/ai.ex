@@ -7,7 +7,7 @@ defmodule EstimateWeb.SettingsLive.Ai do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="max-w-3xl mx-auto">
+    <div class="max-w-4xl mx-auto">
       <div class="mb-8">
         <h1 class="text-2xl font-bold text-base-content">AI Integration</h1>
         <p class="mt-1 text-base-content/60">Connect to OpenRouter to enhance descriptions with AI</p>
@@ -78,7 +78,7 @@ defmodule EstimateWeb.SettingsLive.Ai do
               </div>
             </div>
           </div>
-          <div class="px-6 py-3 bg-base-200 border-t border-base-300 flex items-center justify-between">
+          <div class="px-6 py-3 bg-base-100 border-t border-base-300 flex items-center justify-between">
             <p class="text-sm text-base-content/60">API key is encrypted at rest.</p>
             <button
               type="submit"

@@ -10,13 +10,16 @@ defmodule Estimate.Portfolio do
   alias Estimate.CRM
   alias Estimate.Search
 
-  def list_projects(org_id) do
+  def list_projects(org_id, opts \\ []) do
+    status = Keyword.get(opts, :status)
+
     Repo.ensure_org_context(fn ->
       from(p in Project,
         where: p.organization_id == ^org_id,
         preload: [:customer, :currency],
         order_by: [desc: p.updated_at]
       )
+      |> maybe_filter_status(status)
       |> Repo.all()
     end)
   end
@@ -25,15 +28,21 @@ defmodule Estimate.Portfolio do
   Role-aware project listing. Admins/owners see all projects,
   regular members see only projects they collaborate on.
   """
-  def list_projects(org_id, _user_id, role) when role in ["owner", "admin"] do
-    list_projects(org_id)
+  def list_projects(org_id, user_id, role) when is_binary(role) do
+    list_projects(org_id, user_id, role, [])
   end
 
-  def list_projects(org_id, user_id, _role) do
-    list_user_projects(user_id, org_id)
+  def list_projects(org_id, _user_id, role, opts) when role in ["owner", "admin"] do
+    list_projects(org_id, opts)
   end
 
-  def list_user_projects(user_id, org_id) do
+  def list_projects(org_id, user_id, _role, opts) do
+    list_user_projects(user_id, org_id, opts)
+  end
+
+  def list_user_projects(user_id, org_id, opts \\ []) do
+    status = Keyword.get(opts, :status)
+
     Repo.ensure_org_context(fn ->
       from(p in Project,
         join: pc in ProjectCollaborator,
@@ -42,9 +51,13 @@ defmodule Estimate.Portfolio do
         preload: [:customer, :currency],
         order_by: [desc: p.updated_at]
       )
+      |> maybe_filter_status(status)
       |> Repo.all()
     end)
   end
+
+  defp maybe_filter_status(query, nil), do: query
+  defp maybe_filter_status(query, status), do: from(p in query, where: p.status == ^status)
 
   @doc """
   Role-aware project listing scoped to a customer.
@@ -192,6 +205,8 @@ defmodule Estimate.Portfolio do
 
   def delete_project(%Project{} = project) do
     Repo.ensure_org_context(fn ->
+      Search.remove_index_for_project(project.id)
+
       result = Repo.delete(project)
 
       case result do

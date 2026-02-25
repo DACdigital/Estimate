@@ -156,33 +156,26 @@ defmodule Estimate.Templates do
       |> Ecto.Multi.run(:epics_tasks, fn _repo, %{template: template} ->
         parsed_json.epics
         |> Enum.with_index()
-        |> Enum.each(fn {epic, position} ->
-          {:ok, new_epic} =
-            %EstimationTemplateEpic{}
-            |> EstimationTemplateEpic.changeset(%{
-              name: epic.name,
-              description: epic.description,
-              position: position,
-              estimation_template_id: template.id
-            })
-            |> Repo.insert()
-
-          epic.tasks
-          |> Enum.with_index()
-          |> Enum.each(fn {task, task_position} ->
-            %EstimationTemplateTask{}
-            |> EstimationTemplateTask.changeset(%{
-              name: task.name,
-              description: task.description,
-              position: task_position,
-              priority: task.priority,
-              estimation_template_epic_id: new_epic.id
-            })
-            |> Repo.insert!()
-          end)
+        |> Enum.reduce_while(:ok, fn {epic, position}, :ok ->
+          with {:ok, new_epic} <-
+                 %EstimationTemplateEpic{}
+                 |> EstimationTemplateEpic.changeset(%{
+                   name: epic.name,
+                   description: epic.description,
+                   position: position,
+                   estimation_template_id: template.id
+                 })
+                 |> Repo.insert(),
+               :ok <- insert_template_tasks(epic.tasks, new_epic.id) do
+            {:cont, :ok}
+          else
+            {:error, changeset} -> {:halt, {:error, changeset}}
+          end
         end)
-
-        {:ok, :done}
+        |> case do
+          :ok -> {:ok, :done}
+          {:error, changeset} -> {:error, changeset}
+        end
       end)
       |> Repo.transaction()
       |> case do
@@ -205,36 +198,52 @@ defmodule Estimate.Templates do
         })
       end)
       |> Ecto.Multi.run(:epics_tasks, fn _repo, %{template: template} ->
-        Enum.each(estimation.epics, fn epic ->
-          {:ok, new_epic} =
-            %EstimationTemplateEpic{}
-            |> EstimationTemplateEpic.changeset(%{
-              name: epic.name,
-              description: epic.description,
-              position: epic.position,
-              estimation_template_id: template.id
-            })
-            |> Repo.insert()
-
-          Enum.each(epic.tasks, fn task ->
-            %EstimationTemplateTask{}
-            |> EstimationTemplateTask.changeset(%{
-              name: task.name,
-              description: task.description,
-              position: task.position,
-              priority: task.priority,
-              estimation_template_epic_id: new_epic.id
-            })
-            |> Repo.insert!()
-          end)
+        estimation.epics
+        |> Enum.reduce_while(:ok, fn epic, :ok ->
+          with {:ok, new_epic} <-
+                 %EstimationTemplateEpic{}
+                 |> EstimationTemplateEpic.changeset(%{
+                   name: epic.name,
+                   description: epic.description,
+                   position: epic.position,
+                   estimation_template_id: template.id
+                 })
+                 |> Repo.insert(),
+               :ok <- insert_template_tasks(epic.tasks, new_epic.id) do
+            {:cont, :ok}
+          else
+            {:error, changeset} -> {:halt, {:error, changeset}}
+          end
         end)
-
-        {:ok, :done}
+        |> case do
+          :ok -> {:ok, :done}
+          {:error, changeset} -> {:error, changeset}
+        end
       end)
       |> Repo.transaction()
       |> case do
         {:ok, %{template: template}} -> {:ok, template}
         {:error, _op, changeset, _} -> {:error, changeset}
+      end
+    end)
+  end
+
+  defp insert_template_tasks(tasks, epic_id) do
+    tasks
+    |> Enum.with_index()
+    |> Enum.reduce_while(:ok, fn {task, position}, :ok ->
+      %EstimationTemplateTask{}
+      |> EstimationTemplateTask.changeset(%{
+        name: task.name,
+        description: task.description,
+        position: position,
+        priority: task.priority,
+        estimation_template_epic_id: epic_id
+      })
+      |> Repo.insert()
+      |> case do
+        {:ok, _} -> {:cont, :ok}
+        {:error, changeset} -> {:halt, {:error, changeset}}
       end
     end)
   end

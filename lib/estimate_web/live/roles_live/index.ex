@@ -4,31 +4,32 @@ defmodule EstimateWeb.RolesLive.Index do
   alias Estimate.Accounts
   alias Estimate.Organizations.Currencies
   import EstimateWeb.LiveHelpers
+  import EstimateWeb.EstimatorLive.Helpers, only: [format_percent: 1]
 
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="max-w-6xl mx-auto space-y-6">
+    <div class="max-w-5xl mx-auto space-y-6">
+      <div class="mb-8">
+        <h1 class="text-2xl font-bold text-base-content">Roles</h1>
+        <p class="mt-1 text-base-content/60">
+          Define organization-wide roles for estimations
+        </p>
+        <p class="mt-1 text-xs text-base-content/40">
+          Currency columns are based on your <.link
+            navigate={~p"/org/#{@org_id}/settings/currencies"}
+            class="text-violet-500 hover:text-violet-700 underline"
+          >
+            currency settings</.link>.
+        </p>
+      </div>
+
       <%!-- Hourly Rates Table --%>
       <div class="bg-base-100 border border-base-300 rounded-xl overflow-hidden">
-        <div class="p-6">
-          <h2 class="text-xl font-semibold text-base-content">Roles</h2>
-          <p class="mt-1 text-sm text-base-content/60">
-            Define organization-wide roles. These are available when creating estimations.
-          </p>
-          <p class="mt-1 text-xs text-base-content/40">
-            Currency columns are based on your <.link
-              navigate={~p"/org/#{@org_id}/settings/currencies"}
-              class="text-violet-500 hover:text-violet-700 underline"
-            >
-              currency settings</.link>.
-          </p>
-        </div>
-
-        <div class="border-t border-base-300 overflow-x-auto">
+        <div class="overflow-x-auto">
           <table class="w-full">
             <thead>
-              <tr class="bg-base-200 text-[11px] font-medium text-base-content/60 uppercase tracking-wider">
+              <tr class="bg-base-100 text-[11px] font-medium text-base-content/60 uppercase tracking-wider">
                 <th class="px-6 py-3 whitespace-nowrap text-left">Role</th>
                 <%= for currency <- @currencies do %>
                   <th class="py-3 whitespace-nowrap text-center w-24">
@@ -192,7 +193,7 @@ defmodule EstimateWeb.RolesLive.Index do
           :if={@is_admin}
           for={@new_form}
           phx-submit="add_template"
-          class="px-6 py-4 bg-base-200 border-t border-base-300"
+          class="px-6 py-4 bg-base-100 border-t border-base-300"
         >
           <div class="flex items-center gap-3">
             <input
@@ -220,38 +221,14 @@ defmodule EstimateWeb.RolesLive.Index do
         </.form>
       </div>
 
-      <%!-- Delete Confirmation Modal --%>
-      <.modal
+      <.confirm_modal
         :if={@deleting_template}
         id="delete-template-modal"
-        show
-        on_cancel={JS.push("cancel_delete")}
-      >
-        <div class="text-center">
-          <div class="w-12 h-12 rounded-full bg-error/10 flex items-center justify-center mx-auto mb-4">
-            <.icon name="hero-exclamation-triangle" class="w-6 h-6 text-error" />
-          </div>
-          <h3 class="text-lg font-semibold text-base-content mb-2">Delete Role</h3>
-          <p class="text-sm text-base-content/60 mb-6">
-            Are you sure you want to delete <span class="font-medium text-base-content"><%= @deleting_template.name %></span>?
-            This action cannot be undone.
-          </p>
-          <div class="flex gap-3 justify-center">
-            <button
-              phx-click="cancel_delete"
-              class="px-4 py-2 text-sm text-base-content/70 hover:text-base-content transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              phx-click="delete_template"
-              class="px-4 py-2 bg-error text-error-content text-sm rounded-lg hover:bg-error/90 transition-colors font-medium"
-            >
-              Delete
-            </button>
-          </div>
-        </div>
-      </.modal>
+        title="Delete Role"
+        item_name={@deleting_template.name}
+        confirm_event="delete_template"
+        cancel_event="cancel_delete"
+      />
     </div>
     """
   end
@@ -309,7 +286,7 @@ defmodule EstimateWeb.RolesLive.Index do
         socket
       ) do
     require_admin(socket, fn ->
-      template = Accounts.get_role_template!(id)
+      template = Accounts.get_role_template!(id, socket.assigns.org_id)
 
       case Accounts.update_role_template(template, %{"name" => name, "abbreviation" => abbr}) do
         {:ok, _template} ->
@@ -328,8 +305,10 @@ defmodule EstimateWeb.RolesLive.Index do
   end
 
   def handle_event("confirm_delete", %{"id" => id}, socket) do
-    template = Accounts.get_role_template!(id)
-    {:noreply, assign(socket, :deleting_template, template)}
+    require_admin(socket, fn ->
+      template = Accounts.get_role_template!(id, socket.assigns.org_id)
+      {:noreply, assign(socket, :deleting_template, template)}
+    end)
   end
 
   def handle_event("cancel_delete", _params, socket) do
@@ -369,7 +348,7 @@ defmodule EstimateWeb.RolesLive.Index do
         case Decimal.parse(value) do
           {decimal, _} ->
             if Decimal.compare(decimal, 0) != :lt and Decimal.compare(decimal, 100) != :gt do
-              template = Accounts.get_role_template!(template_id)
+              template = Accounts.get_role_template!(template_id, socket.assigns.org_id)
 
               case Accounts.update_role_template(template, %{field => decimal}) do
                 {:ok, _} ->
@@ -406,7 +385,7 @@ defmodule EstimateWeb.RolesLive.Index do
               if rate_id == "" do
                 Accounts.create_role_template_rate(template_id, currency_id, rate)
               else
-                existing_rate = Accounts.get_role_template_rate!(rate_id)
+                existing_rate = Accounts.get_role_template_rate!(rate_id, socket.assigns.org_id)
                 Accounts.update_role_template_rate(existing_rate, %{hourly_rate: rate})
               end
 
@@ -424,7 +403,7 @@ defmodule EstimateWeb.RolesLive.Index do
 
         :error ->
           if value == "" and rate_id != "" do
-            rate = Accounts.get_role_template_rate!(rate_id)
+            rate = Accounts.get_role_template_rate!(rate_id, socket.assigns.org_id)
             Accounts.delete_role_template_rate(rate)
             role_templates = Accounts.list_role_templates(socket.assigns.org_id)
             {:noreply, assign(socket, :role_templates, role_templates)}
@@ -435,5 +414,4 @@ defmodule EstimateWeb.RolesLive.Index do
     end)
   end
 
-  defp format_percent(decimal), do: decimal |> Decimal.round(0) |> Decimal.to_integer()
 end

@@ -7,19 +7,19 @@ defmodule EstimateWeb.SettingsLive.Currencies do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="max-w-5xl mx-auto space-y-6">
+    <div class="max-w-4xl mx-auto space-y-6">
+      <div class="mb-8">
+        <h1 class="text-2xl font-bold text-base-content">Currencies</h1>
+        <p class="mt-1 text-base-content/60">
+          Manage currencies and exchange rates<%= if @is_admin do %>. Click any row to set as main<% end %>
+        </p>
+      </div>
+
       <%!-- Currency List Card --%>
       <div class="bg-base-100 border border-base-300 rounded-xl overflow-hidden">
-        <div class="p-6">
-          <h2 class="text-xl font-semibold text-base-content">Currencies</h2>
-          <p class="mt-1 text-sm text-base-content/60">
-            Manage currencies and exchange rates.<%= if @is_admin do %> Click any row to set as main.<% end %>
-          </p>
-        </div>
-
-        <div class="border-t border-base-300">
+        <div>
           <%!-- Table Header --%>
-          <div class="px-6 py-3 bg-base-200 grid grid-cols-12 gap-6 text-xs font-medium text-base-content/60 uppercase tracking-wider">
+          <div class="px-6 py-3 bg-base-100 grid grid-cols-12 gap-6 text-xs font-medium text-base-content/60 uppercase tracking-wider">
             <div class="col-span-2">Code</div>
             <div class="col-span-3">Name</div>
             <div class="col-span-1">Symbol</div>
@@ -30,7 +30,7 @@ defmodule EstimateWeb.SettingsLive.Currencies do
 
           <%!-- Currency Rows --%>
           <%= for currency <- @currencies do %>
-            <div class={"px-6 py-4 grid grid-cols-12 gap-6 items-center border-t border-base-content/10 #{unless currency.is_main, do: "hover:bg-base-200 group", else: "bg-base-200"}"}>
+            <div class={"px-6 py-4 grid grid-cols-12 gap-6 items-center border-t border-base-content/10 #{unless currency.is_main, do: "hover:bg-base-200 group", else: "bg-base-content/5"}"}>
               <div class="col-span-2 flex items-center gap-2">
                 <input
                   type="text"
@@ -49,7 +49,7 @@ defmodule EstimateWeb.SettingsLive.Currencies do
                     :if={@is_admin}
                     phx-click="set_main"
                     phx-value-id={currency.id}
-                    class="px-1.5 py-0.5 text-xs border border-base-content/20 text-base-content/60 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-base-300"
+                    class="px-1.5 py-0.5 text-xs border border-base-content/20 text-base-content/60 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-base-300 whitespace-nowrap"
                   >
                     Set main
                   </button>
@@ -131,7 +131,7 @@ defmodule EstimateWeb.SettingsLive.Currencies do
             :if={@is_admin}
             for={@new_currency_form}
             phx-submit="add_currency"
-            class="px-6 py-4 grid grid-cols-12 gap-6 items-center border-t border-base-content/10 bg-base-200"
+            class="px-6 py-4 grid grid-cols-12 gap-6 items-center border-t border-base-content/10 bg-base-100"
           >
             <div class="col-span-2">
               <input
@@ -204,38 +204,14 @@ defmodule EstimateWeb.SettingsLive.Currencies do
         </div>
       </div>
 
-      <%!-- Delete Confirmation Modal --%>
-      <.modal
+      <.confirm_modal
         :if={@deleting_currency}
         id="delete-currency-modal"
-        show
-        on_cancel={JS.push("cancel_delete")}
-      >
-        <div class="text-center">
-          <div class="w-12 h-12 rounded-full bg-error/10 flex items-center justify-center mx-auto mb-4">
-            <.icon name="hero-exclamation-triangle" class="w-6 h-6 text-error" />
-          </div>
-          <h3 class="text-lg font-semibold text-base-content mb-2">Delete Currency</h3>
-          <p class="text-sm text-base-content/60 mb-6">
-            Are you sure you want to delete <span class="font-medium text-base-content"><%= @deleting_currency.code %></span>?
-            This action cannot be undone.
-          </p>
-          <div class="flex gap-3 justify-center">
-            <button
-              phx-click="cancel_delete"
-              class="px-4 py-2 text-sm text-base-content/70 hover:text-base-content transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              phx-click="delete_currency"
-              class="px-4 py-2 bg-error text-error-content text-sm rounded-lg hover:bg-error/90 transition-colors font-medium"
-            >
-              Delete
-            </button>
-          </div>
-        </div>
-      </.modal>
+        title="Delete Currency"
+        item_name={@deleting_currency.code}
+        confirm_event="delete_currency"
+        cancel_event="cancel_delete"
+      />
     </div>
     """
   end

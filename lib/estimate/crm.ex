@@ -68,6 +68,8 @@ defmodule Estimate.CRM do
 
   def delete_customer(%Customer{} = customer) do
     Repo.ensure_org_context(fn ->
+      Search.remove_index_for_customer(customer.id)
+
       result = Repo.delete(customer)
 
       case result do

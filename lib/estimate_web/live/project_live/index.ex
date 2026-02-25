@@ -14,7 +14,10 @@ defmodule EstimateWeb.ProjectLive.Index do
       <div class="flex items-center justify-between mb-8">
         <div>
           <h1 class="text-2xl font-bold text-base-content">Projects</h1>
-          <p class="mt-1 text-base-content/60">Manage your project portfolio</p>
+          <div class="mt-2 inline-flex rounded-lg bg-base-200 p-0.5 text-xs font-medium">
+            <.filter_pill label="Active" value="active" active={@status_filter == "active"} />
+            <.filter_pill label="All" value="all" active={@status_filter == nil} />
+          </div>
         </div>
         <.link
           patch={~p"/org/#{@org_id}/projects/new"}
@@ -259,9 +262,6 @@ defmodule EstimateWeb.ProjectLive.Index do
   @impl true
   def mount(_params, _session, socket) do
     org_id = socket.assigns.org_id
-    user = socket.assigns.current_user
-    role = socket.assigns.current_membership.role
-    projects = Portfolio.list_projects(org_id, user.id, role)
     customers = CRM.list_customers(org_id)
     currencies = Currencies.list_currencies(org_id)
 
@@ -269,12 +269,13 @@ defmodule EstimateWeb.ProjectLive.Index do
      socket
      |> assign(:page_title, "Projects")
      |> assign(:active_tab, :projects)
-     |> assign(:projects, projects)
+     |> assign(:status_filter, "active")
      |> assign(:customers, customers)
      |> assign(:currencies, currencies)
      |> assign(:customer_key, nil)
      |> assign(:project, nil)
-     |> assign(:form, nil)}
+     |> assign(:form, nil)
+     |> fetch_projects()}
   end
 
   @impl true
@@ -367,6 +368,12 @@ defmodule EstimateWeb.ProjectLive.Index do
      |> assign(:form, to_form(changeset))}
   end
 
+  def handle_event("toggle_filter", %{"filter" => filter}, socket) do
+    status_filter = if filter in ~w(active completed archived), do: filter
+
+    {:noreply, socket |> assign(:status_filter, status_filter) |> fetch_projects()}
+  end
+
   def handle_event("save", %{"project" => project_params}, socket) do
     save_project(socket, socket.assigns.live_action, project_params)
   end
@@ -398,22 +405,40 @@ defmodule EstimateWeb.ProjectLive.Index do
       {:noreply, put_flash(socket, :error, "Not authorized")}
     else
       case Portfolio.update_project(socket.assigns.project, project_params) do
-      {:ok, project} ->
-        role = socket.assigns.current_membership.role
+        {:ok, project} ->
+          {:noreply,
+           socket
+           |> put_flash(:info, "Project updated successfully")
+           |> fetch_projects()
+           |> push_patch(to: ~p"/org/#{socket.assigns.org_id}/projects/#{project.id}")}
 
-        projects =
-          Portfolio.list_projects(socket.assigns.org_id, socket.assigns.current_user.id, role)
-
-        {:noreply,
-         socket
-         |> put_flash(:info, "Project updated successfully")
-         |> assign(:projects, projects)
-         |> push_patch(to: ~p"/org/#{socket.assigns.org_id}/projects/#{project.id}")}
-
-      {:error, changeset} ->
-        {:noreply, assign(socket, form: to_form(changeset))}
+        {:error, changeset} ->
+          {:noreply, assign(socket, form: to_form(changeset))}
       end
     end
   end
 
+  attr :label, :string, required: true
+  attr :value, :string, required: true
+  attr :active, :boolean, required: true
+
+  defp filter_pill(assigns) do
+    ~H"""
+    <button
+      phx-click="toggle_filter"
+      phx-value-filter={@value}
+      class={"px-3 py-1 rounded-md transition-colors #{if @active, do: "bg-base-100 text-base-content shadow-sm", else: "text-base-content/50 hover:text-base-content/70"}"}
+    >
+      {@label}
+    </button>
+    """
+  end
+
+  defp fetch_projects(socket) do
+    %{org_id: org_id, current_user: user, current_membership: %{role: role}, status_filter: sf} =
+      socket.assigns
+
+    opts = if sf, do: [status: sf], else: []
+    assign(socket, :projects, Portfolio.list_projects(org_id, user.id, role, opts))
+  end
 end

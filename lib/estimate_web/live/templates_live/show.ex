@@ -292,70 +292,23 @@ defmodule EstimateWeb.TemplatesLive.Show do
         </.form>
       </.modal>
 
-      <%!-- Delete Epic Confirmation --%>
-      <.modal
+      <.confirm_modal
         :if={@deleting_epic}
         id="delete-epic-modal"
-        show
-        on_cancel={JS.push("cancel_delete")}
-      >
-        <div class="text-center">
-          <div class="w-12 h-12 rounded-full bg-error/10 flex items-center justify-center mx-auto mb-4">
-            <.icon name="hero-exclamation-triangle" class="w-6 h-6 text-error" />
-          </div>
-          <h3 class="text-lg font-semibold text-base-content mb-2">Delete Epic</h3>
-          <p class="text-sm text-base-content/60 mb-6">
-            Delete <span class="font-medium text-base-content">{@deleting_epic.name}</span>
-            and all its tasks?
-          </p>
-          <div class="flex gap-3 justify-center">
-            <button
-              phx-click="cancel_delete"
-              class="px-4 py-2 text-sm text-base-content/70 hover:text-base-content"
-            >
-              Cancel
-            </button>
-            <button
-              phx-click="delete_epic"
-              class="px-4 py-2 bg-error text-neutral-content text-sm rounded-lg hover:bg-error/90 font-medium"
-            >
-              Delete
-            </button>
-          </div>
-        </div>
-      </.modal>
+        title="Delete Epic"
+        message={"Delete #{@deleting_epic.name} and all its tasks?"}
+        confirm_event="delete_epic"
+        cancel_event="cancel_delete"
+      />
 
-      <%!-- Delete Task Confirmation --%>
-      <.modal
+      <.confirm_modal
         :if={@deleting_task}
         id="delete-task-modal"
-        show
-        on_cancel={JS.push("cancel_delete")}
-      >
-        <div class="text-center">
-          <div class="w-12 h-12 rounded-full bg-error/10 flex items-center justify-center mx-auto mb-4">
-            <.icon name="hero-exclamation-triangle" class="w-6 h-6 text-error" />
-          </div>
-          <h3 class="text-lg font-semibold text-base-content mb-2">Delete Task</h3>
-          <p class="text-sm text-base-content/60 mb-6">
-            Delete <span class="font-medium text-base-content">{@deleting_task.name}</span>?
-          </p>
-          <div class="flex gap-3 justify-center">
-            <button
-              phx-click="cancel_delete"
-              class="px-4 py-2 text-sm text-base-content/70 hover:text-base-content"
-            >
-              Cancel
-            </button>
-            <button
-              phx-click="delete_task"
-              class="px-4 py-2 bg-error text-neutral-content text-sm rounded-lg hover:bg-error/90 font-medium"
-            >
-              Delete
-            </button>
-          </div>
-        </div>
-      </.modal>
+        title="Delete Task"
+        item_name={@deleting_task.name}
+        confirm_event="delete_task"
+        cancel_event="cancel_delete"
+      />
     </div>
     """
   end

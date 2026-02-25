@@ -7,10 +7,10 @@ defmodule EstimateWeb.SettingsLive.Index do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="max-w-3xl mx-auto">
+    <div class="max-w-4xl mx-auto">
       <%!-- Header --%>
       <div class="mb-8">
-        <h1 class="text-2xl font-bold text-base-content">Settings</h1>
+        <h1 class="text-2xl font-bold text-base-content">General</h1>
         <p class="mt-1 text-base-content/60">Manage your organization</p>
       </div>
 
@@ -38,7 +38,7 @@ defmodule EstimateWeb.SettingsLive.Index do
                 </.error>
               </div>
             </div>
-            <div class="px-6 py-3 bg-base-200 border-t border-base-300 flex items-center justify-between">
+            <div class="px-6 py-3 bg-base-100 border-t border-base-300 flex items-center justify-between">
               <p class="text-sm text-base-content/60">Please use 32 characters at maximum.</p>
               <button
                 :if={@can_edit}
@@ -51,102 +51,6 @@ defmodule EstimateWeb.SettingsLive.Index do
             </div>
           </div>
         </.form>
-
-        <%!-- Members Card --%>
-        <.link
-          navigate={~p"/org/#{@org_id}/settings/members"}
-          class="block bg-base-100 border border-base-300 rounded-xl overflow-hidden hover:border-base-content/20 transition-colors"
-        >
-          <div class="p-6">
-            <h2 class="text-xl font-semibold text-base-content">Members</h2>
-            <p class="mt-1 text-sm text-base-content/60">
-              Manage team members, invitations, and join requests.
-            </p>
-          </div>
-          <div class="px-6 py-3 bg-base-200 border-t border-base-300">
-            <p class="text-sm text-base-content/60">Invite new members or manage existing access.</p>
-          </div>
-        </.link>
-
-        <%!-- Currencies Card --%>
-        <.link
-          navigate={~p"/org/#{@org_id}/settings/currencies"}
-          class="block bg-base-100 border border-base-300 rounded-xl overflow-hidden hover:border-base-content/20 transition-colors"
-        >
-          <div class="p-6">
-            <h2 class="text-xl font-semibold text-base-content">Currencies</h2>
-            <p class="mt-1 text-sm text-base-content/60">
-              Configure currencies and exchange rates for estimations.
-            </p>
-          </div>
-          <div class="px-6 py-3 bg-base-200 border-t border-base-300">
-            <p class="text-sm text-base-content/60">Set main currency and manage exchange rates.</p>
-          </div>
-        </.link>
-
-        <%!-- AI Integration Card --%>
-        <%= if @can_edit do %>
-          <.link
-            navigate={~p"/org/#{@org_id}/settings/ai"}
-            class="block bg-base-100 border border-base-300 rounded-xl overflow-hidden hover:border-base-content/20 transition-colors"
-          >
-            <div class="p-6">
-              <h2 class="text-xl font-semibold text-base-content">AI Integration</h2>
-              <p class="mt-1 text-sm text-base-content/60">
-                Use OpenRouter to enhance epic & task descriptions with AI-powered rewrites. One API key gives you access to OpenAI, Anthropic, and more.
-              </p>
-            </div>
-            <div class="px-6 py-3 bg-base-200 border-t border-base-300">
-              <p class="text-sm text-base-content/60">Configure API key, model, and system prompt.</p>
-            </div>
-          </.link>
-        <% else %>
-          <div class="block bg-base-100 border border-base-300 rounded-xl overflow-hidden opacity-50 cursor-not-allowed">
-            <div class="p-6">
-              <h2 class="text-xl font-semibold text-base-content/60 flex items-center gap-2">
-                <.icon name="hero-lock-closed" class="w-5 h-5" /> AI Integration
-              </h2>
-              <p class="mt-1 text-sm text-base-content/40">
-                Use OpenRouter to enhance epic & task descriptions with AI-powered rewrites. One API key gives you access to OpenAI, Anthropic, and more.
-              </p>
-            </div>
-            <div class="px-6 py-3 bg-base-200 border-t border-base-300">
-              <p class="text-sm text-base-content/40">Admin only</p>
-            </div>
-          </div>
-        <% end %>
-
-        <%!-- Email / SMTP Card --%>
-        <%= if @can_edit do %>
-          <.link
-            navigate={~p"/org/#{@org_id}/settings/email"}
-            class="block bg-base-100 border border-base-300 rounded-xl overflow-hidden hover:border-base-content/20 transition-colors"
-          >
-            <div class="p-6">
-              <h2 class="text-xl font-semibold text-base-content">Email (SMTP)</h2>
-              <p class="mt-1 text-sm text-base-content/60">
-                Configure SMTP to send invite emails from your organization.
-              </p>
-            </div>
-            <div class="px-6 py-3 bg-base-200 border-t border-base-300">
-              <p class="text-sm text-base-content/60">Set up SMTP host, credentials, and sender info.</p>
-            </div>
-          </.link>
-        <% else %>
-          <div class="block bg-base-100 border border-base-300 rounded-xl overflow-hidden opacity-50 cursor-not-allowed">
-            <div class="p-6">
-              <h2 class="text-xl font-semibold text-base-content/60 flex items-center gap-2">
-                <.icon name="hero-lock-closed" class="w-5 h-5" /> Email (SMTP)
-              </h2>
-              <p class="mt-1 text-sm text-base-content/40">
-                Configure SMTP to send invite emails from your organization.
-              </p>
-            </div>
-            <div class="px-6 py-3 bg-base-200 border-t border-base-300">
-              <p class="text-sm text-base-content/40">Admin only</p>
-            </div>
-          </div>
-        <% end %>
       </div>
     </div>
     """

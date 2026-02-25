@@ -271,10 +271,10 @@ defmodule Estimate.Accounts do
     end)
   end
 
-  def get_role_template!(id) do
+  def get_role_template!(id, org_id) do
     Repo.ensure_org_context(fn ->
-      RoleTemplate
-      |> Repo.get!(id)
+      from(rt in RoleTemplate, where: rt.id == ^id and rt.organization_id == ^org_id)
+      |> Repo.one!()
       |> Repo.preload(rates: :currency)
     end)
   end
@@ -326,8 +326,15 @@ defmodule Estimate.Accounts do
 
   ## Role Template Rates
 
-  def get_role_template_rate!(id) do
-    Repo.ensure_org_context(fn -> Repo.get!(RoleTemplateRate, id) end)
+  def get_role_template_rate!(id, org_id) do
+    Repo.ensure_org_context(fn ->
+      from(r in RoleTemplateRate,
+        join: rt in RoleTemplate,
+        on: r.role_template_id == rt.id,
+        where: r.id == ^id and rt.organization_id == ^org_id
+      )
+      |> Repo.one!()
+    end)
   end
 
   def get_role_template_rate(template_id, currency_id) do

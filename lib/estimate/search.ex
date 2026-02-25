@@ -230,6 +230,57 @@ defmodule Estimate.Search do
     end)
   end
 
+  @doc """
+  Removes search index entries for all estimations belonging to a project.
+  Must be called BEFORE deleting the project (cascade would remove estimation rows).
+  """
+  def remove_index_for_project(project_id) do
+    Repo.ensure_org_context(fn ->
+      from(s in SearchIndex,
+        where:
+          s.searchable_type == "estimation" and
+            s.searchable_id in subquery(
+              from(e in Estimate.EstimationEngine.Estimation,
+                where: e.project_id == ^project_id,
+                select: e.id
+              )
+            )
+      )
+      |> Repo.delete_all()
+
+      :ok
+    end)
+  end
+
+  @doc """
+  Removes search index entries for all projects and estimations belonging to a customer.
+  Must be called BEFORE deleting the customer (cascade would remove child rows).
+  """
+  def remove_index_for_customer(customer_id) do
+    Repo.ensure_org_context(fn ->
+      project_ids =
+        from(p in Estimate.Portfolio.Project,
+          where: p.customer_id == ^customer_id,
+          select: p.id
+        )
+
+      from(s in SearchIndex,
+        where:
+          (s.searchable_type == "project" and s.searchable_id in subquery(project_ids)) or
+            (s.searchable_type == "estimation" and
+               s.searchable_id in subquery(
+                 from(e in Estimate.EstimationEngine.Estimation,
+                   where: e.project_id in subquery(project_ids),
+                   select: e.id
+                 )
+               ))
+      )
+      |> Repo.delete_all()
+
+      :ok
+    end)
+  end
+
   defp upsert_index(attrs) do
     %SearchIndex{}
     |> SearchIndex.changeset(attrs)

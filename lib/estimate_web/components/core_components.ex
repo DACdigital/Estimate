@@ -755,6 +755,64 @@ defmodule EstimateWeb.CoreComponents do
     """
   end
 
+  @doc """
+  Renders a confirmation modal with error icon, title, message, and confirm/cancel buttons.
+
+  ## Examples
+
+      <.confirm_modal
+        id="delete-modal"
+        title="Delete Item"
+        message="Are you sure?"
+        item_name={@item.name}
+        confirm_event="delete"
+        cancel_event="cancel_delete"
+      />
+  """
+  attr :id, :string, required: true
+  attr :title, :string, required: true
+  attr :message, :string, default: nil
+  attr :item_name, :string, default: nil
+  attr :confirm_event, :string, required: true
+  attr :cancel_event, :string, required: true
+  attr :confirm_text, :string, default: "Delete"
+  attr :cancel_text, :string, default: "Cancel"
+
+  def confirm_modal(assigns) do
+    ~H"""
+    <.modal id={@id} show on_cancel={JS.push(@cancel_event)}>
+      <div class="text-center">
+        <div class="w-12 h-12 rounded-full bg-error/10 flex items-center justify-center mx-auto mb-4">
+          <.icon name="hero-exclamation-triangle" class="w-6 h-6 text-error" />
+        </div>
+        <h3 class="text-lg font-semibold text-base-content mb-2">{@title}</h3>
+        <p class="text-sm text-base-content/60 mb-6">
+          <%= if @message do %>
+            {@message}
+          <% else %>
+            Are you sure you want to delete <span class="font-medium text-base-content">{@item_name}</span>?
+            This action cannot be undone.
+          <% end %>
+        </p>
+        <div class="flex gap-3 justify-center">
+          <button
+            phx-click={@cancel_event}
+            class="px-4 py-2 text-sm text-base-content/70 hover:text-base-content transition-colors"
+          >
+            {@cancel_text}
+          </button>
+          <button
+            phx-click={@confirm_event}
+            class="px-4 py-2 bg-error text-error-content text-sm rounded-lg hover:bg-error/90 transition-colors font-medium"
+          >
+            {@confirm_text}
+          </button>
+        </div>
+      </div>
+    </.modal>
+    """
+  end
+
   def show_modal(js \\ %JS{}, id) when is_binary(id) do
     js
     |> JS.show(to: "##{id}")

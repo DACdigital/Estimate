@@ -10,13 +10,11 @@ defmodule EstimateWeb.TemplatesLive.Index do
   def render(assigns) do
     ~H"""
     <div class="max-w-5xl mx-auto">
-      <div class="flex items-center justify-between mb-6">
-        <div>
-          <h1 class="text-2xl font-bold text-base-content">Estimation Templates</h1>
-          <p class="text-sm text-base-content/60 mt-1">
-            Reusable epic & task structures for new estimations
-          </p>
-        </div>
+      <div class="mb-8">
+        <h1 class="text-2xl font-bold text-base-content">Estimation Templates</h1>
+        <p class="mt-1 text-base-content/60">
+          Reusable epic & task structures for new estimations
+        </p>
       </div>
 
       <%!-- Template Cards --%>
@@ -143,38 +141,14 @@ defmodule EstimateWeb.TemplatesLive.Index do
         <% end %>
       </div>
 
-      <%!-- Delete Confirmation Modal --%>
-      <.modal
+      <.confirm_modal
         :if={@deleting_template}
         id="delete-template-modal"
-        show
-        on_cancel={JS.push("cancel_delete")}
-      >
-        <div class="text-center">
-          <div class="w-12 h-12 rounded-full bg-error/10 flex items-center justify-center mx-auto mb-4">
-            <.icon name="hero-exclamation-triangle" class="w-6 h-6 text-error" />
-          </div>
-          <h3 class="text-lg font-semibold text-base-content mb-2">Delete Template</h3>
-          <p class="text-sm text-base-content/60 mb-6">
-            Are you sure you want to delete <span class="font-medium text-base-content">{@deleting_template.name}</span>?
-            This action cannot be undone.
-          </p>
-          <div class="flex gap-3 justify-center">
-            <button
-              phx-click="cancel_delete"
-              class="px-4 py-2 text-sm text-base-content/70 hover:text-base-content transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              phx-click="delete_template"
-              class="px-4 py-2 bg-error text-neutral-content text-sm rounded-lg hover:bg-error/90 transition-colors font-medium"
-            >
-              Delete
-            </button>
-          </div>
-        </div>
-      </.modal>
+        title="Delete Template"
+        item_name={@deleting_template.name}
+        confirm_event="delete_template"
+        cancel_event="cancel_delete"
+      />
     </div>
     """
   end
