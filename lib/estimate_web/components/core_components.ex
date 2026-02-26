@@ -574,6 +574,20 @@ defmodule EstimateWeb.CoreComponents do
     """
   end
 
+  def time_ago(nil), do: "never"
+
+  def time_ago(datetime) do
+    diff = DateTime.diff(DateTime.utc_now(), datetime, :second)
+
+    cond do
+      diff < 60 -> "just now"
+      diff < 3600 -> "#{div(diff, 60)} min ago"
+      diff < 86400 -> "#{div(diff, 3600)} hours ago"
+      diff < 86400 * 30 -> "#{div(diff, 86400)} days ago"
+      true -> "#{div(diff, 86400 * 30)} months ago"
+    end
+  end
+
   def project_status_class("active"), do: "bg-success/10 text-success"
   def project_status_class("completed"), do: "bg-info/10 text-info"
   def project_status_class("archived"), do: "bg-base-200 text-base-content"

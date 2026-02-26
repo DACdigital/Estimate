@@ -6,6 +6,7 @@ defmodule Estimate.Organizations.Currencies do
   import Ecto.Query
   alias Estimate.Repo
   alias Estimate.Accounts.Currency
+  alias Estimate.Accounts.Organization
 
   def list_currencies(org_id) do
     Repo.ensure_org_context(fn ->
@@ -95,5 +96,46 @@ defmodule Estimate.Organizations.Currencies do
 
   def change_currency(%Currency{} = currency, attrs \\ %{}) do
     Currency.changeset(currency, attrs)
+  end
+
+  def fetch_and_apply_rates(org_id) do
+    Repo.ensure_org_context(fn ->
+      currencies = list_currencies(org_id)
+      main = Enum.find(currencies, & &1.is_main)
+      others = Enum.reject(currencies, & &1.is_main)
+
+      if main && others != [] do
+        target_codes = Enum.map(others, & &1.code)
+
+        case Estimate.ExchangeRates.fetch_rates(main.code, target_codes) do
+          {:ok, rates} ->
+            updated_count =
+              Enum.count(others, fn currency ->
+                case Map.get(rates, currency.code) do
+                  nil ->
+                    false
+
+                  rate ->
+                    from(c in Currency, where: c.id == ^currency.id)
+                    |> Repo.update_all(set: [exchange_rate: rate])
+
+                    true
+                end
+              end)
+
+            now = DateTime.truncate(DateTime.utc_now(), :second)
+
+            from(o in Organization, where: o.id == ^org_id)
+            |> Repo.update_all(set: [rates_fetched_at: now])
+
+            {:ok, %{fetched_at: now, updated_count: updated_count}}
+
+          {:error, reason} ->
+            {:error, reason}
+        end
+      else
+        {:ok, %{fetched_at: nil, updated_count: 0}}
+      end
+    end)
   end
 end

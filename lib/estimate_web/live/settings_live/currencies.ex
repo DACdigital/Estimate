@@ -15,6 +15,22 @@ defmodule EstimateWeb.SettingsLive.Currencies do
         </p>
       </div>
 
+      <%!-- Refresh Rates Bar --%>
+      <div :if={@is_admin} class="flex items-center justify-between px-4 py-3 bg-base-100 border border-base-300 rounded-xl">
+        <p class="text-sm text-base-content/60">
+          Rates last fetched {time_ago(@rates_fetched_at)}
+        </p>
+        <button
+          phx-click="refresh_rates"
+          disabled={@refreshing_rates}
+          phx-disable-with="Fetching..."
+          class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-neutral text-neutral-content rounded-lg hover:bg-neutral/90 transition-colors disabled:opacity-50"
+        >
+          <.icon name="hero-arrow-path" class={"w-4 h-4 #{if @refreshing_rates, do: "motion-safe:animate-spin"}"} />
+          Refresh Rates
+        </button>
+      </div>
+
       <%!-- Currency List Card --%>
       <div class="bg-base-100 border border-base-300 rounded-xl overflow-hidden">
         <div>
@@ -204,6 +220,11 @@ defmodule EstimateWeb.SettingsLive.Currencies do
         </div>
       </div>
 
+      <p class="text-xs text-base-content/40 px-1">
+        Exchange rates from <a href="https://www.frankfurter.dev" target="_blank" rel="noopener" class="underline hover:text-base-content/60">Frankfurter</a>
+        (European Central Bank reference rates). Rates are indicative and may not reflect real-time market prices.
+      </p>
+
       <.confirm_modal
         :if={@deleting_currency}
         id="delete-currency-modal"
@@ -229,6 +250,8 @@ defmodule EstimateWeb.SettingsLive.Currencies do
      |> assign(:currencies, currencies)
      |> assign(:main_currency, main_currency)
      |> assign(:is_admin, admin?(socket.assigns.current_membership))
+     |> assign(:rates_fetched_at, socket.assigns.current_organization.rates_fetched_at)
+     |> assign(:refreshing_rates, false)
      |> assign(:deleting_currency, nil)
      |> assign(
        :new_currency_form,
@@ -252,17 +275,42 @@ defmodule EstimateWeb.SettingsLive.Currencies do
 
       case Currencies.set_main_currency(currency) do
         {:ok, _} ->
+          {flash_suffix, rates_fetched_at} =
+            case Currencies.fetch_and_apply_rates(socket.assigns.org_id) do
+              {:ok, %{fetched_at: ts}} -> {" · rates refreshed", ts}
+              _ -> {"", socket.assigns.rates_fetched_at}
+            end
+
           currencies = Currencies.list_currencies(socket.assigns.org_id)
           main = Enum.find(currencies, & &1.is_main)
 
           {:noreply,
            socket
-           |> put_flash(:info, "#{currency.code} is now main")
+           |> put_flash(:info, "#{currency.code} is now main#{flash_suffix}")
            |> assign(:currencies, currencies)
-           |> assign(:main_currency, main)}
+           |> assign(:main_currency, main)
+           |> assign(:rates_fetched_at, rates_fetched_at)}
 
         {:error, _} ->
           {:noreply, put_flash(socket, :error, "Could not set main currency")}
+      end
+    end)
+  end
+
+  def handle_event("refresh_rates", _params, socket) do
+    require_admin(socket, fn ->
+      case Currencies.fetch_and_apply_rates(socket.assigns.org_id) do
+        {:ok, %{fetched_at: fetched_at, updated_count: count}} ->
+          currencies = Currencies.list_currencies(socket.assigns.org_id)
+
+          {:noreply,
+           socket
+           |> put_flash(:info, "#{count} rate(s) updated")
+           |> assign(:currencies, currencies)
+           |> assign(:rates_fetched_at, fetched_at)}
+
+        {:error, reason} ->
+          {:noreply, put_flash(socket, :error, "Could not fetch rates: #{reason}")}
       end
     end)
   end

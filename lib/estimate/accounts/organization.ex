@@ -19,6 +19,8 @@ defmodule Estimate.Accounts.Organization do
     field :smtp_from_name, :string
     field :smtp_from_email, :string
 
+    field :rates_fetched_at, :utc_datetime
+
     # Virtual — for form input only, never persisted
     field :openrouter_api_key, :string, virtual: true
     field :smtp_password, :string, virtual: true
