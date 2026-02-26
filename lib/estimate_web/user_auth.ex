@@ -10,6 +10,7 @@ defmodule EstimateWeb.UserAuth do
   alias Estimate.Accounts
 
   @max_age 60 * 60 * 24 * 60
+  @max_2fa_attempts 5
   @remember_me_cookie "_estimate_web_user_remember_me"
   @remember_me_options [sign: true, max_age: @max_age, same_site: "Lax"]
 
@@ -125,7 +126,11 @@ defmodule EstimateWeb.UserAuth do
   ## Pending 2FA session
 
   def put_pending_2fa(conn, user, params \\ %{}) do
+    return_to = get_session(conn, :user_return_to)
+
     conn
+    |> renew_session()
+    |> put_session(:user_return_to, return_to)
     |> put_session(:pending_2fa_user_id, user.id)
     |> put_session(:pending_2fa_remember_me, params["remember_me"])
   end
@@ -140,6 +145,16 @@ defmodule EstimateWeb.UserAuth do
     conn
     |> delete_session(:pending_2fa_user_id)
     |> delete_session(:pending_2fa_remember_me)
+    |> delete_session(:pending_2fa_attempts)
+  end
+
+  def increment_2fa_attempts(conn) do
+    attempts = (get_session(conn, :pending_2fa_attempts) || 0) + 1
+    put_session(conn, :pending_2fa_attempts, attempts)
+  end
+
+  def too_many_2fa_attempts?(conn) do
+    (get_session(conn, :pending_2fa_attempts) || 0) >= @max_2fa_attempts
   end
 
   def pending_2fa_remember_me_params(conn) do

@@ -36,13 +36,22 @@ defmodule EstimateWeb.UserSessionController do
   end
 
   def verify_totp(conn, %{"code" => code}) do
+    if UserAuth.too_many_2fa_attempts?(conn) do
+      conn
+      |> UserAuth.clear_pending_2fa()
+      |> put_flash(:error, "Too many failed attempts. Please log in again.")
+      |> redirect(to: ~p"/users/log_in")
+    else
+      do_verify_totp(conn, code)
+    end
+  end
+
+  defp do_verify_totp(conn, code) do
     user = UserAuth.get_pending_2fa_user(conn)
 
     if user do
-      code = String.trim(code)
-
       with {:ok, secret} <- Totp.get_decrypted_secret(user),
-           true <- totp_or_backup_valid?(user, secret, code) do
+           true <- Totp.valid_code_or_backup?(user, secret, String.trim(code)) do
         remember_params = UserAuth.pending_2fa_remember_me_params(conn)
 
         conn
@@ -51,9 +60,18 @@ defmodule EstimateWeb.UserSessionController do
         |> UserAuth.log_in_user(user, remember_params)
       else
         _ ->
-          conn
-          |> put_flash(:error, "Invalid verification code")
-          |> redirect(to: ~p"/users/two-factor")
+          conn = UserAuth.increment_2fa_attempts(conn)
+
+          if UserAuth.too_many_2fa_attempts?(conn) do
+            conn
+            |> UserAuth.clear_pending_2fa()
+            |> put_flash(:error, "Too many failed attempts. Please log in again.")
+            |> redirect(to: ~p"/users/log_in")
+          else
+            conn
+            |> put_flash(:error, "Invalid verification code")
+            |> redirect(to: ~p"/users/two-factor")
+          end
       end
     else
       conn
@@ -68,14 +86,4 @@ defmodule EstimateWeb.UserSessionController do
     |> UserAuth.log_out_user()
   end
 
-  defp totp_or_backup_valid?(user, secret, code) do
-    if Totp.valid_code?(secret, code) do
-      true
-    else
-      case Totp.consume_backup_code(user, code) do
-        {:ok, _} -> true
-        _ -> false
-      end
-    end
-  end
 end

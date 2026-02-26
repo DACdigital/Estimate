@@ -50,7 +50,7 @@ defmodule Estimate.Accounts.Totp do
   def verify_backup_code(code, hashed_codes) when is_list(hashed_codes) do
     hashed_input = hash_code(String.downcase(String.trim(code)))
 
-    case Enum.find_index(hashed_codes, &(&1 == hashed_input)) do
+    case Enum.find_index(hashed_codes, &Plug.Crypto.secure_compare(&1, hashed_input)) do
       nil -> :error
       idx -> {:ok, List.delete_at(hashed_codes, idx)}
     end
@@ -107,6 +107,10 @@ defmodule Estimate.Accounts.Totp do
       :error ->
         :error
     end
+  end
+
+  def valid_code_or_backup?(%User{} = user, secret, code) do
+    valid_code?(secret, code) or match?({:ok, _}, consume_backup_code(user, code))
   end
 
   defp hash_code(code) do

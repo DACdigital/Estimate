@@ -28,6 +28,6 @@ defmodule Estimate.Encryption do
 
   defp derive_key do
     secret = EstimateWeb.Endpoint.config(:secret_key_base)
-    :crypto.hash(:sha256, secret)
+    Plug.Crypto.KeyGenerator.generate(secret, "estimate-encryption-v1", length: 32)
   end
 end
