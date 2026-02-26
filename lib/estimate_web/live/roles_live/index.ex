@@ -88,8 +88,12 @@ defmodule EstimateWeb.RolesLive.Index do
                           {template.abbreviation}
                         </span>
                         <div class="min-w-0">
-                          <p class="text-sm font-medium text-base-content truncate">{template.name}</p>
-                          <p class="text-xs text-base-content/40 font-mono">{template.abbreviation}</p>
+                          <p class="text-sm font-medium text-base-content truncate">
+                            {template.name}
+                          </p>
+                          <p class="text-xs text-base-content/40 font-mono">
+                            {template.abbreviation}
+                          </p>
                         </div>
                       </div>
                     <% end %>
@@ -275,7 +279,8 @@ defmodule EstimateWeb.RolesLive.Index do
            |> assign(:role_templates, role_templates)}
 
         {:error, _changeset} ->
-          {:noreply, put_flash(socket, :error, "Could not add role. Check name and abbreviation.")}
+          {:noreply,
+           put_flash(socket, :error, "Could not add role. Check name and abbreviation.")}
       end
     end)
   end
@@ -413,5 +418,4 @@ defmodule EstimateWeb.RolesLive.Index do
       end
     end)
   end
-
 end

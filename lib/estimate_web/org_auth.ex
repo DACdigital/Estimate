@@ -13,6 +13,7 @@ defmodule EstimateWeb.OrgAuth do
   import Phoenix.Component
 
   alias Estimate.{Accounts, Organizations}
+  alias Estimate.Accounts.User
 
   def on_mount(:ensure_org_member, params, _session, socket) do
     org_id = params["org_id"]
@@ -45,8 +46,18 @@ defmodule EstimateWeb.OrgAuth do
             |> assign(:current_organization, organization)
             |> assign(:current_membership, membership)
             |> assign(:org_id, org_id)
+            |> maybe_assign_2fa_deadline(membership, user)
 
-          {:cont, socket}
+          if enforcement_blocks?(membership, user) do
+            socket =
+              socket
+              |> put_flash(:error, "Your organization requires two-factor authentication.")
+              |> redirect(to: ~p"/account/two-factor/setup")
+
+            {:halt, socket}
+          else
+            {:cont, socket}
+          end
       end
     else
       socket =
@@ -82,6 +93,20 @@ defmodule EstimateWeb.OrgAuth do
       end
     else
       {:cont, socket}
+    end
+  end
+
+  defp enforcement_blocks?(membership, user) do
+    membership.totp_required_by != nil and
+      not User.totp_enabled?(user) and
+      DateTime.compare(DateTime.utc_now(), membership.totp_required_by) == :gt
+  end
+
+  defp maybe_assign_2fa_deadline(socket, membership, user) do
+    if membership.totp_required_by != nil and not User.totp_enabled?(user) do
+      assign(socket, :totp_enforcement_deadline, membership.totp_required_by)
+    else
+      socket
     end
   end
 end

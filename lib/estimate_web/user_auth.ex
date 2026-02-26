@@ -122,6 +122,44 @@ defmodule EstimateWeb.UserAuth do
   defp signed_in_path(%{last_org_id: org_id}) when not is_nil(org_id), do: ~p"/org/#{org_id}"
   defp signed_in_path(_), do: ~p"/organizations"
 
+  ## Pending 2FA session
+
+  def put_pending_2fa(conn, user, params \\ %{}) do
+    conn
+    |> put_session(:pending_2fa_user_id, user.id)
+    |> put_session(:pending_2fa_remember_me, params["remember_me"])
+  end
+
+  def get_pending_2fa_user(conn) do
+    if user_id = get_session(conn, :pending_2fa_user_id) do
+      Accounts.get_user!(user_id)
+    end
+  end
+
+  def clear_pending_2fa(conn) do
+    conn
+    |> delete_session(:pending_2fa_user_id)
+    |> delete_session(:pending_2fa_remember_me)
+  end
+
+  def pending_2fa_remember_me_params(conn) do
+    if get_session(conn, :pending_2fa_remember_me) == "true" do
+      %{"remember_me" => "true"}
+    else
+      %{}
+    end
+  end
+
+  def require_pending_2fa(conn, _opts) do
+    if get_session(conn, :pending_2fa_user_id) do
+      conn
+    else
+      conn
+      |> redirect(to: ~p"/users/log_in")
+      |> halt()
+    end
+  end
+
   ## LiveView hooks
 
   def on_mount(:mount_current_user, _params, session, socket) do
@@ -150,6 +188,15 @@ defmodule EstimateWeb.UserAuth do
       {:halt, Phoenix.LiveView.redirect(socket, to: signed_in_path(socket.assigns.current_user))}
     else
       {:cont, socket}
+    end
+  end
+
+  def on_mount(:require_pending_2fa, _params, session, socket) do
+    if user_id = session["pending_2fa_user_id"] do
+      user = Accounts.get_user!(user_id)
+      {:cont, Phoenix.Component.assign(socket, :pending_2fa_user, user)}
+    else
+      {:halt, Phoenix.LiveView.redirect(socket, to: ~p"/users/log_in")}
     end
   end
 

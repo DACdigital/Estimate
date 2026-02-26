@@ -11,7 +11,8 @@ defmodule Estimate.Encryption do
     {:ok, nonce, ciphertext <> tag}
   end
 
-  def decrypt(nonce, ciphertext_with_tag) when is_binary(nonce) and is_binary(ciphertext_with_tag) do
+  def decrypt(nonce, ciphertext_with_tag)
+      when is_binary(nonce) and is_binary(ciphertext_with_tag) do
     key = derive_key()
     tag_size = 16
     ct_size = byte_size(ciphertext_with_tag) - tag_size

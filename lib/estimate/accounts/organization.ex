@@ -21,6 +21,10 @@ defmodule Estimate.Accounts.Organization do
 
     field :rates_fetched_at, :utc_datetime
 
+    # 2FA enforcement
+    field :enforce_2fa, :boolean, default: false
+    field :enforce_2fa_grace_period_days, :integer, default: 14
+
     # Virtual — for form input only, never persisted
     field :openrouter_api_key, :string, virtual: true
     field :smtp_password, :string, virtual: true
@@ -60,6 +64,15 @@ defmodule Estimate.Accounts.Organization do
     |> validate_format(:smtp_from_email, ~r/^[^\s]+@[^\s]+$/, message: "must be a valid email")
     |> validate_number(:smtp_port, greater_than: 0, less_than_or_equal_to: 65535)
     |> encrypt_smtp_password()
+  end
+
+  def security_settings_changeset(organization, attrs) do
+    organization
+    |> cast(attrs, [:enforce_2fa, :enforce_2fa_grace_period_days])
+    |> validate_number(:enforce_2fa_grace_period_days,
+      greater_than_or_equal_to: 1,
+      less_than_or_equal_to: 90
+    )
   end
 
   defp encrypt_smtp_password(changeset) do

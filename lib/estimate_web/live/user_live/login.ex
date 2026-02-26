@@ -60,7 +60,9 @@ defmodule EstimateWeb.UserLive.Login do
       <.or_divider />
 
       <div class="space-y-3">
-        <.google_button href={if @return_to, do: ~p"/auth/google?#{%{return_to: @return_to}}", else: ~p"/auth/google"} />
+        <.google_button href={
+          if @return_to, do: ~p"/auth/google?#{%{return_to: @return_to}}", else: ~p"/auth/google"
+        } />
       </div>
 
       <p class="mt-8 text-center text-base-content/70">

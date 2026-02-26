@@ -67,8 +67,7 @@ defmodule EstimateWeb.ProjectLive.Components.NewEstimationModal do
           phx-value-source="json"
           class={"flex-1 px-3 py-2.5 text-sm font-medium rounded-lg border-2 transition-colors #{if @estimation_source == "json", do: "border-base-content bg-neutral text-neutral-content", else: "border-base-300 text-base-content/70 hover:border-base-content/20"}"}
         >
-          <.icon name="hero-arrow-up-tray" class="w-4 h-4 inline-block mr-1.5 -mt-0.5" />
-          Import JSON
+          <.icon name="hero-arrow-up-tray" class="w-4 h-4 inline-block mr-1.5 -mt-0.5" /> Import JSON
         </button>
       </div>
 
@@ -113,7 +112,9 @@ defmodule EstimateWeb.ProjectLive.Components.NewEstimationModal do
           </div>
 
           <div>
-            <label class="block text-xs font-medium text-base-content/60 mb-1.5">Estimation Name *</label>
+            <label class="block text-xs font-medium text-base-content/60 mb-1.5">
+              Estimation Name *
+            </label>
             <input
               type="text"
               name={@estimation_form[:name].name}
@@ -169,7 +170,9 @@ defmodule EstimateWeb.ProjectLive.Components.NewEstimationModal do
                       class="w-4 h-4 text-base-content border-base-content/20 rounded focus:ring-base-content"
                     />
                     <span class="text-sm font-medium text-base-content">{template.name}</span>
-                    <span class="text-xs text-base-content/40 font-mono">({template.abbreviation})</span>
+                    <span class="text-xs text-base-content/40 font-mono">
+                      ({template.abbreviation})
+                    </span>
                   </div>
                   <span class="text-sm text-base-content/60">
                     {if rate, do: format_rate(rate.hourly_rate, @modal_currency), else: "-"}
@@ -225,7 +228,9 @@ defmodule EstimateWeb.ProjectLive.Components.NewEstimationModal do
                       class="w-4 h-4 text-base-content border-base-content/20 rounded focus:ring-base-content"
                     />
                     <span class="text-sm font-medium text-base-content">{template.name}</span>
-                    <span class="text-xs text-base-content/40 font-mono">({template.abbreviation})</span>
+                    <span class="text-xs text-base-content/40 font-mono">
+                      ({template.abbreviation})
+                    </span>
                   </div>
                   <span class="text-sm text-base-content/60">
                     {if rate, do: format_rate(rate.hourly_rate, @modal_currency), else: "-"}
@@ -282,9 +287,7 @@ defmodule EstimateWeb.ProjectLive.Components.NewEstimationModal do
           <button
             type="submit"
             disabled={@estimation_source == "json" && !@json_parsed}
-            phx-disable-with={
-              if @estimation_source == "copy", do: "Copying...", else: "Creating..."
-            }
+            phx-disable-with={if @estimation_source == "copy", do: "Copying...", else: "Creating..."}
             class={"px-4 py-2 bg-neutral text-neutral-content text-sm rounded-lg hover:bg-neutral/90 transition-colors font-medium #{if @estimation_source == "json" && !@json_parsed, do: "opacity-50 cursor-not-allowed"}"}
           >
             {if @estimation_source == "copy", do: "Create Copy", else: "Create"}

@@ -80,7 +80,10 @@ defmodule EstimateWeb.TemplatesLive.Show do
                     <.icon name="hero-document-text" class="w-3.5 h-3.5" />
                   </button>
                 </div>
-                <div :if={@is_admin} class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div
+                  :if={@is_admin}
+                  class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                >
                   <button
                     phx-click="edit_epic"
                     phx-value-id={epic.id}
@@ -129,7 +132,9 @@ defmodule EstimateWeb.TemplatesLive.Show do
                     <span class={"inline-flex px-1.5 py-0.5 text-xs font-medium rounded #{priority_class(task.priority)}"}>
                       {priority_label(task.priority)}
                     </span>
-                    <span class="text-sm text-base-content/80 flex-1 min-w-0 truncate">{task.name}</span>
+                    <span class="text-sm text-base-content/80 flex-1 min-w-0 truncate">
+                      {task.name}
+                    </span>
                     <button
                       :if={task.description}
                       phx-click="edit_task"
@@ -140,7 +145,10 @@ defmodule EstimateWeb.TemplatesLive.Show do
                     >
                       <.icon name="hero-document-text" class="w-3.5 h-3.5" />
                     </button>
-                    <div :if={@is_admin} class="flex items-center gap-1 opacity-0 group-hover/task:opacity-100 transition-opacity">
+                    <div
+                      :if={@is_admin}
+                      class="flex items-center gap-1 opacity-0 group-hover/task:opacity-100 transition-opacity"
+                    >
                       <button
                         phx-click="edit_task"
                         phx-value-id={task.id}

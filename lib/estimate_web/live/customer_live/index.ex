@@ -45,7 +45,9 @@ defmodule EstimateWeb.CustomerLive.Index do
               class="flex items-center gap-4 flex-1 min-w-0"
             >
               <.avatar name={customer.name} seed={customer.id} type={:customer} size={:lg} />
-              <span class="text-xs font-mono text-base-content/40 w-12 flex-shrink-0">{customer.key}</span>
+              <span class="text-xs font-mono text-base-content/40 w-12 flex-shrink-0">
+                {customer.key}
+              </span>
               <div class="min-w-0">
                 <h3 class="text-sm font-medium text-base-content truncate">{customer.name}</h3>
                 <p :if={customer.description} class="text-sm text-base-content/60 truncate">
@@ -54,7 +56,9 @@ defmodule EstimateWeb.CustomerLive.Index do
               </div>
             </.link>
             <div class="flex items-center gap-3 flex-shrink-0">
-              <span :if={customer.country} class="text-xs text-base-content/40">{customer.country}</span>
+              <span :if={customer.country} class="text-xs text-base-content/40">
+                {customer.country}
+              </span>
               <span :if={customer.default_currency} class="text-xs text-base-content/40 font-mono">
                 {customer.default_currency.code}
               </span>
@@ -85,7 +89,9 @@ defmodule EstimateWeb.CustomerLive.Index do
           <div class="space-y-4">
             <div class="grid grid-cols-2 gap-4">
               <div>
-                <label class="block text-xs font-medium text-base-content/60 mb-1.5">Customer Key *</label>
+                <label class="block text-xs font-medium text-base-content/60 mb-1.5">
+                  Customer Key *
+                </label>
                 <input
                   type="text"
                   name={@form[:key].name}
@@ -96,7 +102,9 @@ defmodule EstimateWeb.CustomerLive.Index do
                 />
               </div>
               <div>
-                <label class="block text-xs font-medium text-base-content/60 mb-1.5">Customer Name *</label>
+                <label class="block text-xs font-medium text-base-content/60 mb-1.5">
+                  Customer Name *
+                </label>
                 <input
                   type="text"
                   name={@form[:name].name}
@@ -131,7 +139,9 @@ defmodule EstimateWeb.CustomerLive.Index do
               </div>
             </div>
             <div>
-              <label class="block text-xs font-medium text-base-content/60 mb-1.5">Default Currency</label>
+              <label class="block text-xs font-medium text-base-content/60 mb-1.5">
+                Default Currency
+              </label>
               <select
                 name={@form[:default_currency_id].name}
                 class="w-full px-3 py-2 border border-base-content/20 rounded-lg text-sm"

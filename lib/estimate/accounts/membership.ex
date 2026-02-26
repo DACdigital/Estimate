@@ -6,6 +6,7 @@ defmodule Estimate.Accounts.Membership do
 
   schema "memberships" do
     field :role, :string, default: "member"
+    field :totp_required_by, :utc_datetime
 
     belongs_to :user, Estimate.Accounts.User
     belongs_to :organization, Estimate.Accounts.Organization

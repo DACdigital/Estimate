@@ -36,7 +36,13 @@ defmodule EstimateWeb.GoogleAuthController do
 
         case Accounts.find_or_create_oauth_user(%{email: email, name: name}) do
           {:ok, user} ->
-            UserAuth.log_in_user(conn, user)
+            if Estimate.Accounts.User.totp_enabled?(user) do
+              conn
+              |> UserAuth.put_pending_2fa(user)
+              |> redirect(to: ~p"/users/two-factor")
+            else
+              UserAuth.log_in_user(conn, user)
+            end
 
           {:error, _changeset} ->
             conn

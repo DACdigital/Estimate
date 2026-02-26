@@ -70,7 +70,9 @@ defmodule EstimateWeb.ProjectLive.Components.EstimationDashboard do
           <div class="text-right">
             <p class="text-xs text-base-content/40">Based on</p>
             <.link
-              navigate={~p"/org/#{@org_id}/projects/#{@project.id}/estimations/#{@estimation.id}/estimator"}
+              navigate={
+                ~p"/org/#{@org_id}/projects/#{@project.id}/estimations/#{@estimation.id}/estimator"
+              }
               class="text-sm font-medium text-base-content/80 hover:underline"
             >
               {@estimation.name}
@@ -83,7 +85,9 @@ defmodule EstimateWeb.ProjectLive.Components.EstimationDashboard do
         <%!-- Summary Cards --%>
         <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
           <div class="border border-base-300 rounded-lg p-4">
-            <p class="text-[10px] font-semibold text-base-content/60 uppercase tracking-wide mb-1">Base</p>
+            <p class="text-[10px] font-semibold text-base-content/60 uppercase tracking-wide mb-1">
+              Base
+            </p>
             <p class="text-2xl font-bold text-base-content">{format_hours_h(@base_hours)}</p>
             <p class="text-sm text-base-content/60">{format_cost(@base_cost, @currency)}</p>
           </div>
@@ -217,7 +221,9 @@ defmodule EstimateWeb.ProjectLive.Components.EstimationDashboard do
               </td>
               <td class="px-3 py-3 text-right">
                 <div class="font-semibold text-base-content">{format_hours_h(final_h)}</div>
-                <div class="text-xs font-medium text-base-content/70">{format_cost(final_c, @currency)}</div>
+                <div class="text-xs font-medium text-base-content/70">
+                  {format_cost(final_c, @currency)}
+                </div>
               </td>
             </tr>
           <% end %>
@@ -261,7 +267,9 @@ defmodule EstimateWeb.ProjectLive.Components.EstimationDashboard do
               <% total_h = Calculator.calc_total_with_overhead_hours(@epics, @roles) %>
               <% total_c = Calculator.calc_total_with_overhead_cost(@epics, @roles) %>
               <div class="font-semibold text-base-content">{format_hours_h(total_h)}</div>
-              <div class="text-xs font-medium text-base-content/70">{format_cost(total_c, @currency)}</div>
+              <div class="text-xs font-medium text-base-content/70">
+                {format_cost(total_c, @currency)}
+              </div>
             </td>
           </tr>
         </tfoot>
@@ -292,7 +300,9 @@ defmodule EstimateWeb.ProjectLive.Components.EstimationDashboard do
               <td class="px-3 py-3 font-medium text-base-content">{epic.name}</td>
               <td class="px-3 py-3 text-right text-base-content/60">{length(epic.tasks)}</td>
               <td class="px-3 py-3 text-right text-base-content">{format_hours_h(base_h)}</td>
-              <td class="px-3 py-3 text-right text-base-content/70">{format_cost(base_c, @currency)}</td>
+              <td class="px-3 py-3 text-right text-base-content/70">
+                {format_cost(base_c, @currency)}
+              </td>
               <td class="px-3 py-3 text-right font-semibold text-base-content">
                 {format_cost(total_c, @currency)}
               </td>

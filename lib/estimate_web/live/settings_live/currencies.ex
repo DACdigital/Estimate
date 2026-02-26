@@ -11,12 +11,17 @@ defmodule EstimateWeb.SettingsLive.Currencies do
       <div class="mb-8">
         <h1 class="text-2xl font-bold text-base-content">Currencies</h1>
         <p class="mt-1 text-base-content/60">
-          Manage currencies and exchange rates<%= if @is_admin do %>. Click any row to set as main<% end %>
+          Manage currencies and exchange rates<%= if @is_admin do %>
+            . Click any row to set as main
+          <% end %>
         </p>
       </div>
 
       <%!-- Refresh Rates Bar --%>
-      <div :if={@is_admin} class="flex items-center justify-between px-4 py-3 bg-base-100 border border-base-300 rounded-xl">
+      <div
+        :if={@is_admin}
+        class="flex items-center justify-between px-4 py-3 bg-base-100 border border-base-300 rounded-xl"
+      >
         <p class="text-sm text-base-content/60">
           Rates last fetched {time_ago(@rates_fetched_at)}
         </p>
@@ -26,8 +31,10 @@ defmodule EstimateWeb.SettingsLive.Currencies do
           phx-disable-with="Fetching..."
           class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-neutral text-neutral-content rounded-lg hover:bg-neutral/90 transition-colors disabled:opacity-50"
         >
-          <.icon name="hero-arrow-path" class={"w-4 h-4 #{if @refreshing_rates, do: "motion-safe:animate-spin"}"} />
-          Refresh Rates
+          <.icon
+            name="hero-arrow-path"
+            class={"w-4 h-4 #{if @refreshing_rates, do: "motion-safe:animate-spin"}"}
+          /> Refresh Rates
         </button>
       </div>
 
@@ -59,7 +66,9 @@ defmodule EstimateWeb.SettingsLive.Currencies do
                   class={"w-14 px-2 py-1 border border-transparent hover:border-base-300 rounded text-sm font-mono font-medium uppercase bg-transparent #{if @is_admin, do: "text-base-content", else: "text-base-content/60 cursor-not-allowed"}"}
                 />
                 <%= if currency.is_main do %>
-                  <span class="px-1.5 py-0.5 text-xs bg-neutral text-neutral-content rounded">Main</span>
+                  <span class="px-1.5 py-0.5 text-xs bg-neutral text-neutral-content rounded">
+                    Main
+                  </span>
                 <% else %>
                   <button
                     :if={@is_admin}
@@ -221,7 +230,15 @@ defmodule EstimateWeb.SettingsLive.Currencies do
       </div>
 
       <p class="text-xs text-base-content/40 px-1">
-        Exchange rates from <a href="https://www.frankfurter.dev" target="_blank" rel="noopener" class="underline hover:text-base-content/60">Frankfurter</a>
+        Exchange rates from
+        <a
+          href="https://www.frankfurter.dev"
+          target="_blank"
+          rel="noopener"
+          class="underline hover:text-base-content/60"
+        >
+          Frankfurter
+        </a>
         (European Central Bank reference rates). Rates are indicative and may not reflect real-time market prices.
       </p>
 

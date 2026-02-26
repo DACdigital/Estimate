@@ -24,7 +24,9 @@ defmodule EstimateWeb.SettingsLive.Ai do
                     :if={@ai_configured}
                     class="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-success/10 text-success rounded-full"
                   >
-                    <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4" /></svg>
+                    <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 8 8">
+                      <circle cx="4" cy="4" r="4" />
+                    </svg>
                     Connected · {@ai_key_masked}
                   </span>
                 </label>
@@ -61,7 +63,9 @@ defmodule EstimateWeb.SettingsLive.Ai do
                     class="w-full text-left px-3 py-2 hover:bg-base-200 border-b border-base-content/10 last:border-0"
                   >
                     <div class="text-sm font-medium text-base-content">{model.name || model.id}</div>
-                    <div class="text-xs text-base-content/60">{model.id} · {format_context(model.context_length)}</div>
+                    <div class="text-xs text-base-content/60">
+                      {model.id} · {format_context(model.context_length)}
+                    </div>
                   </button>
                 </div>
               </div>

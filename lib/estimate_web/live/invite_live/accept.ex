@@ -14,10 +14,14 @@ defmodule EstimateWeb.InviteLive.Accept do
           <h1 class="text-3xl font-bold text-center text-base-content mb-2">
             Join {@invite.organization.name}
           </h1>
-          <p class="text-center text-base-content/70 mb-8">You've been invited to join this organization</p>
+          <p class="text-center text-base-content/70 mb-8">
+            You've been invited to join this organization
+          </p>
 
           <div class="text-center">
-            <p class="text-base-content/70 mb-6">You're signed in as <strong>{@current_user.email}</strong></p>
+            <p class="text-base-content/70 mb-6">
+              You're signed in as <strong>{@current_user.email}</strong>
+            </p>
             <button
               phx-click="accept_invite"
               class="w-full py-3 px-4 bg-neutral text-neutral-content font-medium rounded-lg hover:bg-neutral/90 transition-colors"
@@ -96,7 +100,10 @@ defmodule EstimateWeb.InviteLive.Accept do
 
           <p class="mt-8 text-center text-base-content/70">
             Already have an account?
-            <.link navigate={~p"/users/log_in?#{%{return_to: @return_to}}"} class="text-info hover:text-info/80 font-medium">
+            <.link
+              navigate={~p"/users/log_in?#{%{return_to: @return_to}}"}
+              class="text-info hover:text-info/80 font-medium"
+            >
               Sign In
             </.link>
           </p>
@@ -105,7 +112,9 @@ defmodule EstimateWeb.InviteLive.Accept do
         <h1 class="text-3xl font-bold text-center text-base-content mb-2">
           Invalid Invitation
         </h1>
-        <p class="text-center text-base-content/70">This invitation link is invalid or has expired.</p>
+        <p class="text-center text-base-content/70">
+          This invitation link is invalid or has expired.
+        </p>
       <% end %>
     </div>
     """

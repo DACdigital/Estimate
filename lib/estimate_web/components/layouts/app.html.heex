@@ -16,7 +16,9 @@
           {String.first(@current_organization.name)}
         </div>
         <div class="flex-1 min-w-0">
-          <p class="text-sm font-medium text-base-content truncate">{@current_organization.name}</p>
+          <p class="text-sm font-medium text-base-content truncate">
+            {@current_organization.name}
+          </p>
         </div>
         <span class="text-base-content/40">
           <.icon name="hero-chevron-up-down" class="w-4 h-4" />
@@ -25,9 +27,7 @@
     </div>
     
 <!-- Navigation -->
-    <nav
-      class="flex-1 px-4 py-4 space-y-1 overflow-y-auto"
-    >
+    <nav class="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
       <.sidebar_link
         :if={assigns[:org_id]}
         href={~p"/org/#{@org_id}"}
@@ -74,11 +74,39 @@
           <span>Settings</span>
         </div>
         <div class="ml-8 space-y-0.5">
-          <.sidebar_child_link href={~p"/org/#{@org_id}/settings"} label="General" active={assigns[:settings_page] == :general} />
-          <.sidebar_child_link href={~p"/org/#{@org_id}/settings/members"} label="Members" active={assigns[:settings_page] == :members} />
-          <.sidebar_child_link href={~p"/org/#{@org_id}/settings/currencies"} label="Currencies" active={assigns[:settings_page] == :currencies} />
-          <.sidebar_child_link :if={admin?(assigns[:current_membership])} href={~p"/org/#{@org_id}/settings/ai"} label="AI Integration" active={assigns[:settings_page] == :ai} />
-          <.sidebar_child_link :if={admin?(assigns[:current_membership])} href={~p"/org/#{@org_id}/settings/email"} label="Email" active={assigns[:settings_page] == :email} />
+          <.sidebar_child_link
+            href={~p"/org/#{@org_id}/settings"}
+            label="General"
+            active={assigns[:settings_page] == :general}
+          />
+          <.sidebar_child_link
+            href={~p"/org/#{@org_id}/settings/members"}
+            label="Members"
+            active={assigns[:settings_page] == :members}
+          />
+          <.sidebar_child_link
+            href={~p"/org/#{@org_id}/settings/currencies"}
+            label="Currencies"
+            active={assigns[:settings_page] == :currencies}
+          />
+          <.sidebar_child_link
+            :if={admin?(assigns[:current_membership])}
+            href={~p"/org/#{@org_id}/settings/ai"}
+            label="AI Integration"
+            active={assigns[:settings_page] == :ai}
+          />
+          <.sidebar_child_link
+            :if={admin?(assigns[:current_membership])}
+            href={~p"/org/#{@org_id}/settings/email"}
+            label="Email"
+            active={assigns[:settings_page] == :email}
+          />
+          <.sidebar_child_link
+            :if={admin?(assigns[:current_membership])}
+            href={~p"/org/#{@org_id}/settings/security"}
+            label="Security"
+            active={assigns[:settings_page] == :security}
+          />
         </div>
       </div>
     </nav>
@@ -86,14 +114,27 @@
 <!-- User section -->
     <div :if={assigns[:current_user]} class="border-t border-base-300 p-4">
       <div class="flex items-center gap-3">
-        <.avatar name={@current_user.name || @current_user.email} seed={@current_user.id} size={:sm} />
-        <div class="flex-1 min-w-0">
-          <p class="text-sm font-medium text-base-content truncate">
-            {@current_user.name || @current_user.email}
-          </p>
-          <p class="text-xs text-base-content/60 truncate">{@current_user.email}</p>
-        </div>
-        <.link href={~p"/users/log_out"} method="delete" class="text-base-content/40 hover:text-base-content/70">
+        <.link
+          navigate={~p"/account"}
+          class="flex items-center gap-3 flex-1 min-w-0 hover:opacity-80 transition-opacity"
+        >
+          <.avatar
+            name={@current_user.name || @current_user.email}
+            seed={@current_user.id}
+            size={:sm}
+          />
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-base-content truncate">
+              {@current_user.name || @current_user.email}
+            </p>
+            <p class="text-xs text-base-content/60 truncate">{@current_user.email}</p>
+          </div>
+        </.link>
+        <.link
+          href={~p"/users/log_out"}
+          method="delete"
+          class="text-base-content/40 hover:text-base-content/70"
+        >
           <.icon name="hero-arrow-right-on-rectangle" class="w-5 h-5" />
         </.link>
       </div>
@@ -131,7 +172,25 @@
       </div>
     </header>
     
-<!-- Page content -->
+<!-- 2FA enforcement banner -->
+    <div
+      :if={assigns[:totp_enforcement_deadline]}
+      class="bg-warning/10 border-b border-warning/20 px-8 py-2 flex items-center justify-between text-sm"
+    >
+      <p class="text-warning">
+        Your organization requires two-factor authentication.
+        You have
+        <span class="font-semibold">{days_remaining(assigns[:totp_enforcement_deadline])}</span>
+        to set it up.
+      </p>
+      <.link
+        navigate={~p"/account/two-factor/setup"}
+        class="text-warning font-medium hover:underline"
+      >
+        Set up now
+      </.link>
+    </div>
+    <!-- Page content -->
     <main class="flex-1 overflow-y-auto p-8">
       <.flash_group flash={@flash} />
       {@inner_content}

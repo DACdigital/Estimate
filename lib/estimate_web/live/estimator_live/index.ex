@@ -19,7 +19,10 @@ defmodule EstimateWeb.EstimatorLive.Index do
     <div class="max-w-7xl mx-auto">
       <%!-- Breadcrumb --%>
       <nav class="flex items-center space-x-2 text-sm text-base-content/60 mb-6">
-        <.link navigate={~p"/org/#{@org_id}/customers/#{@customer.id}"} class="hover:text-base-content">
+        <.link
+          navigate={~p"/org/#{@org_id}/customers/#{@customer.id}"}
+          class="hover:text-base-content"
+        >
           {@customer.name}
         </.link>
         <span class="text-base-content/30">›</span>
@@ -29,7 +32,9 @@ defmodule EstimateWeb.EstimatorLive.Index do
         <span class="text-base-content/30">›</span>
         <span class="text-base-content font-medium">{@estimation.name}</span>
         <span :if={@estimation.currency} class="text-base-content/30 ml-2">•</span>
-        <span :if={@estimation.currency} class="text-base-content/40">{@estimation.currency.code}</span>
+        <span :if={@estimation.currency} class="text-base-content/40">
+          {@estimation.currency.code}
+        </span>
         <button
           :if={@can_edit}
           phx-click="open_settings"
@@ -67,7 +72,8 @@ defmodule EstimateWeb.EstimatorLive.Index do
           >
             <.icon name="hero-check" class="w-3 h-3 text-neutral-content" />
           </span>
-          <span :if={!@show_all_in_rates} class="w-4 h-4 rounded border border-base-content/20"></span>
+          <span :if={!@show_all_in_rates} class="w-4 h-4 rounded border border-base-content/20">
+          </span>
           All-in rates
         </button>
         <button
@@ -80,7 +86,8 @@ defmodule EstimateWeb.EstimatorLive.Index do
           >
             <.icon name="hero-check" class="w-3 h-3 text-neutral-content" />
           </span>
-          <span :if={!@show_descriptions} class="w-4 h-4 rounded border border-base-content/20"></span>
+          <span :if={!@show_descriptions} class="w-4 h-4 rounded border border-base-content/20">
+          </span>
           Show details
         </button>
         <div
@@ -93,11 +100,11 @@ defmodule EstimateWeb.EstimatorLive.Index do
             :for={
               {priority, label, active_cls, inactive_cls} <- [
                 {"must", "M", "bg-error text-error-content",
-                  "bg-error/10 dark:bg-error/20 text-error/30 dark:text-error/60"},
+                 "bg-error/10 dark:bg-error/20 text-error/30 dark:text-error/60"},
                 {"should", "S", "bg-warning text-warning-content",
-                  "bg-warning/10 dark:bg-warning/20 text-warning/30 dark:text-warning/60"},
+                 "bg-warning/10 dark:bg-warning/20 text-warning/30 dark:text-warning/60"},
                 {"could", "C", "bg-info text-info-content",
-                  "bg-info/10 dark:bg-info/20 text-info/30 dark:text-info/60"},
+                 "bg-info/10 dark:bg-info/20 text-info/30 dark:text-info/60"},
                 {"wont", "W", "bg-neutral text-neutral-content", "bg-base-300 text-base-content/40"}
               ]
             }
@@ -197,7 +204,10 @@ defmodule EstimateWeb.EstimatorLive.Index do
        |> assign(:show_all_in_rates, false)
        |> assign(:show_descriptions, false)
        |> assign(:enabled_priorities, MapSet.new(["must", "should", "could", "wont"]))
-       |> assign(:ai_configured, socket.assigns.current_organization.encrypted_openrouter_api_key != nil)
+       |> assign(
+         :ai_configured,
+         socket.assigns.current_organization.encrypted_openrouter_api_key != nil
+       )
        |> assign(:ai_loading, nil)}
     end
   end
@@ -639,7 +649,11 @@ defmodule EstimateWeb.EstimatorLive.Index do
     end
   end
 
-  def handle_event("ai_enhance_description", %{"description" => desc, "name" => name, "target" => target}, socket) do
+  def handle_event(
+        "ai_enhance_description",
+        %{"description" => desc, "name" => name, "target" => target},
+        socket
+      ) do
     org = socket.assigns.current_organization
     api_key = Organizations.get_decrypted_api_key(org)
 
@@ -649,7 +663,9 @@ defmodule EstimateWeb.EstimatorLive.Index do
       system_prompt = org.openrouter_system_prompt
 
       Task.start(fn ->
-        result = Estimate.AI.OpenRouter.enhance_description(api_key, model, system_prompt, name, desc)
+        result =
+          Estimate.AI.OpenRouter.enhance_description(api_key, model, system_prompt, name, desc)
+
         send(pid, {:ai_result, target, result})
       end)
 

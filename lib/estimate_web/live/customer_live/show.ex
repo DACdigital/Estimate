@@ -33,7 +33,9 @@ defmodule EstimateWeb.CustomerLive.Show do
                 {@customer.country}
               </span>
             </div>
-            <p :if={@customer.description} class="mt-1 text-base-content/60">{@customer.description}</p>
+            <p :if={@customer.description} class="mt-1 text-base-content/60">
+              {@customer.description}
+            </p>
             <div class="flex items-center gap-4 mt-2 text-sm">
               <a
                 :if={@customer.website_url}
@@ -126,7 +128,6 @@ defmodule EstimateWeb.CustomerLive.Show do
     </div>
     """
   end
-
 
   @impl true
   def mount(%{"id" => id}, _session, socket) do

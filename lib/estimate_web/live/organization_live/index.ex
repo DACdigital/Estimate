@@ -44,7 +44,9 @@ defmodule EstimateWeb.OrganizationLive.Index do
       <div class="mt-6 p-4 bg-base-100 border border-base-300 rounded-xl">
         <form phx-submit="join_with_code" class="flex gap-3 items-end">
           <div class="flex-1">
-            <label class="block text-xs font-medium text-base-content/60 mb-1.5">Have an invite code?</label>
+            <label class="block text-xs font-medium text-base-content/60 mb-1.5">
+              Have an invite code?
+            </label>
             <input
               type="text"
               name="code"

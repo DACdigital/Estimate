@@ -11,6 +11,16 @@ defmodule EstimateWeb.Layouts do
   # and other static content.
   embed_templates "layouts/*"
 
+  defp days_remaining(deadline) do
+    days = DateTime.diff(deadline, DateTime.utc_now(), :day)
+
+    cond do
+      days <= 0 -> "less than a day"
+      days == 1 -> "1 day"
+      true -> "#{days} days"
+    end
+  end
+
   @doc """
   Sidebar navigation link component.
   """

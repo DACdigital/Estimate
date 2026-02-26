@@ -11,11 +11,22 @@ defmodule Estimate.Accounts.User do
     field :last_org_id, :binary_id
     field :last_active_at, :utc_datetime
 
+    # TOTP 2FA
+    field :encrypted_totp_secret, :binary, redact: true
+    field :totp_secret_nonce, :binary, redact: true
+    field :totp_enabled_at, :utc_datetime
+    field :totp_backup_codes, :binary, redact: true
+    field :totp_secret, :string, virtual: true, redact: true
+
     has_many :memberships, Estimate.Accounts.Membership
     has_many :organizations, through: [:memberships, :organization]
 
     timestamps()
   end
+
+  def totp_enabled?(%__MODULE__{totp_enabled_at: nil}), do: false
+  def totp_enabled?(%__MODULE__{totp_enabled_at: _}), do: true
+  def totp_enabled?(_), do: false
 
   def oauth_registration_changeset(user, attrs) do
     now = DateTime.utc_now() |> DateTime.truncate(:second)

@@ -160,9 +160,20 @@ defmodule EstimateWeb.SettingsLive.Components.MemberComponents do
               >
                 You
               </span>
+              <%= if Estimate.Accounts.User.totp_enabled?(membership.user) do %>
+                <span class="text-[10px] px-1.5 py-0.5 bg-success/10 text-success rounded-full font-medium">
+                  2FA
+                </span>
+              <% else %>
+                <span class="text-[10px] px-1.5 py-0.5 bg-base-200 text-base-content/40 rounded-full font-medium">
+                  No 2FA
+                </span>
+              <% end %>
             </div>
             <p class="text-sm text-base-content/60">{membership.user.email}</p>
-            <p class="text-xs text-base-content/40">Active {time_ago(membership.user.last_active_at)}</p>
+            <p class="text-xs text-base-content/40">
+              Active {time_ago(membership.user.last_active_at)}
+            </p>
           </div>
         </div>
         <div class="flex items-center gap-4">
@@ -176,6 +187,15 @@ defmodule EstimateWeb.SettingsLive.Components.MemberComponents do
                 <option value="admin" selected={membership.role == "admin"}>Admin</option>
               </select>
             </form>
+            <button
+              :if={Estimate.Accounts.User.totp_enabled?(membership.user)}
+              phx-click="confirm_disable_2fa"
+              phx-value-id={membership.user.id}
+              title="Disable 2FA"
+              class="text-base-content/40 hover:text-warning transition-colors"
+            >
+              <.icon name="hero-shield-exclamation" class="w-5 h-5" />
+            </button>
             <button
               phx-click="confirm_remove_member"
               phx-value-id={membership.id}
@@ -288,7 +308,11 @@ defmodule EstimateWeb.SettingsLive.Components.MemberComponents do
           class="px-6 py-4 flex items-center justify-between border-b border-base-content/10 last:border-b-0"
         >
           <div class="flex items-center gap-3">
-            <.avatar name={request.user.name || request.user.email} seed={request.user.id} type={:pending} />
+            <.avatar
+              name={request.user.name || request.user.email}
+              seed={request.user.id}
+              type={:pending}
+            />
             <div>
               <h3 class="text-sm font-medium text-base-content">{request.user.name}</h3>
               <p class="text-sm text-base-content/60">{request.user.email}</p>
@@ -318,5 +342,4 @@ defmodule EstimateWeb.SettingsLive.Components.MemberComponents do
     </div>
     """
   end
-
 end

@@ -85,8 +85,19 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimatorModals do
                   fill="none"
                   viewBox="0 0 24 24"
                 >
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  <circle
+                    class="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    stroke-width="4"
+                  />
+                  <path
+                    class="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                  />
                 </svg>
                 Enhance with AI
               </button>
@@ -140,7 +151,9 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimatorModals do
             />
           </div>
           <div>
-            <label class="block text-xs font-medium text-base-content/60 mb-1.5">Priority (MoSCoW)</label>
+            <label class="block text-xs font-medium text-base-content/60 mb-1.5">
+              Priority (MoSCoW)
+            </label>
             <div class="flex gap-2">
               <%= for p <- ["must", "should", "could", "wont"] do %>
                 <label class={"flex-1 text-center py-2 px-3 text-sm rounded-lg border cursor-pointer transition-colors #{if (@task_form[:priority].value || "must") == p, do: "bg-neutral text-neutral-content border-neutral", else: "bg-base-100 text-base-content/70 border-base-content/20 hover:border-base-content/40"}"}>
@@ -182,8 +195,19 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimatorModals do
                   fill="none"
                   viewBox="0 0 24 24"
                 >
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  <circle
+                    class="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    stroke-width="4"
+                  />
+                  <path
+                    class="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                  />
                 </svg>
                 Enhance with AI
               </button>
@@ -249,7 +273,9 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimatorModals do
         <div class="space-y-6">
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="block text-xs font-medium text-base-content/60 mb-1.5">Estimation Name</label>
+              <label class="block text-xs font-medium text-base-content/60 mb-1.5">
+                Estimation Name
+              </label>
               <input
                 type="text"
                 name="name"
@@ -276,7 +302,9 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimatorModals do
           </div>
 
           <div>
-            <label class="block text-xs font-medium text-base-content/60 mb-2">Roles & Overheads</label>
+            <label class="block text-xs font-medium text-base-content/60 mb-2">
+              Roles & Overheads
+            </label>
             <div class="border border-base-300 rounded-lg overflow-hidden">
               <table class="w-full text-sm">
                 <thead>

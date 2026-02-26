@@ -36,6 +36,19 @@ defmodule EstimateWeb.Router do
     get "/auth/google/callback", GoogleAuthController, :callback
   end
 
+  # Two-factor verification (pending 2FA — neither fully logged in nor anonymous)
+  scope "/", EstimateWeb do
+    pipe_through :browser
+
+    live_session :two_factor_verification,
+      layout: {EstimateWeb.Layouts, :auth},
+      on_mount: [{EstimateWeb.UserAuth, :require_pending_2fa}] do
+      live "/users/two-factor", UserLive.TotpVerification, :verify
+    end
+
+    post "/users/two-factor/verify", UserSessionController, :verify_totp
+  end
+
   # Invite acceptance (special - needs to handle both logged in and anonymous)
   scope "/", EstimateWeb do
     pipe_through :browser
@@ -50,6 +63,18 @@ defmodule EstimateWeb.Router do
       layout: {EstimateWeb.Layouts, :auth},
       on_mount: [{EstimateWeb.UserAuth, :mount_current_user}] do
       live "/organizations/:id/join", JoinRequestLive.New, :new
+    end
+  end
+
+  # Account settings (non-org, own layout)
+  scope "/", EstimateWeb do
+    pipe_through [:browser, :require_authenticated_user]
+
+    live_session :account_settings,
+      layout: {EstimateWeb.Layouts, :app_account},
+      on_mount: [{EstimateWeb.UserAuth, :ensure_authenticated}] do
+      live "/account", UserLive.AccountSettings, :index
+      live "/account/two-factor/setup", UserLive.TotpSetup, :setup
     end
   end
 
@@ -93,6 +118,7 @@ defmodule EstimateWeb.Router do
       live "/settings/currencies", SettingsLive.Currencies, :index
       live "/settings/ai", SettingsLive.Ai, :index
       live "/settings/email", SettingsLive.Email, :index
+      live "/settings/security", SettingsLive.Security, :index
 
       # CRM
       live "/customers", CustomerLive.Index, :index

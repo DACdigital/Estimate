@@ -3,7 +3,8 @@ defmodule Estimate.Repo.Migrations.AddLastOrgIdToUsers do
 
   def change do
     alter table(:users) do
-      add :last_org_id, references(:organizations, type: :uuid, on_delete: :nilify_all), null: true
+      add :last_org_id, references(:organizations, type: :uuid, on_delete: :nilify_all),
+        null: true
     end
   end
 end

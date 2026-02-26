@@ -81,9 +81,14 @@ defmodule EstimateWeb.CoreComponents do
 
     color_classes =
       case assigns.type do
-        :pending -> "bg-warning/10 text-warning"
-        :customer -> Enum.at(@customer_gradients, :erlang.phash2(seed, length(@customer_gradients)))
-        _ -> Enum.at(@user_gradients, :erlang.phash2(seed, length(@user_gradients)))
+        :pending ->
+          "bg-warning/10 text-warning"
+
+        :customer ->
+          Enum.at(@customer_gradients, :erlang.phash2(seed, length(@customer_gradients)))
+
+        _ ->
+          Enum.at(@user_gradients, :erlang.phash2(seed, length(@user_gradients)))
       end
 
     assigns =
@@ -95,7 +100,9 @@ defmodule EstimateWeb.CoreComponents do
     ~H"""
     <div class={[
       "rounded-full flex items-center justify-center font-medium flex-shrink-0",
-      @color_classes, @size_classes, @class
+      @color_classes,
+      @size_classes,
+      @class
     ]}>
       {@initials}
     </div>
@@ -109,13 +116,19 @@ defmodule EstimateWeb.CoreComponents do
     name = String.trim(name)
 
     cond do
-      name == "" -> "?"
-      String.contains?(name, "@") -> name |> String.first() |> String.upcase()
+      name == "" ->
+        "?"
+
+      String.contains?(name, "@") ->
+        name |> String.first() |> String.upcase()
+
       true ->
         words = String.split(name)
 
         case words do
-          [single] -> single |> String.first() |> String.upcase()
+          [single] ->
+            single |> String.first() |> String.upcase()
+
           [first | rest] ->
             last = List.last(rest)
             String.upcase(String.first(first) <> String.first(last))
@@ -680,7 +693,11 @@ defmodule EstimateWeb.CoreComponents do
       data-cancel={JS.exec(@on_cancel, "phx-remove")}
       class="relative z-50 hidden"
     >
-      <div id={"#{@id}-bg"} class="bg-base-200/90 fixed inset-0 transition-opacity" aria-hidden="true" />
+      <div
+        id={"#{@id}-bg"}
+        class="bg-base-200/90 fixed inset-0 transition-opacity"
+        aria-hidden="true"
+      />
       <div
         class="fixed inset-0 overflow-y-auto"
         aria-labelledby={"#{@id}-title"}

@@ -138,8 +138,11 @@ defmodule Estimate.AccountsTest do
       Portfolio.add_collaborator(ctx.project.id, ctx.owner.id, "owner")
 
       assert {:ok, _} = Organizations.delete_membership(ctx.member_membership, %{})
+
       assert Repo.get_by(Estimate.Accounts.Membership,
-               user_id: ctx.member.id, organization_id: ctx.org.id) == nil
+               user_id: ctx.member.id,
+               organization_id: ctx.org.id
+             ) == nil
     end
 
     test "reassigns sole-owned project to another member", ctx do
@@ -149,15 +152,17 @@ defmodule Estimate.AccountsTest do
 
       # membership deleted
       refute Repo.get_by(Estimate.Accounts.Membership,
-               user_id: ctx.member.id, organization_id: ctx.org.id)
+               user_id: ctx.member.id,
+               organization_id: ctx.org.id
+             )
 
       # old collaborator removed
-      refute Repo.get_by(ProjectCollaborator,
-               project_id: ctx.project.id, user_id: ctx.member.id)
+      refute Repo.get_by(ProjectCollaborator, project_id: ctx.project.id, user_id: ctx.member.id)
 
       # new owner assigned
-      new_collab = Repo.get_by(ProjectCollaborator,
-                     project_id: ctx.project.id, user_id: ctx.owner.id)
+      new_collab =
+        Repo.get_by(ProjectCollaborator, project_id: ctx.project.id, user_id: ctx.owner.id)
+
       assert new_collab.role == "owner"
     end
 
@@ -165,15 +170,15 @@ defmodule Estimate.AccountsTest do
       # owner is already a viewer on the project
       Portfolio.add_collaborator(ctx.project.id, ctx.owner.id, "viewer")
 
-      collab = Repo.get_by(ProjectCollaborator,
-                 project_id: ctx.project.id, user_id: ctx.owner.id)
+      collab = Repo.get_by(ProjectCollaborator, project_id: ctx.project.id, user_id: ctx.owner.id)
       assert collab.role == "viewer"
 
       reassignments = %{ctx.project.id => ctx.owner.id}
       assert {:ok, _} = Organizations.delete_membership(ctx.member_membership, reassignments)
 
-      updated = Repo.get_by(ProjectCollaborator,
-                  project_id: ctx.project.id, user_id: ctx.owner.id)
+      updated =
+        Repo.get_by(ProjectCollaborator, project_id: ctx.project.id, user_id: ctx.owner.id)
+
       assert updated.role == "owner"
     end
 
@@ -188,10 +193,11 @@ defmodule Estimate.AccountsTest do
 
       assert {:ok, _} = Organizations.delete_membership(ctx.member_membership, reassignments)
 
-      assert Repo.get_by(ProjectCollaborator,
-               project_id: ctx.project.id, user_id: ctx.owner.id).role == "owner"
-      assert Repo.get_by(ProjectCollaborator,
-               project_id: project2.id, user_id: ctx.owner.id).role == "owner"
+      assert Repo.get_by(ProjectCollaborator, project_id: ctx.project.id, user_id: ctx.owner.id).role ==
+               "owner"
+
+      assert Repo.get_by(ProjectCollaborator, project_id: project2.id, user_id: ctx.owner.id).role ==
+               "owner"
     end
 
     test "rejects reassignment to non-org member", ctx do
@@ -203,7 +209,9 @@ defmodule Estimate.AccountsTest do
 
       # membership NOT deleted
       assert Repo.get_by(Estimate.Accounts.Membership,
-               user_id: ctx.member.id, organization_id: ctx.org.id)
+               user_id: ctx.member.id,
+               organization_id: ctx.org.id
+             )
     end
 
     test "rejects reassignment to the removed user", ctx do

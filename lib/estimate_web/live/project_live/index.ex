@@ -168,7 +168,9 @@ defmodule EstimateWeb.ProjectLive.Index do
 
             <%!-- Project Name --%>
             <div>
-              <label class="block text-xs font-medium text-base-content/60 mb-1.5">Project Name *</label>
+              <label class="block text-xs font-medium text-base-content/60 mb-1.5">
+                Project Name *
+              </label>
               <input
                 type="text"
                 name={@form[:name].name}
@@ -181,7 +183,9 @@ defmodule EstimateWeb.ProjectLive.Index do
 
             <%!-- Short Description --%>
             <div>
-              <label class="block text-xs font-medium text-base-content/60 mb-1.5">Short Description</label>
+              <label class="block text-xs font-medium text-base-content/60 mb-1.5">
+                Short Description
+              </label>
               <input
                 type="text"
                 name={@form[:short_description].name}
@@ -206,7 +210,9 @@ defmodule EstimateWeb.ProjectLive.Index do
 
             <%!-- Repository URL --%>
             <div>
-              <label class="block text-xs font-medium text-base-content/60 mb-1.5">Repository URL</label>
+              <label class="block text-xs font-medium text-base-content/60 mb-1.5">
+                Repository URL
+              </label>
               <input
                 type="url"
                 name={@form[:repository_url].name}

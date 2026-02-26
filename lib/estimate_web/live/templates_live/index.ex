@@ -108,7 +108,11 @@ defmodule EstimateWeb.TemplatesLive.Index do
             </div>
           </form>
         <% else %>
-          <form phx-submit="create_template_from_json" phx-change="validate_template_json" class="px-6 py-4 space-y-4">
+          <form
+            phx-submit="create_template_from_json"
+            phx-change="validate_template_json"
+            class="px-6 py-4 space-y-4"
+          >
             <.json_import_panel
               json_input={@json_input}
               json_error={@json_error}
@@ -116,7 +120,9 @@ defmodule EstimateWeb.TemplatesLive.Index do
             />
 
             <div>
-              <label class="block text-xs font-medium text-base-content/60 mb-1.5">Template Name</label>
+              <label class="block text-xs font-medium text-base-content/60 mb-1.5">
+                Template Name
+              </label>
               <input
                 type="text"
                 name="template_name"

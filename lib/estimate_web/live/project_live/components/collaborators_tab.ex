@@ -27,7 +27,11 @@ defmodule EstimateWeb.ProjectLive.Components.CollaboratorsTab do
               <label class="block text-xs font-medium text-base-content/60 mb-1.5">Member</label>
               <%= if @selected_member do %>
                 <div class="flex items-center gap-2 px-3 py-2 bg-base-200 border border-base-300 rounded-lg">
-                  <.avatar name={@selected_member.name || @selected_member.email} seed={@selected_member.id} size={:xs} />
+                  <.avatar
+                    name={@selected_member.name || @selected_member.email}
+                    seed={@selected_member.id}
+                    size={:xs}
+                  />
                   <span class="text-sm text-base-content">
                     {@selected_member.name || @selected_member.email}
                   </span>
@@ -67,7 +71,11 @@ defmodule EstimateWeb.ProjectLive.Components.CollaboratorsTab do
                     phx-value-user-id={membership.user.id}
                     class="w-full px-3 py-2 flex items-center gap-3 hover:bg-base-200 text-left"
                   >
-                    <.avatar name={membership.user.name || membership.user.email} seed={membership.user.id} size={:sm} />
+                    <.avatar
+                      name={membership.user.name || membership.user.email}
+                      seed={membership.user.id}
+                      size={:sm}
+                    />
                     <div class="min-w-0">
                       <p class="text-sm font-medium text-base-content truncate">
                         {membership.user.name || membership.user.email}

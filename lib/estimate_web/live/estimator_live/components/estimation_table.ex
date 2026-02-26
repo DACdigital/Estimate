@@ -57,7 +57,10 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimationTable do
                 <td colspan={length(@estimation.roles) + 3} class="px-6 py-3">
                   <div class="flex items-center justify-between">
                     <div class="flex items-center gap-3">
-                      <span :if={@can_edit} class="cursor-move text-base-content/40 hover:text-base-content/70 drag-handle">
+                      <span
+                        :if={@can_edit}
+                        class="cursor-move text-base-content/40 hover:text-base-content/70 drag-handle"
+                      >
                         <.icon name="hero-bars-3" class="w-4 h-4" />
                       </span>
                       <%= if @can_edit do %>
@@ -100,7 +103,10 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimationTable do
               >
                 <td class="px-6 py-1.5">
                   <div class="flex items-start gap-3">
-                    <span :if={@can_edit} class="cursor-move text-base-content/30 hover:text-base-content/60 drag-handle opacity-0 group-hover:opacity-100 transition-opacity mt-1">
+                    <span
+                      :if={@can_edit}
+                      class="cursor-move text-base-content/30 hover:text-base-content/60 drag-handle opacity-0 group-hover:opacity-100 transition-opacity mt-1"
+                    >
                       <.icon name="hero-bars-3" class="w-3 h-3" />
                     </span>
                     <span class="relative group/priority flex items-center mt-0.5">

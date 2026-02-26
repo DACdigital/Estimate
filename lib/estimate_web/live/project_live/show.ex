@@ -26,7 +26,10 @@ defmodule EstimateWeb.ProjectLive.Show do
         </.link>
         <span class="text-base-content/30">›</span>
         <span class="text-base-content font-medium">{@project.name}</span>
-        <span :if={@current_estimation && @current_estimation.currency} class="text-base-content/30 ml-2">
+        <span
+          :if={@current_estimation && @current_estimation.currency}
+          class="text-base-content/30 ml-2"
+        >
           •
         </span>
         <span :if={@current_estimation && @current_estimation.currency} class="text-base-content/40">
@@ -46,7 +49,10 @@ defmodule EstimateWeb.ProjectLive.Show do
               </span>
             </div>
             <div class="flex items-center gap-3 mt-1">
-              <span :if={Project.composite_key(@project)} class="text-sm font-mono text-base-content/40">
+              <span
+                :if={Project.composite_key(@project)}
+                class="text-sm font-mono text-base-content/40"
+              >
                 {Project.composite_key(@project)}
               </span>
             </div>
@@ -227,7 +233,9 @@ defmodule EstimateWeb.ProjectLive.Show do
             <%!-- Top row: Name, Key, Status --%>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div class="md:col-span-1">
-                <label class="block text-xs font-medium text-base-content/60 mb-1.5">Project Name *</label>
+                <label class="block text-xs font-medium text-base-content/60 mb-1.5">
+                  Project Name *
+                </label>
                 <input
                   type="text"
                   name={@form[:name].name}
@@ -239,7 +247,9 @@ defmodule EstimateWeb.ProjectLive.Show do
               </div>
 
               <div>
-                <label class="block text-xs font-medium text-base-content/60 mb-1.5">Project Key</label>
+                <label class="block text-xs font-medium text-base-content/60 mb-1.5">
+                  Project Key
+                </label>
                 <div class="flex items-center gap-1">
                   <span class="px-3 py-2 bg-base-200 border border-base-content/20 rounded-l-lg text-sm text-base-content/60 font-mono">
                     {@customer_key || "---"}
@@ -275,7 +285,9 @@ defmodule EstimateWeb.ProjectLive.Show do
 
             <%!-- Default Currency --%>
             <div>
-              <label class="block text-xs font-medium text-base-content/60 mb-1.5">Default Currency</label>
+              <label class="block text-xs font-medium text-base-content/60 mb-1.5">
+                Default Currency
+              </label>
               <select
                 name={@form[:currency_id].name}
                 class="w-full max-w-md px-3 py-2 border border-base-content/20 rounded-lg text-sm"
@@ -295,7 +307,9 @@ defmodule EstimateWeb.ProjectLive.Show do
 
             <%!-- Short Description --%>
             <div>
-              <label class="block text-xs font-medium text-base-content/60 mb-1.5">Short Description</label>
+              <label class="block text-xs font-medium text-base-content/60 mb-1.5">
+                Short Description
+              </label>
               <input
                 type="text"
                 name={@form[:short_description].name}
@@ -320,7 +334,9 @@ defmodule EstimateWeb.ProjectLive.Show do
 
             <%!-- Repository URL --%>
             <div>
-              <label class="block text-xs font-medium text-base-content/60 mb-1.5">Repository URL</label>
+              <label class="block text-xs font-medium text-base-content/60 mb-1.5">
+                Repository URL
+              </label>
               <input
                 type="url"
                 name={@form[:repository_url].name}
@@ -363,7 +379,10 @@ defmodule EstimateWeb.ProjectLive.Show do
       </.form>
 
       <%!-- Danger Zone --%>
-      <div :if={@can_delete_project} class="bg-base-100 border border-error/30 rounded-xl overflow-hidden">
+      <div
+        :if={@can_delete_project}
+        class="bg-base-100 border border-error/30 rounded-xl overflow-hidden"
+      >
         <div class="p-6">
           <h2 class="text-lg font-semibold text-error">Danger Zone</h2>
           <p class="text-sm text-base-content/60 mt-1">
@@ -380,7 +399,6 @@ defmodule EstimateWeb.ProjectLive.Show do
     </div>
     """
   end
-
 
   defp tab_estimations(assigns) do
     ~H"""
@@ -402,7 +420,9 @@ defmodule EstimateWeb.ProjectLive.Show do
             <.icon name="hero-calculator" class="w-6 h-6 text-base-content/40" />
           </div>
           <p class="text-sm font-medium text-base-content">No estimations yet</p>
-          <p class="text-sm text-base-content/60 mt-1">Create your first estimation to get started.</p>
+          <p class="text-sm text-base-content/60 mt-1">
+            Create your first estimation to get started.
+          </p>
         </div>
       <% else %>
         <%= for estimation <- @estimations do %>
@@ -962,7 +982,12 @@ defmodule EstimateWeb.ProjectLive.Show do
     else
       collab = Enum.find(socket.assigns.collaborators, &(&1.id == id))
 
-      if collab && can_change_role?(socket.assigns.can_manage_collaborators, socket.assigns.current_user, collab) do
+      if collab &&
+           can_change_role?(
+             socket.assigns.can_manage_collaborators,
+             socket.assigns.current_user,
+             collab
+           ) do
         case Portfolio.update_collaborator_role(collab, role) do
           {:ok, _} ->
             {:noreply, reload_collaborators(socket, "Role updated")}
@@ -992,7 +1017,12 @@ defmodule EstimateWeb.ProjectLive.Show do
       is_nil(collab) ->
         {:noreply, assign(socket, :removing_collaborator, nil)}
 
-      !can_remove_collaborator?(socket.assigns.can_manage_collaborators, socket.assigns.current_user, socket.assigns.current_collaborator, collab) ->
+      !can_remove_collaborator?(
+        socket.assigns.can_manage_collaborators,
+        socket.assigns.current_user,
+        socket.assigns.current_collaborator,
+        collab
+      ) ->
         {:noreply,
          socket
          |> put_flash(:error, "Not authorized")
@@ -1089,5 +1119,4 @@ defmodule EstimateWeb.ProjectLive.Show do
         String.contains?(String.downcase(m.user.email), term)
     end)
   end
-
 end

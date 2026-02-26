@@ -79,8 +79,11 @@ defmodule Estimate.Organizations do
 
   defp decrypt_field(org, nonce_field, cipher_field) do
     case {Map.get(org, nonce_field), Map.get(org, cipher_field)} do
-      {nil, _} -> nil
-      {_, nil} -> nil
+      {nil, _} ->
+        nil
+
+      {_, nil} ->
+        nil
 
       {nonce, ciphertext} ->
         case Estimate.Encryption.decrypt(nonce, ciphertext) do
@@ -98,6 +101,66 @@ defmodule Estimate.Organizations do
     org.smtp_host not in [nil, ""] and
       org.smtp_from_email not in [nil, ""] and
       org.encrypted_smtp_password != nil
+  end
+
+  ## Security Settings (2FA enforcement)
+
+  def update_security_settings(%Organization{} = org, attrs) do
+    changeset = Organization.security_settings_changeset(org, attrs)
+
+    case Repo.update(changeset) do
+      {:ok, updated_org} ->
+        handle_2fa_enforcement_change(updated_org, org.enforce_2fa)
+        {:ok, updated_org}
+
+      error ->
+        error
+    end
+  end
+
+  defp handle_2fa_enforcement_change(%Organization{enforce_2fa: true} = org, false) do
+    # Toggled ON: set deadline on members without TOTP
+    deadline =
+      DateTime.utc_now()
+      |> DateTime.add(org.enforce_2fa_grace_period_days * 86400, :second)
+      |> DateTime.truncate(:second)
+
+    from(m in Membership,
+      where: m.organization_id == ^org.id,
+      join: u in assoc(m, :user),
+      where: is_nil(u.totp_enabled_at) and is_nil(m.totp_required_by)
+    )
+    |> Repo.update_all(set: [totp_required_by: deadline])
+  end
+
+  defp handle_2fa_enforcement_change(%Organization{enforce_2fa: false} = org, true) do
+    # Toggled OFF: clear all deadlines
+    from(m in Membership, where: m.organization_id == ^org.id)
+    |> Repo.update_all(set: [totp_required_by: nil])
+  end
+
+  defp handle_2fa_enforcement_change(_org, _prev), do: :ok
+
+  @doc "Set totp_required_by on a membership joining an enforcing org."
+  def set_2fa_deadline_if_needed(%Membership{} = membership, %Organization{} = org) do
+    if org.enforce_2fa do
+      deadline =
+        DateTime.utc_now()
+        |> DateTime.add(org.enforce_2fa_grace_period_days * 86400, :second)
+        |> DateTime.truncate(:second)
+
+      membership
+      |> Ecto.Changeset.change(totp_required_by: deadline)
+      |> Repo.update()
+    else
+      {:ok, membership}
+    end
+  end
+
+  @doc "Clear totp_required_by on all memberships for a user who enabled TOTP."
+  def clear_2fa_deadlines_for_user(user_id) do
+    from(m in Membership, where: m.user_id == ^user_id and not is_nil(m.totp_required_by))
+    |> Repo.update_all(set: [totp_required_by: nil])
   end
 
   ## Membership
@@ -171,7 +234,10 @@ defmodule Estimate.Organizations do
     new_owner_ids = reassignments |> Map.values() |> Enum.uniq()
 
     org_project_ids =
-      from(p in Project, where: p.id in ^project_ids and p.organization_id == ^org_id, select: p.id)
+      from(p in Project,
+        where: p.id in ^project_ids and p.organization_id == ^org_id,
+        select: p.id
+      )
       |> Repo.all()
       |> MapSet.new()
 
@@ -267,9 +333,16 @@ defmodule Estimate.Organizations do
         end)
         |> Repo.transaction()
         |> case do
-          {:ok, result} -> {:ok, result}
-          {:error, :verify_still_valid, :expired, _} -> {:error, :expired}
-          {:error, _op, changeset, _} -> {:error, changeset}
+          {:ok, result} ->
+            org = get_organization!(invite.organization_id)
+            set_2fa_deadline_if_needed(result.membership, org)
+            {:ok, result}
+
+          {:error, :verify_still_valid, :expired, _} ->
+            {:error, :expired}
+
+          {:error, _op, changeset, _} ->
+            {:error, changeset}
         end
     end
   end
@@ -331,8 +404,13 @@ defmodule Estimate.Organizations do
     end)
     |> Repo.transaction()
     |> case do
-      {:ok, result} -> {:ok, result}
-      {:error, _op, changeset, _} -> {:error, changeset}
+      {:ok, result} ->
+        org = get_organization!(request.organization_id)
+        set_2fa_deadline_if_needed(result.membership, org)
+        {:ok, result}
+
+      {:error, _op, changeset, _} ->
+        {:error, changeset}
     end
   end
 

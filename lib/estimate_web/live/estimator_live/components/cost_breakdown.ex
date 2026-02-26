@@ -39,7 +39,9 @@ defmodule EstimateWeb.EstimatorLive.Components.CostBreakdown do
         <div class="p-6">
           <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
             <div class="bg-base-200 rounded-lg p-4">
-              <p class="text-xs font-medium text-base-content/60 uppercase tracking-wide mb-1">Base Cost</p>
+              <p class="text-xs font-medium text-base-content/60 uppercase tracking-wide mb-1">
+                Base Cost
+              </p>
               <p class="text-xl font-bold text-base-content">
                 {format_cost(Calculator.total_base_cost(@epics, @roles), @currency)}
               </p>

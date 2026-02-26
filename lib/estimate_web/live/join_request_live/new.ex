@@ -109,7 +109,10 @@ defmodule EstimateWeb.JoinRequestLive.New do
 
           <p class="mt-8 text-center text-base-content/70">
             Already have an account?
-            <.link navigate={~p"/users/log_in?#{%{return_to: @return_to}}"} class="text-info hover:text-info/80 font-medium">
+            <.link
+              navigate={~p"/users/log_in?#{%{return_to: @return_to}}"}
+              class="text-info hover:text-info/80 font-medium"
+            >
               Sign In
             </.link>
           </p>

@@ -10,7 +10,9 @@ defmodule EstimateWeb.SettingsLive.Email do
     <div class="max-w-4xl mx-auto">
       <div class="mb-8">
         <h1 class="text-2xl font-bold text-base-content">Email (SMTP)</h1>
-        <p class="mt-1 text-base-content/60">Configure SMTP to send invite emails from your organization</p>
+        <p class="mt-1 text-base-content/60">
+          Configure SMTP to send invite emails from your organization
+        </p>
       </div>
 
       <div class="bg-base-100 border border-base-300 rounded-xl overflow-hidden">
@@ -58,14 +60,18 @@ defmodule EstimateWeb.SettingsLive.Email do
                     :if={@smtp_configured}
                     class="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-success/10 text-success rounded-full"
                   >
-                    <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4" /></svg>
+                    <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 8 8">
+                      <circle cx="4" cy="4" r="4" />
+                    </svg>
                     Connected · {@smtp_password_masked}
                   </span>
                 </label>
                 <input
                   type="password"
                   name="email[smtp_password]"
-                  placeholder={if @smtp_configured, do: "Paste new password to replace", else: "App password"}
+                  placeholder={
+                    if @smtp_configured, do: "Paste new password to replace", else: "App password"
+                  }
                   autocomplete="off"
                   class="w-full px-3 py-2 border border-base-content/20 rounded-lg text-sm"
                 />
@@ -188,7 +194,8 @@ defmodule EstimateWeb.SettingsLive.Email do
 
       case Estimate.Mailer.deliver_with_org_smtp(email, org) do
         {:ok, _} ->
-          {:noreply, put_flash(socket, :info, "Test email sent to #{socket.assigns.current_user.email}")}
+          {:noreply,
+           put_flash(socket, :info, "Test email sent to #{socket.assigns.current_user.email}")}
 
         {:error, reason} ->
           {:noreply, put_flash(socket, :error, "Email failed: #{inspect(reason)}")}
