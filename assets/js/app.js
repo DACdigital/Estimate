@@ -74,6 +74,23 @@ const Hooks = {
     }
   },
 
+  AutoDismiss: {
+    mounted() {
+      this.timeout = setTimeout(() => {
+        this.el.style.transition = "opacity 200ms ease-in, transform 200ms ease-in"
+        this.el.style.opacity = "0"
+        this.el.style.transform = "translateY(-1rem)"
+        setTimeout(() => {
+          this.pushEvent("lv:clear-flash", { key: this.el.dataset.kind })
+          this.el.remove()
+        }, 200)
+      }, 5000)
+    },
+    destroyed() {
+      clearTimeout(this.timeout)
+    }
+  },
+
   PriorityFilter: {
     mounted() {
       const key = `priorities:${this.el.dataset.estimationId}`
