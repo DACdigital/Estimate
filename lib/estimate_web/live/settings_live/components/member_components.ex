@@ -162,6 +162,7 @@ defmodule EstimateWeb.SettingsLive.Components.MemberComponents do
               </span>
             </div>
             <p class="text-sm text-base-content/60">{membership.user.email}</p>
+            <p class="text-xs text-base-content/40">Active {time_ago(membership.user.last_active_at)}</p>
           </div>
         </div>
         <div class="flex items-center gap-4">
@@ -316,5 +317,19 @@ defmodule EstimateWeb.SettingsLive.Components.MemberComponents do
       <% end %>
     </div>
     """
+  end
+
+  defp time_ago(nil), do: "never"
+
+  defp time_ago(datetime) do
+    diff = DateTime.diff(DateTime.utc_now(), datetime, :second)
+
+    cond do
+      diff < 60 -> "just now"
+      diff < 3600 -> "#{div(diff, 60)} min ago"
+      diff < 86400 -> "#{div(diff, 3600)} hours ago"
+      diff < 86400 * 30 -> "#{div(diff, 86400)} days ago"
+      true -> "#{div(diff, 86400 * 30)} months ago"
+    end
   end
 end

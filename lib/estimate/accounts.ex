@@ -137,16 +137,32 @@ defmodule Estimate.Accounts do
     User.registration_changeset(user, attrs, hash_password: false, validate_email: false)
   end
 
-  ## Last org tracking
+  ## Last org + activity tracking
 
-  def update_user_last_org(%User{last_org_id: org_id}, org_id), do: :ok
+  def touch_user_activity(%User{last_org_id: org_id} = user, org_id) do
+    maybe_touch_last_active(user)
+  end
 
-  def update_user_last_org(%User{} = user, org_id) do
+  def touch_user_activity(%User{} = user, org_id) do
+    now = DateTime.utc_now(:second)
+
     Repo.without_rls(fn ->
       user
-      |> Ecto.Changeset.change(last_org_id: org_id)
+      |> Ecto.Changeset.change(last_org_id: org_id, last_active_at: now)
       |> Repo.update()
     end)
+  end
+
+  defp maybe_touch_last_active(%User{} = user) do
+    now = DateTime.utc_now(:second)
+
+    if is_nil(user.last_active_at) or DateTime.diff(now, user.last_active_at, :minute) >= 15 do
+      Repo.without_rls(fn ->
+        user |> Ecto.Changeset.change(last_active_at: now) |> Repo.update()
+      end)
+    else
+      :ok
+    end
   end
 
   ## Session

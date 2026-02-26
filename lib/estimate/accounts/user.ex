@@ -9,6 +9,7 @@ defmodule Estimate.Accounts.User do
     field :hashed_password, :string, redact: true
     field :confirmed_at, :utc_datetime
     field :last_org_id, :binary_id
+    field :last_active_at, :utc_datetime
 
     has_many :memberships, Estimate.Accounts.Membership
     has_many :organizations, through: [:memberships, :organization]

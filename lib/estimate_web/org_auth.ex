@@ -38,7 +38,7 @@ defmodule EstimateWeb.OrgAuth do
           Estimate.Repo.put_org_id(org_id)
           Estimate.Repo.put_user_id(user.id)
 
-          Task.start(fn -> Accounts.update_user_last_org(user, org_id) end)
+          Task.start(fn -> Accounts.touch_user_activity(user, org_id) end)
 
           socket =
             socket
