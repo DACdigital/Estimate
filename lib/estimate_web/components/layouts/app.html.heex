@@ -101,12 +101,6 @@
             label="Email"
             active={assigns[:settings_page] == :email}
           />
-          <.sidebar_child_link
-            :if={admin?(assigns[:current_membership])}
-            href={~p"/org/#{@org_id}/settings/security"}
-            label="Security"
-            active={assigns[:settings_page] == :security}
-          />
         </div>
       </div>
     </nav>

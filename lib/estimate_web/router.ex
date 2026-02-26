@@ -118,7 +118,6 @@ defmodule EstimateWeb.Router do
       live "/settings/currencies", SettingsLive.Currencies, :index
       live "/settings/ai", SettingsLive.Ai, :index
       live "/settings/email", SettingsLive.Email, :index
-      live "/settings/security", SettingsLive.Security, :index
 
       # CRM
       live "/customers", CustomerLive.Index, :index
