@@ -37,18 +37,18 @@ defmodule EstimateWeb.ProjectLive.Components.NewEstimationModal do
           type="button"
           phx-click="set_estimation_source"
           phx-value-source="fresh"
-          class={"flex-1 px-3 py-2.5 text-sm font-medium rounded-lg border-2 transition-colors #{if @estimation_source == "fresh", do: "border-base-content bg-neutral text-neutral-content", else: "border-base-300 text-base-content/70 hover:border-base-content/20"}"}
+          class={"flex-1 px-3 py-2.5 text-sm font-medium rounded-lg border-2 transition-colors inline-flex items-center justify-center whitespace-nowrap gap-1.5 #{if @estimation_source == "fresh", do: "border-base-content bg-neutral text-neutral-content", else: "border-base-300 text-base-content/70 hover:border-base-content/20"}"}
         >
-          <.icon name="hero-plus" class="w-4 h-4 inline-block mr-1.5 -mt-0.5" /> Start fresh
+          <.icon name="hero-plus" class="w-4 h-4 shrink-0" /> Start fresh
         </button>
         <button
           type="button"
           phx-click="set_estimation_source"
           phx-value-source="copy"
           disabled={Enum.empty?(@estimations)}
-          class={"flex-1 px-3 py-2.5 text-sm font-medium rounded-lg border-2 transition-colors #{if @estimation_source == "copy", do: "border-base-content bg-neutral text-neutral-content", else: "border-base-300 text-base-content/70 hover:border-base-content/20"} #{if Enum.empty?(@estimations), do: "opacity-50 cursor-not-allowed"}"}
+          class={"flex-1 px-3 py-2.5 text-sm font-medium rounded-lg border-2 transition-colors inline-flex items-center justify-center whitespace-nowrap gap-1.5 #{if @estimation_source == "copy", do: "border-base-content bg-neutral text-neutral-content", else: "border-base-300 text-base-content/70 hover:border-base-content/20"} #{if Enum.empty?(@estimations), do: "opacity-50 cursor-not-allowed"}"}
         >
-          <.icon name="hero-document-duplicate" class="w-4 h-4 inline-block mr-1.5 -mt-0.5" />
+          <.icon name="hero-document-duplicate" class="w-4 h-4 shrink-0" />
           Copy existing
         </button>
         <button
@@ -56,18 +56,18 @@ defmodule EstimateWeb.ProjectLive.Components.NewEstimationModal do
           phx-click="set_estimation_source"
           phx-value-source="template"
           disabled={Enum.empty?(@estimation_templates)}
-          class={"flex-1 px-3 py-2.5 text-sm font-medium rounded-lg border-2 transition-colors #{if @estimation_source == "template", do: "border-base-content bg-neutral text-neutral-content", else: "border-base-300 text-base-content/70 hover:border-base-content/20"} #{if Enum.empty?(@estimation_templates), do: "opacity-50 cursor-not-allowed"}"}
+          class={"flex-1 px-3 py-2.5 text-sm font-medium rounded-lg border-2 transition-colors inline-flex items-center justify-center whitespace-nowrap gap-1.5 #{if @estimation_source == "template", do: "border-base-content bg-neutral text-neutral-content", else: "border-base-300 text-base-content/70 hover:border-base-content/20"} #{if Enum.empty?(@estimation_templates), do: "opacity-50 cursor-not-allowed"}"}
         >
-          <.icon name="hero-rectangle-stack" class="w-4 h-4 inline-block mr-1.5 -mt-0.5" />
+          <.icon name="hero-rectangle-stack" class="w-4 h-4 shrink-0" />
           From template
         </button>
         <button
           type="button"
           phx-click="set_estimation_source"
           phx-value-source="json"
-          class={"flex-1 px-3 py-2.5 text-sm font-medium rounded-lg border-2 transition-colors #{if @estimation_source == "json", do: "border-base-content bg-neutral text-neutral-content", else: "border-base-300 text-base-content/70 hover:border-base-content/20"}"}
+          class={"flex-1 px-3 py-2.5 text-sm font-medium rounded-lg border-2 transition-colors inline-flex items-center justify-center whitespace-nowrap gap-1.5 #{if @estimation_source == "json", do: "border-base-content bg-neutral text-neutral-content", else: "border-base-300 text-base-content/70 hover:border-base-content/20"}"}
         >
-          <.icon name="hero-arrow-up-tray" class="w-4 h-4 inline-block mr-1.5 -mt-0.5" /> Import JSON
+          <.icon name="hero-arrow-up-tray" class="w-4 h-4 shrink-0" /> Import JSON
         </button>
       </div>
 
