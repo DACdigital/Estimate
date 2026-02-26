@@ -21,13 +21,36 @@ defmodule EstimateWeb.SettingsLive.Ai do
                 <label class="block text-xs font-medium text-base-content/60 mb-1.5">
                   API Key
                   <span
-                    :if={@ai_configured}
+                    :if={@ai_configured && @ai_balance.loading}
+                    class="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-base-content/10 text-base-content/60 rounded-full"
+                  >
+                    <svg class="w-2.5 h-2.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                      <path
+                        class="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                      />
+                    </svg>
+                    Verifying…
+                  </span>
+                  <span
+                    :if={@ai_balance.ok? && is_map(@ai_balance.result)}
                     class="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-success/10 text-success rounded-full"
                   >
                     <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 8 8">
                       <circle cx="4" cy="4" r="4" />
                     </svg>
                     Connected · {@ai_key_masked}
+                  </span>
+                  <span
+                    :if={@ai_balance.ok? && @ai_balance.result == :invalid}
+                    class="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-error/10 text-error rounded-full"
+                  >
+                    <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 8 8">
+                      <circle cx="4" cy="4" r="4" />
+                    </svg>
+                    Invalid key
                   </span>
                 </label>
                 <input
@@ -82,7 +105,7 @@ defmodule EstimateWeb.SettingsLive.Ai do
               </div>
             </div>
             <div
-              :if={@ai_configured && !(@ai_balance.ok? && is_nil(@ai_balance.result))}
+              :if={@ai_balance.ok? && is_map(@ai_balance.result)}
               class="hidden sm:block"
             >
               <div :if={@ai_balance.loading} class="animate-pulse text-sm text-base-content/40 mt-5">
@@ -221,7 +244,7 @@ defmodule EstimateWeb.SettingsLive.Ai do
 
         case Estimate.AI.OpenRouter.get_key_info(api_key) do
           {:ok, info} -> {:ok, %{ai_balance: info}}
-          {:error, _} -> {:ok, %{ai_balance: nil}}
+          {:error, _} -> {:ok, %{ai_balance: :invalid}}
         end
       end)
     else
