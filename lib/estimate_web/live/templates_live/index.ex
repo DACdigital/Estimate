@@ -224,6 +224,10 @@ defmodule EstimateWeb.TemplatesLive.Index do
     {:noreply, push_schema_download(socket)}
   end
 
+  def handle_event("copy_agent_prompt", _params, socket) do
+    {:noreply, socket |> push_agent_prompt_copy() |> put_flash(:info, "Agent prompt copied")}
+  end
+
   def handle_event("create_template_from_json", %{"template_name" => name}, socket) do
     require_admin(socket, fn ->
       parsed = socket.assigns.json_parsed

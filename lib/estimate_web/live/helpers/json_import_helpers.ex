@@ -35,6 +35,10 @@ defmodule EstimateWeb.JsonImportHelpers do
     end
   end
 
+  def push_agent_prompt_copy(socket) do
+    push_event(socket, "copy_to_clipboard", %{text: JsonImport.agent_prompt()})
+  end
+
   def push_schema_download(socket) do
     schema = JsonImport.example_schema()
 

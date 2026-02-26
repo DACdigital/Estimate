@@ -8,6 +8,7 @@ defmodule EstimateWeb.Components.JsonImportComponent do
   attr :validate_event, :string, default: "validate_template_json"
   attr :upload_event, :string, default: "json_file_uploaded"
   attr :download_event, :string, default: "download_json_schema"
+  attr :copy_prompt_event, :string, default: "copy_agent_prompt"
 
   def json_import_panel(assigns) do
     ~H"""
@@ -25,6 +26,24 @@ defmodule EstimateWeb.Components.JsonImportComponent do
             >
               Download example schema
             </button>
+            <div class="flex items-center gap-1">
+              <button
+                type="button"
+                phx-click={@copy_prompt_event}
+                class="text-xs text-info hover:text-info/80 hover:underline inline-flex items-center gap-1"
+              >
+                <.icon name="hero-clipboard-document" class="w-3.5 h-3.5" /> Copy agent prompt
+              </button>
+              <div class="relative group">
+                <.icon
+                  name="hero-question-mark-circle"
+                  class="w-3.5 h-3.5 text-base-content/40 cursor-help"
+                />
+                <div class="hidden group-hover:block absolute right-0 bottom-full mb-1 w-56 px-2.5 py-1.5 text-xs text-base-content bg-base-200 border border-base-300 rounded-lg shadow-lg z-50">
+                  Copy a prompt for ChatGPT, Claude or Gemini that will extract tasks from your meeting notes, chat logs, or any text into the JSON format above
+                </div>
+              </div>
+            </div>
             <label class="text-xs text-info hover:text-info/80 hover:underline cursor-pointer">
               Or upload file
               <input

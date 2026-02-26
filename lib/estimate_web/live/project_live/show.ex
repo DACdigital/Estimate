@@ -874,6 +874,10 @@ defmodule EstimateWeb.ProjectLive.Show do
     {:noreply, push_schema_download(socket)}
   end
 
+  def handle_event("copy_agent_prompt", _params, socket) do
+    {:noreply, socket |> push_agent_prompt_copy() |> put_flash(:info, "Agent prompt copied")}
+  end
+
   def handle_event("set_current_estimation", %{"id" => id}, socket) do
     org_id = socket.assigns.org_id
     estimation = EstimationEngine.get_estimation!(id, org_id)

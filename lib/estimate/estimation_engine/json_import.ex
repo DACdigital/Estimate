@@ -128,6 +128,91 @@ defmodule Estimate.EstimationEngine.JsonImport do
   end
 
   @doc """
+  Returns an LLM prompt that extracts tasks from unstructured text into estimation JSON.
+  """
+  def agent_prompt do
+    schema =
+      %{
+        "estimation" => "Estimation Name",
+        "description" => "Optional description for the estimation",
+        "currency" => "EUR",
+        "epics" => [
+          %{
+            "name" => "Epic Name",
+            "description" => "Optional epic description",
+            "tasks" => [
+              %{
+                "name" => "Task Name",
+                "description" => "Optional task description",
+                "priority" => "must"
+              }
+            ]
+          }
+        ]
+      }
+      |> Jason.encode!(pretty: true)
+
+    """
+    # Task Extraction Agent Prompt
+
+    ## Role
+
+    You are a project estimation assistant. Your job is to analyze unstructured text and extract actionable tasks, group them into logical epics, and output a structured JSON estimation.
+
+    ## Input
+
+    You will receive:
+
+    1. **A reference JSON schema** (below) that defines the expected output format.
+    2. **Unstructured text** — this could be meeting transcripts (e.g. Fireflies export), Slack/Discord chat logs, email threads, handwritten notes, or any freeform project discussion.
+
+    ### Reference Schema
+
+    ```json
+    #{schema}
+    ```
+
+    **Field rules:**
+
+    - `estimation`: Derive a meaningful name from the project or meeting context. If unclear, use a sensible default.
+    - `description`: A brief summary of what the estimation covers, derived from context.
+    - `currency`: Include only if a currency is explicitly mentioned in the text. Omit the field otherwise.
+    - `epics[].name`: A concise label for a logical grouping of related tasks (e.g. "Frontend Development", "Infrastructure", "Design").
+    - `epics[].description`: Optional — include only when the text provides enough context to summarize the epic's scope.
+    - `tasks[].name`: A clear, concise action item. Avoid vague language — prefer specifics (e.g. "Implement JWT authentication" over "Do auth stuff").
+    - `tasks[].description`: Optional — include when the text contains additional detail, acceptance criteria, or technical notes about the task.
+    - `tasks[].priority`: Assign using the MoSCoW method based on context clues in the text:
+      - **must** — Explicitly stated as critical, blocking, required, MVP, or non-negotiable.
+      - **should** — Important but not blocking; described as "we really need" or "high priority" without being a hard requirement.
+      - **could** — Nice-to-have, mentioned as future improvement, stretch goal, or "if we have time".
+      - **wont** — Explicitly deferred, rejected, out of scope, or agreed to skip for now.
+      - When priority is ambiguous, default to **should**.
+
+    ## Instructions
+
+    1. **Read the entire input text** before extracting anything.
+    2. **Identify distinct tasks** — look for action items, feature requests, bug mentions, technical decisions, and deliverables.
+    3. **Group tasks into epics** by theme or domain (e.g. frontend, backend, design, infrastructure, testing, documentation). Do not create an epic with only one task unless it is clearly a standalone concern.
+    4. **Deduplicate** — if the same task is mentioned multiple times (common in meetings), consolidate into a single entry and merge any extra context into the description.
+    5. **Ignore noise** — skip greetings, small talk, off-topic tangents, and anything that is not an actionable work item or project decision.
+    6. **Preserve technical specifics** — if the text mentions specific technologies, endpoints, libraries, or constraints, include them in the task description.
+    7. **Output only valid JSON** — no markdown fences, no commentary, no preamble. Just the raw JSON object.
+
+    ## Output
+
+    Return a single JSON object matching the reference schema. Nothing else.
+
+    ---
+
+    ## Text to analyze
+
+    ```
+    [PASTE YOUR TEXT HERE]
+    ```
+    """
+  end
+
+  @doc """
   Returns the example JSON schema string for download.
   """
   def example_schema do
