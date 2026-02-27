@@ -27,6 +27,22 @@ defmodule EstimateWeb.ProjectLive.Index do
         </.link>
       </div>
 
+      <%!-- Watchtower Filter Banner --%>
+      <div
+        :if={@watchtower_filter}
+        class="mb-4 flex items-center justify-between bg-warning/5 border border-warning/20 rounded-lg px-4 py-2"
+      >
+        <span class="text-sm text-base-content/70">
+          Showing: projects missing descriptions
+        </span>
+        <.link
+          patch={~p"/org/#{@org_id}/projects"}
+          class="text-base-content/40 hover:text-base-content/70 transition-colors"
+        >
+          <.icon name="hero-x-mark" class="w-4 h-4" />
+        </.link>
+      </div>
+
       <%!-- Project List --%>
       <div class="bg-base-100 border border-base-300 rounded-xl overflow-hidden">
         <%= if @projects == [] do %>
@@ -276,6 +292,7 @@ defmodule EstimateWeb.ProjectLive.Index do
      |> assign(:page_title, "Projects")
      |> assign(:active_tab, :projects)
      |> assign(:status_filter, "active")
+     |> assign(:watchtower_filter, nil)
      |> assign(:customers, customers)
      |> assign(:currencies, currencies)
      |> assign(:customer_key, nil)
@@ -321,7 +338,23 @@ defmodule EstimateWeb.ProjectLive.Index do
     end
   end
 
-  defp apply_action(socket, :index, _params) do
+  defp apply_action(socket, :index, params) do
+    is_admin = admin?(socket.assigns.current_membership)
+    watchtower = if is_admin, do: params["watchtower"]
+
+    socket =
+      if watchtower == "missing_descriptions" do
+        socket
+        |> assign(:watchtower_filter, watchtower)
+        |> assign(:status_filter, nil)
+        |> fetch_projects(watchtower: :missing_descriptions)
+      else
+        socket
+        |> assign(:watchtower_filter, nil)
+        |> assign(:status_filter, socket.assigns.status_filter || "active")
+        |> fetch_projects()
+      end
+
     socket
     |> assign(:page_title, "Projects")
     |> assign(:project, nil)
@@ -377,7 +410,8 @@ defmodule EstimateWeb.ProjectLive.Index do
   def handle_event("toggle_filter", %{"filter" => filter}, socket) do
     status_filter = if filter in ~w(active completed archived), do: filter
 
-    {:noreply, socket |> assign(:status_filter, status_filter) |> fetch_projects()}
+    {:noreply,
+     socket |> assign(:status_filter, status_filter) |> assign(:watchtower_filter, nil) |> fetch_projects()}
   end
 
   def handle_event("save", %{"project" => project_params}, socket) do
@@ -415,8 +449,7 @@ defmodule EstimateWeb.ProjectLive.Index do
           {:noreply,
            socket
            |> put_flash(:info, "Project updated successfully")
-           |> fetch_projects()
-           |> push_patch(to: ~p"/org/#{socket.assigns.org_id}/projects/#{project.id}")}
+           |> push_navigate(to: ~p"/org/#{socket.assigns.org_id}/projects/#{project.id}")}
 
         {:error, changeset} ->
           {:noreply, assign(socket, form: to_form(changeset))}
@@ -440,11 +473,11 @@ defmodule EstimateWeb.ProjectLive.Index do
     """
   end
 
-  defp fetch_projects(socket) do
+  defp fetch_projects(socket, extra_opts \\ []) do
     %{org_id: org_id, current_user: user, current_membership: %{role: role}, status_filter: sf} =
       socket.assigns
 
     opts = if sf, do: [status: sf], else: []
-    assign(socket, :projects, Portfolio.list_projects(org_id, user.id, role, opts))
+    assign(socket, :projects, Portfolio.list_projects(org_id, user.id, role, opts ++ extra_opts))
   end
 end

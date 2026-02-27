@@ -12,6 +12,7 @@ defmodule Estimate.Portfolio do
 
   def list_projects(org_id, opts \\ []) do
     status = Keyword.get(opts, :status)
+    watchtower = Keyword.get(opts, :watchtower)
 
     Repo.ensure_org_context(fn ->
       from(p in Project,
@@ -20,6 +21,7 @@ defmodule Estimate.Portfolio do
         order_by: [desc: p.updated_at]
       )
       |> maybe_filter_status(status)
+      |> maybe_filter_watchtower(watchtower)
       |> Repo.all()
     end)
   end
@@ -42,6 +44,7 @@ defmodule Estimate.Portfolio do
 
   def list_user_projects(user_id, org_id, opts \\ []) do
     status = Keyword.get(opts, :status)
+    watchtower = Keyword.get(opts, :watchtower)
 
     Repo.ensure_org_context(fn ->
       from(p in Project,
@@ -52,12 +55,37 @@ defmodule Estimate.Portfolio do
         order_by: [desc: p.updated_at]
       )
       |> maybe_filter_status(status)
+      |> maybe_filter_watchtower(watchtower)
       |> Repo.all()
     end)
   end
 
   defp maybe_filter_status(query, nil), do: query
   defp maybe_filter_status(query, status), do: from(p in query, where: p.status == ^status)
+
+  defp maybe_filter_watchtower(query, nil), do: query
+
+  defp maybe_filter_watchtower(query, :missing_descriptions) do
+    where_missing_descriptions(query)
+  end
+
+  defp maybe_filter_watchtower(query, _), do: query
+
+  defp where_missing_descriptions(query) do
+    from(p in query,
+      where:
+        is_nil(p.short_description) or p.short_description == "" or
+          is_nil(p.detailed_description) or p.detailed_description == ""
+    )
+  end
+
+  def count_projects_missing_descriptions(org_id) do
+    Repo.ensure_org_context(fn ->
+      from(p in Project, where: p.organization_id == ^org_id)
+      |> where_missing_descriptions()
+      |> Repo.aggregate(:count)
+    end)
+  end
 
   @doc """
   Role-aware project listing scoped to a customer.

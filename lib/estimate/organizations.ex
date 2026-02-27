@@ -163,6 +163,16 @@ defmodule Estimate.Organizations do
     |> Repo.update_all(set: [totp_required_by: nil])
   end
 
+  def count_members_without_2fa(org_id) do
+    Repo.ensure_org_context(fn ->
+      from(m in Membership,
+        join: u in assoc(m, :user),
+        where: m.organization_id == ^org_id and is_nil(u.totp_enabled_at)
+      )
+      |> Repo.aggregate(:count)
+    end)
+  end
+
   ## Membership
 
   def create_membership(attrs) do

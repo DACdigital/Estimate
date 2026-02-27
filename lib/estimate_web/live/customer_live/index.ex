@@ -25,6 +25,22 @@ defmodule EstimateWeb.CustomerLive.Index do
         </.link>
       </div>
 
+      <%!-- Watchtower Filter Banner --%>
+      <div
+        :if={@watchtower_filter}
+        class="mb-4 flex items-center justify-between bg-warning/5 border border-warning/20 rounded-lg px-4 py-2"
+      >
+        <span class="text-sm text-base-content/70">
+          Showing: customers missing description
+        </span>
+        <.link
+          patch={~p"/org/#{@org_id}/customers"}
+          class="text-base-content/40 hover:text-base-content/70 transition-colors"
+        >
+          <.icon name="hero-x-mark" class="w-4 h-4" />
+        </.link>
+      </div>
+
       <%!-- Customer List --%>
       <div class="bg-base-100 border border-base-300 rounded-xl overflow-hidden">
         <%= if @customers == [] do %>
@@ -200,6 +216,7 @@ defmodule EstimateWeb.CustomerLive.Index do
      |> assign(:customers, customers)
      |> assign(:currencies, currencies)
      |> assign(:is_admin, admin?(socket.assigns.current_membership))
+     |> assign(:watchtower_filter, nil)
      |> assign(:customer, nil)
      |> assign(:form, nil)}
   end
@@ -228,9 +245,20 @@ defmodule EstimateWeb.CustomerLive.Index do
     |> assign(:form, to_form(changeset))
   end
 
-  defp apply_action(socket, :index, _params) do
+  defp apply_action(socket, :index, params) do
+    watchtower = if socket.assigns.is_admin, do: params["watchtower"]
+
+    customers =
+      if watchtower == "missing_description" do
+        CRM.list_customers(socket.assigns.org_id, watchtower: :missing_description)
+      else
+        CRM.list_customers(socket.assigns.org_id)
+      end
+
     socket
     |> assign(:page_title, "Customers")
+    |> assign(:customers, customers)
+    |> assign(:watchtower_filter, watchtower)
     |> assign(:customer, nil)
     |> assign(:form, nil)
   end
