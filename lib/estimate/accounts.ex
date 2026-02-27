@@ -309,7 +309,7 @@ defmodule Estimate.Accounts do
   def create_role_template(org_id, attrs) do
     Repo.ensure_org_context(fn ->
       %RoleTemplate{}
-      |> RoleTemplate.changeset(Map.put(attrs, :organization_id, org_id))
+      |> RoleTemplate.changeset(Map.put(attrs, "organization_id", org_id))
       |> Repo.insert()
       |> case do
         {:ok, template} -> {:ok, Repo.preload(template, rates: :currency)}
