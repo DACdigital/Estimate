@@ -105,6 +105,13 @@ defmodule Estimate.Accounts.User do
     |> validate_password(opts)
   end
 
+  def name_changeset(user, attrs) do
+    user
+    |> cast(attrs, [:name])
+    |> validate_required([:name])
+    |> validate_length(:name, max: 160)
+  end
+
   def confirm_changeset(user) do
     now = DateTime.utc_now() |> DateTime.truncate(:second)
     change(user, confirmed_at: now)
