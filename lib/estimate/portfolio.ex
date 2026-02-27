@@ -262,6 +262,20 @@ defmodule Estimate.Portfolio do
     end)
   end
 
+  ## Collaborator permissions
+
+  def can_change_role?(can_manage, current_user, collab) do
+    can_manage && collab.user_id != current_user.id
+  end
+
+  def can_remove_collaborator?(can_manage, current_user, current_collaborator, collab) do
+    cond do
+      collab.user_id == current_user.id -> false
+      collab.role == "owner" -> current_collaborator && current_collaborator.role == "owner"
+      true -> can_manage
+    end
+  end
+
   ## Collaborators
 
   def add_collaborator(project_id, user_id, role \\ "viewer") do

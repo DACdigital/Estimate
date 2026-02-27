@@ -167,7 +167,7 @@ defmodule EstimateWeb.ProjectLive.Components.CollaboratorsTab do
                   phx-value-id={collab.id}
                   class="text-base-content/40 hover:text-error transition-colors"
                 >
-                  <.icon name="hero-x-mark" class="w-5 h-5" />
+                  <.icon name="hero-trash" class="w-5 h-5" />
                 </button>
               <% end %>
             </div>
@@ -178,20 +178,9 @@ defmodule EstimateWeb.ProjectLive.Components.CollaboratorsTab do
     """
   end
 
-  def can_change_role?(can_manage, current_user, collab) do
-    can_manage && collab.user_id != current_user.id
-  end
+  defdelegate can_change_role?(can_manage, current_user, collab),
+    to: Estimate.Portfolio
 
-  def can_remove_collaborator?(can_manage, current_user, current_collaborator, collab) do
-    cond do
-      collab.user_id == current_user.id ->
-        false
-
-      collab.role == "owner" ->
-        current_collaborator && current_collaborator.role == "owner"
-
-      true ->
-        can_manage
-    end
-  end
+  defdelegate can_remove_collaborator?(can_manage, current_user, current_collaborator, collab),
+    to: Estimate.Portfolio
 end

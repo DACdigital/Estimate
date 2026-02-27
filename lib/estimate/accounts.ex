@@ -66,14 +66,8 @@ defmodule Estimate.Accounts do
       {:ok, %{user: user, organization: org, membership: membership}} ->
         {:ok, %{user: user, organization: org, membership: membership}}
 
-      {:error, :user, changeset, _} ->
-        {:error, :user, changeset}
-
-      {:error, :organization, changeset, _} ->
-        {:error, :organization, changeset}
-
-      {:error, :membership, changeset, _} ->
-        {:error, :membership, changeset}
+      {:error, failed_op, changeset, _} ->
+        {:error, failed_op, changeset}
     end
   end
 
@@ -110,8 +104,7 @@ defmodule Estimate.Accounts do
     |> Repo.transaction()
     |> case do
       {:ok, %{organization: org}} -> {:ok, org}
-      {:error, :organization, changeset, _} -> {:error, changeset}
-      {:error, :membership, changeset, _} -> {:error, changeset}
+      {:error, _failed_op, changeset, _} -> {:error, changeset}
     end
   end
 
@@ -308,8 +301,19 @@ defmodule Estimate.Accounts do
 
   def create_role_template(org_id, attrs) do
     Repo.ensure_org_context(fn ->
+      next_position =
+        from(rt in RoleTemplate,
+          where: rt.organization_id == ^org_id,
+          select: coalesce(max(rt.position), -1) + 1
+        )
+        |> Repo.one()
+
       %RoleTemplate{}
-      |> RoleTemplate.changeset(Map.put(attrs, "organization_id", org_id))
+      |> RoleTemplate.changeset(
+        attrs
+        |> Map.put("organization_id", org_id)
+        |> Map.put("position", next_position)
+      )
       |> Repo.insert()
       |> case do
         {:ok, template} -> {:ok, Repo.preload(template, rates: :currency)}
@@ -333,6 +337,21 @@ defmodule Estimate.Accounts do
   def delete_role_template(%RoleTemplate{} = template) do
     Repo.ensure_org_context(fn ->
       Repo.delete(template)
+    end)
+  end
+
+  def reorder_role_templates(org_id, ids) do
+    Repo.ensure_org_context(fn ->
+      Repo.transaction(fn ->
+        ids
+        |> Enum.with_index()
+        |> Enum.each(fn {id, position} ->
+          from(rt in RoleTemplate, where: rt.id == ^id and rt.organization_id == ^org_id)
+          |> Repo.update_all(set: [position: position])
+        end)
+      end)
+
+      :ok
     end)
   end
 

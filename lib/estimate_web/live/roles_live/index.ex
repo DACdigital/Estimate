@@ -6,6 +6,8 @@ defmodule EstimateWeb.RolesLive.Index do
   import EstimateWeb.LiveHelpers
   import EstimateWeb.EstimatorLive.Helpers, only: [format_percent: 1]
 
+  @overhead_fields ~w(pm_overhead qa_overhead risk_buffer)
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -24,166 +26,180 @@ defmodule EstimateWeb.RolesLive.Index do
         </p>
       </div>
 
-      <%!-- Hourly Rates Table --%>
+      <% grid_cols = "#{if @is_admin, do: "2rem ", else: ""}minmax(12rem,1fr) #{Enum.map_join(@currencies, " ", fn _ -> "6rem" end)} 5rem 5rem 5rem" %>
+
+      <%!-- Hourly Rates Grid --%>
       <div class="bg-base-100 border border-base-300 rounded-xl overflow-hidden">
         <div class="overflow-x-auto">
-          <table class="w-full">
-            <thead>
-              <tr class="bg-base-100 text-[11px] font-medium text-base-content/60 uppercase tracking-wider">
-                <th class="px-6 py-3 whitespace-nowrap text-left">Role</th>
-                <%= for currency <- @currencies do %>
-                  <th class="py-3 whitespace-nowrap text-center w-24">
-                    {currency.code}
-                    <span class="text-base-content/40 font-normal">({currency.symbol})</span>
-                  </th>
-                <% end %>
-                <th class="py-3 whitespace-nowrap text-center w-20">PM %</th>
-                <th class="py-3 whitespace-nowrap text-center w-20">QA %</th>
-                <th class="py-3 whitespace-nowrap text-center w-20">Risk %</th>
-                <th class="px-4 py-3 w-20"></th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-base-content/10">
-              <%= for template <- @role_templates do %>
-                <tr class="group hover:bg-base-200/50 transition-colors">
-                  <td class="px-6 py-4">
-                    <%= if @editing_template_id == template.id do %>
-                      <.form
-                        for={@edit_form}
-                        phx-submit="update_template"
-                        class="flex items-center gap-2"
-                      >
-                        <input type="hidden" name="template_id" value={template.id} />
-                        <input
-                          type="text"
-                          name="name"
-                          value={template.name}
-                          class="w-36 px-2 py-1 border border-base-content/20 rounded text-sm"
-                          autofocus
-                        />
-                        <input
-                          type="text"
-                          name="abbreviation"
-                          value={template.abbreviation}
-                          maxlength="5"
-                          class="w-14 px-2 py-1 border border-base-content/20 rounded text-sm font-mono uppercase"
-                        />
-                        <button
-                          type="submit"
-                          class="px-2 py-1 bg-neutral text-neutral-content text-xs rounded hover:bg-neutral/90"
-                        >
-                          Save
-                        </button>
-                        <button
-                          type="button"
-                          phx-click="cancel_edit"
-                          class="text-base-content/60 text-xs hover:text-base-content/80"
-                        >
-                          Cancel
-                        </button>
-                      </.form>
-                    <% else %>
-                      <div class="flex items-center gap-3">
-                        <span class="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
-                          {template.abbreviation}
-                        </span>
-                        <div class="min-w-0">
-                          <p class="text-sm font-medium text-base-content truncate">
-                            {template.name}
-                          </p>
-                          <p class="text-xs text-base-content/40 font-mono">
-                            {template.abbreviation}
-                          </p>
-                        </div>
-                      </div>
-                    <% end %>
-                  </td>
-                  <%= for currency <- @currencies do %>
-                    <% rate = Enum.find(template.rates, fn r -> r.currency_id == currency.id end) %>
-                    <td class="py-4 text-center w-24">
+          <%!-- Header --%>
+          <div
+            class="grid items-center bg-base-100 text-[11px] font-medium text-base-content/60 uppercase tracking-wider"
+            style={"grid-template-columns: #{grid_cols}"}
+          >
+            <div :if={@is_admin}></div>
+            <div class="px-6 py-3 whitespace-nowrap text-left">Role</div>
+            <%= for currency <- @currencies do %>
+              <div class="py-3 whitespace-nowrap text-center">
+                {currency.code}
+                <span class="text-base-content/40 font-normal">({currency.symbol})</span>
+              </div>
+            <% end %>
+            <div class="py-3 whitespace-nowrap text-center">PM %</div>
+            <div class="py-3 whitespace-nowrap text-center">QA %</div>
+            <div class="py-3 whitespace-nowrap text-center">Risk %</div>
+          </div>
+
+          <%!-- Sortable rows --%>
+          <div
+            id="roles-sortable"
+            phx-hook={if @is_admin, do: "TemplateSortable"}
+            data-sort-event="reorder_roles"
+            class="divide-y divide-base-content/10"
+          >
+            <%= for template <- @role_templates do %>
+              <div
+                data-id={template.id}
+                class="grid items-center group hover:bg-base-200/50 transition-colors"
+                style={"grid-template-columns: #{grid_cols}"}
+              >
+                <div :if={@is_admin} class="drag-handle cursor-grab text-base-content/30 hover:text-base-content/60 flex justify-center">
+                  <.icon name="hero-bars-3" class="w-4 h-4" />
+                </div>
+                <div class="px-6 py-4">
+                  <%= if @editing_template_id == template.id do %>
+                    <.form
+                      for={@edit_form}
+                      phx-submit="update_template"
+                      class="flex items-center gap-2"
+                    >
+                      <input type="hidden" name="template_id" value={template.id} />
                       <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={if rate, do: rate.hourly_rate, else: ""}
-                        placeholder="0"
-                        phx-blur="update_rate"
-                        phx-value-template-id={template.id}
-                        phx-value-currency-id={currency.id}
-                        phx-value-rate-id={if rate, do: rate.id, else: ""}
-                        disabled={!@is_admin}
-                        class={"w-16 px-2 py-1.5 border border-base-content/15 rounded-md text-sm font-mono text-center #{if @is_admin, do: "hover:border-base-content/20", else: "cursor-not-allowed bg-base-200 text-base-content/60"}"}
+                        type="text"
+                        name="name"
+                        value={template.name}
+                        class="w-36 px-2 py-1 border border-base-content/20 rounded text-sm"
+                        autofocus
                       />
-                    </td>
-                  <% end %>
-                  <td class="py-4 text-center w-20">
-                    <input
-                      type="number"
-                      step="1"
-                      min="0"
-                      max="100"
-                      value={format_percent(template.pm_overhead)}
-                      phx-blur="update_overhead"
-                      phx-value-template-id={template.id}
-                      phx-value-field="pm_overhead"
-                      disabled={!@is_admin}
-                      class={"w-14 px-2 py-1.5 border border-base-content/15 rounded-md text-sm font-mono text-center #{if @is_admin, do: "hover:border-base-content/20", else: "cursor-not-allowed bg-base-200 text-base-content/60"}"}
-                    />
-                  </td>
-                  <td class="py-4 text-center w-20">
-                    <input
-                      type="number"
-                      step="1"
-                      min="0"
-                      max="100"
-                      value={format_percent(template.qa_overhead)}
-                      phx-blur="update_overhead"
-                      phx-value-template-id={template.id}
-                      phx-value-field="qa_overhead"
-                      disabled={!@is_admin}
-                      class={"w-14 px-2 py-1.5 border border-base-content/15 rounded-md text-sm font-mono text-center #{if @is_admin, do: "hover:border-base-content/20", else: "cursor-not-allowed bg-base-200 text-base-content/60"}"}
-                    />
-                  </td>
-                  <td class="py-4 text-center w-20">
-                    <input
-                      type="number"
-                      step="1"
-                      min="0"
-                      max="100"
-                      value={format_percent(template.risk_buffer)}
-                      phx-blur="update_overhead"
-                      phx-value-template-id={template.id}
-                      phx-value-field="risk_buffer"
-                      disabled={!@is_admin}
-                      class={"w-14 px-2 py-1.5 border border-base-content/15 rounded-md text-sm font-mono text-center #{if @is_admin, do: "hover:border-base-content/20", else: "cursor-not-allowed bg-base-200 text-base-content/60"}"}
-                    />
-                  </td>
-                  <td class="px-4 py-4">
-                    <div class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <input
+                        type="text"
+                        name="abbreviation"
+                        value={template.abbreviation}
+                        maxlength="5"
+                        class="w-14 px-2 py-1 border border-base-content/20 rounded text-sm font-mono uppercase"
+                      />
                       <button
-                        :if={@is_admin}
-                        phx-click="edit_template"
-                        phx-value-id={template.id}
-                        class="p-1.5 text-base-content/40 hover:text-base-content/70 hover:bg-base-300 rounded transition-colors focus:outline-none"
-                        title="Edit name"
+                        type="submit"
+                        class="px-2 py-1 bg-neutral text-neutral-content text-xs rounded hover:bg-neutral/90"
                       >
-                        <.icon name="hero-pencil" class="w-4 h-4" />
+                        Save
                       </button>
                       <button
-                        :if={@is_admin}
-                        phx-click="confirm_delete"
-                        phx-value-id={template.id}
-                        class="p-1.5 text-base-content/40 hover:text-error hover:bg-error/10 rounded transition-colors focus:outline-none"
-                        title="Delete"
+                        type="button"
+                        phx-click="cancel_edit"
+                        class="text-base-content/60 text-xs hover:text-base-content/80"
                       >
-                        <.icon name="hero-trash" class="w-4 h-4" />
+                        Cancel
                       </button>
+                    </.form>
+                  <% else %>
+                    <div class="flex items-center gap-3">
+                      <span class="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
+                        {template.abbreviation}
+                      </span>
+                      <div class="min-w-0">
+                        <p class="text-sm font-medium text-base-content truncate">
+                          {template.name}
+                        </p>
+                        <p class="text-xs text-base-content/40 font-mono">
+                          {template.abbreviation}
+                        </p>
+                      </div>
+                      <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity ml-auto">
+                        <button
+                          :if={@is_admin}
+                          phx-click="edit_template"
+                          phx-value-id={template.id}
+                          class="text-base-content/40 hover:text-base-content/70 transition-colors"
+                          title="Edit name"
+                        >
+                          <.icon name="hero-pencil" class="w-4 h-4" />
+                        </button>
+                        <button
+                          :if={@is_admin}
+                          phx-click="confirm_delete"
+                          phx-value-id={template.id}
+                          class="text-base-content/40 hover:text-error transition-colors"
+                          title="Delete"
+                        >
+                          <.icon name="hero-trash" class="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
-                  </td>
-                </tr>
-              <% end %>
-            </tbody>
-          </table>
+                  <% end %>
+                </div>
+                <%= for currency <- @currencies do %>
+                  <% rate = Enum.find(template.rates, fn r -> r.currency_id == currency.id end) %>
+                  <div class="py-4 text-center">
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={if rate, do: rate.hourly_rate, else: ""}
+                      placeholder="0"
+                      phx-blur="update_rate"
+                      phx-value-template-id={template.id}
+                      phx-value-currency-id={currency.id}
+                      phx-value-rate-id={if rate, do: rate.id, else: ""}
+                      disabled={!@is_admin}
+                      class={"w-16 px-2 py-1.5 border border-base-content/15 rounded-md text-sm font-mono text-center #{if @is_admin, do: "hover:border-base-content/20", else: "cursor-not-allowed bg-base-200 text-base-content/60"}"}
+                    />
+                  </div>
+                <% end %>
+                <div class="py-4 text-center">
+                  <input
+                    type="number"
+                    step="1"
+                    min="0"
+                    max="100"
+                    value={format_percent(template.pm_overhead)}
+                    phx-blur="update_overhead"
+                    phx-value-template-id={template.id}
+                    phx-value-field="pm_overhead"
+                    disabled={!@is_admin}
+                    class={"w-14 px-2 py-1.5 border border-base-content/15 rounded-md text-sm font-mono text-center #{if @is_admin, do: "hover:border-base-content/20", else: "cursor-not-allowed bg-base-200 text-base-content/60"}"}
+                  />
+                </div>
+                <div class="py-4 text-center">
+                  <input
+                    type="number"
+                    step="1"
+                    min="0"
+                    max="100"
+                    value={format_percent(template.qa_overhead)}
+                    phx-blur="update_overhead"
+                    phx-value-template-id={template.id}
+                    phx-value-field="qa_overhead"
+                    disabled={!@is_admin}
+                    class={"w-14 px-2 py-1.5 border border-base-content/15 rounded-md text-sm font-mono text-center #{if @is_admin, do: "hover:border-base-content/20", else: "cursor-not-allowed bg-base-200 text-base-content/60"}"}
+                  />
+                </div>
+                <div class="py-4 text-center">
+                  <input
+                    type="number"
+                    step="1"
+                    min="0"
+                    max="100"
+                    value={format_percent(template.risk_buffer)}
+                    phx-blur="update_overhead"
+                    phx-value-template-id={template.id}
+                    phx-value-field="risk_buffer"
+                    disabled={!@is_admin}
+                    class={"w-14 px-2 py-1.5 border border-base-content/15 rounded-md text-sm font-mono text-center #{if @is_admin, do: "hover:border-base-content/20", else: "cursor-not-allowed bg-base-200 text-base-content/60"}"}
+                  />
+                </div>
+              </div>
+            <% end %>
+          </div>
 
           <%= if Enum.empty?(@role_templates) do %>
             <div class="px-6 py-12 text-center">
@@ -256,6 +272,13 @@ defmodule EstimateWeb.RolesLive.Index do
   end
 
   @impl true
+  def handle_event("reorder_roles", %{"ids" => ids}, socket) do
+    require_admin(socket, fn ->
+      Accounts.reorder_role_templates(socket.assigns.org_id, ids)
+      {:noreply, reload_templates(socket)}
+    end)
+  end
+
   def handle_event("edit_template", %{"id" => id}, socket) do
     {:noreply, assign(socket, :editing_template_id, id)}
   end
@@ -271,12 +294,10 @@ defmodule EstimateWeb.RolesLive.Index do
              "abbreviation" => abbr
            }) do
         {:ok, _template} ->
-          role_templates = Accounts.list_role_templates(socket.assigns.org_id)
-
           {:noreply,
            socket
            |> put_flash(:info, "Role added")
-           |> assign(:role_templates, role_templates)}
+           |> reload_templates()}
 
         {:error, _changeset} ->
           {:noreply,
@@ -295,12 +316,10 @@ defmodule EstimateWeb.RolesLive.Index do
 
       case Accounts.update_role_template(template, %{"name" => name, "abbreviation" => abbr}) do
         {:ok, _template} ->
-          role_templates = Accounts.list_role_templates(socket.assigns.org_id)
-
           {:noreply,
            socket
            |> put_flash(:info, "Role updated")
-           |> assign(:role_templates, role_templates)
+           |> reload_templates()
            |> assign(:editing_template_id, nil)}
 
         {:error, _changeset} ->
@@ -326,12 +345,10 @@ defmodule EstimateWeb.RolesLive.Index do
 
       case Accounts.delete_role_template(template) do
         {:ok, _} ->
-          role_templates = Accounts.list_role_templates(socket.assigns.org_id)
-
           {:noreply,
            socket
            |> put_flash(:info, "Role deleted")
-           |> assign(:role_templates, role_templates)
+           |> reload_templates()
            |> assign(:deleting_template, nil)}
 
         {:error, _} ->
@@ -347,28 +364,16 @@ defmodule EstimateWeb.RolesLive.Index do
     require_admin(socket, fn ->
       %{"template-id" => template_id, "field" => field, "value" => value} = params
 
-      if field not in ~w(pm_overhead qa_overhead risk_buffer) do
+      if field not in @overhead_fields do
         {:noreply, socket}
       else
-        case Decimal.parse(value) do
-          {decimal, _} ->
-            if Decimal.compare(decimal, 0) != :lt and Decimal.compare(decimal, 100) != :gt do
-              template = Accounts.get_role_template!(template_id, socket.assigns.org_id)
-
-              case Accounts.update_role_template(template, %{field => decimal}) do
-                {:ok, _} ->
-                  role_templates = Accounts.list_role_templates(socket.assigns.org_id)
-                  {:noreply, assign(socket, :role_templates, role_templates)}
-
-                {:error, _} ->
-                  {:noreply, put_flash(socket, :error, "Could not update #{field}")}
-              end
-            else
-              {:noreply, put_flash(socket, :error, "Value must be between 0 and 100")}
-            end
-
-          :error ->
-            {:noreply, put_flash(socket, :error, "Invalid number")}
+        with {:ok, decimal} <- parse_percent(value),
+             template <- Accounts.get_role_template!(template_id, socket.assigns.org_id),
+             {:ok, _} <- Accounts.update_role_template(template, %{field => decimal}) do
+          {:noreply, reload_templates(socket)}
+        else
+          {:error, msg} when is_binary(msg) -> {:noreply, put_flash(socket, :error, msg)}
+          {:error, _} -> {:noreply, put_flash(socket, :error, "Could not update #{field}")}
         end
       end
     end)
@@ -383,39 +388,60 @@ defmodule EstimateWeb.RolesLive.Index do
         "value" => value
       } = params
 
-      case Decimal.parse(value) do
-        {rate, _} ->
-          if Decimal.compare(rate, 0) != :lt do
-            result =
-              if rate_id == "" do
-                Accounts.create_role_template_rate(template_id, currency_id, rate)
-              else
-                existing_rate = Accounts.get_role_template_rate!(rate_id, socket.assigns.org_id)
-                Accounts.update_role_template_rate(existing_rate, %{hourly_rate: rate})
-              end
-
-            case result do
-              {:ok, _} ->
-                role_templates = Accounts.list_role_templates(socket.assigns.org_id)
-                {:noreply, assign(socket, :role_templates, role_templates)}
-
-              {:error, _} ->
-                {:noreply, put_flash(socket, :error, "Could not update rate")}
+      case parse_rate(value) do
+        {:ok, rate} ->
+          result =
+            if rate_id == "" do
+              Accounts.create_role_template_rate(template_id, currency_id, rate)
+            else
+              existing_rate = Accounts.get_role_template_rate!(rate_id, socket.assigns.org_id)
+              Accounts.update_role_template_rate(existing_rate, %{hourly_rate: rate})
             end
-          else
-            {:noreply, put_flash(socket, :error, "Rate must be positive")}
+
+          case result do
+            {:ok, _} -> {:noreply, reload_templates(socket)}
+            {:error, _} -> {:noreply, put_flash(socket, :error, "Could not update rate")}
           end
 
-        :error ->
-          if value == "" and rate_id != "" do
-            rate = Accounts.get_role_template_rate!(rate_id, socket.assigns.org_id)
-            Accounts.delete_role_template_rate(rate)
-            role_templates = Accounts.list_role_templates(socket.assigns.org_id)
-            {:noreply, assign(socket, :role_templates, role_templates)}
-          else
-            {:noreply, put_flash(socket, :error, "Invalid rate")}
-          end
+        {:error, :empty} when rate_id != "" ->
+          rate = Accounts.get_role_template_rate!(rate_id, socket.assigns.org_id)
+          Accounts.delete_role_template_rate(rate)
+          {:noreply, reload_templates(socket)}
+
+        {:error, :not_positive} ->
+          {:noreply, put_flash(socket, :error, "Rate must be positive")}
+
+        {:error, _} ->
+          {:noreply, put_flash(socket, :error, "Invalid rate")}
       end
     end)
+  end
+
+  defp reload_templates(socket) do
+    assign(socket, :role_templates, Accounts.list_role_templates(socket.assigns.org_id))
+  end
+
+  defp parse_percent(value) do
+    case Decimal.parse(value) do
+      {d, _} ->
+        if Decimal.compare(d, 0) != :lt and Decimal.compare(d, 100) != :gt,
+          do: {:ok, d},
+          else: {:error, "Value must be between 0 and 100"}
+
+      :error ->
+        {:error, "Invalid number"}
+    end
+  end
+
+  defp parse_rate(value) do
+    case Decimal.parse(value) do
+      {r, _} ->
+        if Decimal.compare(r, 0) != :lt,
+          do: {:ok, r},
+          else: {:error, :not_positive}
+
+      :error ->
+        if value == "", do: {:error, :empty}, else: {:error, :not_a_number}
+    end
   end
 end
