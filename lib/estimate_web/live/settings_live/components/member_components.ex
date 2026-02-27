@@ -176,7 +176,7 @@ defmodule EstimateWeb.SettingsLive.Components.MemberComponents do
             </p>
           </div>
         </div>
-        <div class="flex items-center gap-4">
+        <div class="flex items-center gap-2">
           <%= if admin?(@current_membership) && membership.role != "owner" && membership.user_id != @current_user.id do %>
             <form phx-change="change_member_role" phx-value-id={membership.id}>
               <select
@@ -199,9 +199,9 @@ defmodule EstimateWeb.SettingsLive.Components.MemberComponents do
             <button
               phx-click="confirm_remove_member"
               phx-value-id={membership.id}
-              class="text-base-content/40 hover:text-error transition-colors"
+              class="flex items-center text-base-content/40 hover:text-error transition-colors"
             >
-              <.icon name="hero-x-mark" class="w-5 h-5" />
+              <.icon name="hero-trash" class="w-4 h-4" />
             </button>
           <% else %>
             <span class="text-sm text-base-content/60 capitalize">{membership.role}</span>

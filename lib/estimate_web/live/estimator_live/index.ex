@@ -38,7 +38,7 @@ defmodule EstimateWeb.EstimatorLive.Index do
         <button
           :if={@can_edit}
           phx-click="open_settings"
-          class="ml-2 p-1 text-base-content/40 hover:text-base-content/70 hover:bg-base-300 rounded transition-colors"
+          class="ml-2 text-base-content/40 hover:text-base-content/70 transition-colors"
           title="Estimation settings"
         >
           <.icon name="hero-cog-6-tooth" class="w-4 h-4" />

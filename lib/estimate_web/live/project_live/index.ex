@@ -71,7 +71,7 @@ defmodule EstimateWeb.ProjectLive.Index do
                 patch={~p"/org/#{@org_id}/projects/#{project.id}/edit"}
                 class="text-base-content/40 hover:text-base-content/70 transition-colors"
               >
-                <.icon name="hero-pencil-square" class="w-5 h-5" />
+                <.icon name="hero-pencil" class="w-5 h-5" />
               </.link>
             </div>
           </div>

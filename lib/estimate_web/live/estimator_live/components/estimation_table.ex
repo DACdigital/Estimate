@@ -137,7 +137,7 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimationTable do
                             phx-value-id={task.id}
                             class="flex items-center text-base-content/30 hover:text-error opacity-0 group-hover:opacity-100 transition-opacity"
                           >
-                            <.icon name="hero-x-mark" class="w-4 h-4" />
+                            <.icon name="hero-trash" class="w-4 h-4" />
                           </button>
                         <% else %>
                           <span class="text-sm text-base-content/80">{task.name}</span>

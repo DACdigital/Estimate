@@ -55,16 +55,19 @@ const Hooks = {
   TemplateSortable: {
     mounted() {
       const epicId = this.el.dataset.epicId
+      const sortEvent = this.el.dataset.sortEvent
 
       new Sortable(this.el, {
         animation: 150,
         handle: ".drag-handle",
         draggable: "[data-id]",
         onEnd: () => {
-          const ids = Array.from(this.el.querySelectorAll("[data-id]"))
+          const ids = Array.from(this.el.querySelectorAll(":scope > [data-id]"))
             .map(el => el.dataset.id)
 
-          if (epicId) {
+          if (sortEvent) {
+            this.pushEvent(sortEvent, { ids })
+          } else if (epicId) {
             this.pushEvent("reorder_tasks", { epic_id: epicId, ids })
           } else {
             this.pushEvent("reorder_epics", { ids })
