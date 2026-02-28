@@ -224,14 +224,9 @@ defmodule Estimate.Accounts do
   end
 
   def reset_user_password(user, attrs) do
-    Ecto.Multi.new()
-    |> Ecto.Multi.update(:user, User.password_changeset(user, attrs))
-    |> Ecto.Multi.delete_all(:tokens, UserToken.by_user_and_contexts_query(user, :all))
-    |> Repo.transaction()
-    |> case do
-      {:ok, %{user: user}} -> {:ok, user}
-      {:error, :user, changeset, _} -> {:error, changeset}
-    end
+    user
+    |> User.password_changeset(attrs)
+    |> update_password_and_delete_tokens(user)
   end
 
   ## Settings — Name
@@ -249,16 +244,9 @@ defmodule Estimate.Accounts do
   ## Settings — Password (OAuth users, no current-password check)
 
   def set_user_password(user, attrs) do
-    changeset = User.password_changeset(user, attrs)
-
-    Ecto.Multi.new()
-    |> Ecto.Multi.update(:user, changeset)
-    |> Ecto.Multi.delete_all(:tokens, UserToken.by_user_and_contexts_query(user, :all))
-    |> Repo.transaction()
-    |> case do
-      {:ok, %{user: user}} -> {:ok, user}
-      {:error, :user, changeset, _} -> {:error, changeset}
-    end
+    user
+    |> User.password_changeset(attrs)
+    |> update_password_and_delete_tokens(user)
   end
 
   ## Settings — Email
@@ -279,11 +267,13 @@ defmodule Estimate.Accounts do
   end
 
   def update_user_password(user, password, attrs) do
-    changeset =
-      user
-      |> User.password_changeset(attrs)
-      |> User.validate_current_password(password)
+    user
+    |> User.password_changeset(attrs)
+    |> User.validate_current_password(password)
+    |> update_password_and_delete_tokens(user)
+  end
 
+  defp update_password_and_delete_tokens(changeset, user) do
     Ecto.Multi.new()
     |> Ecto.Multi.update(:user, changeset)
     |> Ecto.Multi.delete_all(:tokens, UserToken.by_user_and_contexts_query(user, :all))
