@@ -7,7 +7,7 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimateCell do
   attr :task_id, :string, required: true
   attr :role_id, :string, required: true
   attr :estimates, :list, required: true
-  attr :editing, :map, required: true
+  attr :editing, :string, required: true
   attr :can_edit, :boolean, default: true
 
   def estimate_cell(assigns) do
@@ -31,12 +31,10 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimateCell do
         min="0"
         value={if Decimal.compare(@hours, 0) == :eq, do: "", else: @hours}
         placeholder="0"
-        phx-blur="save_estimate"
-        phx-keydown="save_estimate"
-        phx-key="Enter"
+        data-save-event="save_estimate"
         phx-value-task-id={@task_id}
         phx-value-role-id={@role_id}
-        phx-mounted={JS.focus()}
+        phx-hook="CellInput"
         class="w-16 h-8 text-center text-sm font-mono rounded bg-emerald-50 text-emerald-900 focus:outline-none"
         id={"hours-#{@editing_key}"}
       />
@@ -86,13 +84,11 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimateCell do
         step="1"
         min="0"
         value={@role.hourly_rate}
-        phx-blur="save_rate"
-        phx-keydown="save_rate"
-        phx-key="Enter"
+        data-save-event="save_rate"
         phx-value-role-id={@role.id}
+        phx-hook="CellInput"
         class="w-12 text-center text-[10px] font-mono border border-base-content/40 rounded bg-base-100 focus:outline-none focus:border-base-content"
         id={"rate-#{@role.id}"}
-        autofocus
       />
     <% else %>
       <%= if @can_edit do %>

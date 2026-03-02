@@ -401,6 +401,10 @@ defmodule EstimateWeb.EstimatorLive.Index do
      |> assign(:current_epic_id, nil)}
   end
 
+  def handle_event("cancel_edit", _params, socket) do
+    {:noreply, socket |> assign(:editing, nil) |> assign(:editing_rate, nil)}
+  end
+
   def handle_event("edit_estimate", %{"key" => key}, socket) do
     {:noreply, assign(socket, :editing, key)}
   end
@@ -412,18 +416,28 @@ defmodule EstimateWeb.EstimatorLive.Index do
   def handle_event("save_rate", %{"role-id" => role_id, "value" => value}, socket) do
     case authorize_edit(socket) do
       :ok ->
-        org_id = socket.assigns.org_id
-        role = EstimationEngine.get_role!(role_id, org_id)
-        hourly_rate = parse_decimal(value)
+        estimation = socket.assigns.estimation
 
-        {:ok, updated_role} = EstimationEngine.update_role_rate(role, hourly_rate, org_id)
+        if belongs_to_estimation?(estimation, :role, role_id) do
+          org_id = socket.assigns.org_id
+          role = EstimationEngine.get_role!(role_id, org_id)
+          hourly_rate = parse_decimal(value)
 
-        estimation = update_role_in_memory(socket.assigns.estimation, updated_role)
+          case EstimationEngine.update_role_rate(role, hourly_rate, org_id) do
+            {:ok, updated_role} ->
+              estimation = update_role_in_memory(estimation, updated_role)
 
-        {:noreply,
-         socket
-         |> assign(:estimation, estimation)
-         |> assign(:editing_rate, nil)}
+              {:noreply,
+               socket
+               |> assign(:estimation, estimation)
+               |> assign(:editing_rate, nil)}
+
+            {:error, _changeset} ->
+              {:noreply, assign(socket, :editing_rate, nil)}
+          end
+        else
+          {:noreply, assign(socket, :editing_rate, nil)}
+        end
 
       {:unauthorized, socket} ->
         {:noreply, assign(socket, :editing_rate, nil)}
@@ -434,23 +448,32 @@ defmodule EstimateWeb.EstimatorLive.Index do
     case authorize_edit(socket) do
       :ok ->
         %{"task-id" => task_id, "role-id" => role_id, "value" => value} = params
+        estimation = socket.assigns.estimation
 
-        hours = parse_decimal(value)
+        if belongs_to_estimation?(estimation, :task, task_id) and
+             belongs_to_estimation?(estimation, :role, role_id) do
+          hours = parse_decimal(value)
 
-        {:ok, updated_estimate} =
-          EstimationEngine.upsert_task_estimate(
-            task_id,
-            role_id,
-            %{hours: hours},
-            socket.assigns.estimation.id
-          )
+          case EstimationEngine.upsert_task_estimate(
+                 task_id,
+                 role_id,
+                 %{hours: hours},
+                 estimation.id
+               ) do
+            {:ok, updated_estimate} ->
+              estimation = update_estimate_in_memory(estimation, updated_estimate)
 
-        estimation = update_estimate_in_memory(socket.assigns.estimation, updated_estimate)
+              {:noreply,
+               socket
+               |> assign(:estimation, estimation)
+               |> assign(:editing, nil)}
 
-        {:noreply,
-         socket
-         |> assign(:estimation, estimation)
-         |> assign(:editing, nil)}
+            {:error, _changeset} ->
+              {:noreply, assign(socket, :editing, nil)}
+          end
+        else
+          {:noreply, assign(socket, :editing, nil)}
+        end
 
       {:unauthorized, socket} ->
         {:noreply, assign(socket, :editing, nil)}
@@ -752,6 +775,12 @@ defmodule EstimateWeb.EstimatorLive.Index do
       {:unauthorized, put_flash(socket, :error, "You don't have edit access")}
     end
   end
+
+  defp belongs_to_estimation?(estimation, :task, id),
+    do: Enum.any?(estimation.epics, fn ep -> Enum.any?(ep.tasks, &(&1.id == id)) end)
+
+  defp belongs_to_estimation?(estimation, :role, id),
+    do: Enum.any?(estimation.roles, &(&1.id == id))
 
   defp display_roles(roles, true), do: Calculator.roles_with_all_in_rates(roles)
   defp display_roles(roles, false), do: roles

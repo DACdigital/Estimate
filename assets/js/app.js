@@ -27,12 +27,14 @@ import topbar from "../vendor/topbar"
 import Sortable from "sortablejs"
 import SearchFocus from "./hooks/search_focus"
 import AiEnhance from "./hooks/ai_enhance"
+import CellInput from "./hooks/cell_input"
 
 // Custom hooks
 const Hooks = {
   ...colocatedHooks,
   SearchFocus,
   AiEnhance,
+  CellInput,
 
   JsonFileReader: {
     mounted() {

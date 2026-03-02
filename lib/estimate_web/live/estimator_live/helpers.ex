@@ -106,7 +106,8 @@ defmodule EstimateWeb.EstimatorLive.Helpers do
 
   def parse_decimal(value) when is_binary(value) do
     case Decimal.parse(value) do
-      {decimal, _} -> decimal
+      {decimal, ""} -> decimal
+      {decimal, remainder} -> if String.trim(remainder) == "", do: decimal, else: Decimal.new(0)
       :error -> Decimal.new(0)
     end
   end
