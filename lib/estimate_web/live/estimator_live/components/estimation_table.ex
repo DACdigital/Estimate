@@ -16,12 +16,12 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimationTable do
 
   def estimation_table(assigns) do
     ~H"""
-    <div class="bg-base-100 border border-base-300 rounded-xl overflow-hidden">
-      <div class="overflow-x-auto">
+    <div class="bg-base-100 border border-base-300 rounded-xl">
+      <div class="overflow-auto max-h-[calc(100vh-12rem)] rounded-xl">
         <table class="w-full">
-          <thead>
+          <thead class="sticky top-0 z-20">
             <tr class="bg-base-200 border-b border-base-content/10">
-              <th class="px-6 py-2.5 text-left text-xs font-medium text-base-content/60 uppercase tracking-wider w-72 min-w-72">
+              <th class="px-6 py-2.5 text-left text-xs font-medium text-base-content/60 uppercase tracking-wider w-72 min-w-72 sticky left-0 z-30 bg-base-200">
                 Task
               </th>
               <th
@@ -54,43 +54,43 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimationTable do
             <%= for epic <- @epics do %>
               <%!-- Epic Header Row --%>
               <tr class="bg-base-200 border-t border-base-content/10" data-id={epic.id}>
-                <td colspan={length(@estimation.roles) + 3} class="px-6 py-3">
-                  <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-3">
+                <td class="px-6 py-3 sticky left-0 z-10 bg-base-200 w-72 min-w-72">
+                  <div class="flex items-center gap-3">
+                    <span
+                      :if={@can_edit}
+                      class="cursor-move text-base-content/40 hover:text-base-content/70 drag-handle"
+                    >
+                      <.icon name="hero-bars-3" class="w-4 h-4" />
+                    </span>
+                    <%= if @can_edit do %>
                       <span
-                        :if={@can_edit}
-                        class="cursor-move text-base-content/40 hover:text-base-content/70 drag-handle"
-                      >
-                        <.icon name="hero-bars-3" class="w-4 h-4" />
-                      </span>
-                      <%= if @can_edit do %>
-                        <span
-                          class="font-semibold text-base-content cursor-pointer hover:text-base-content/70"
-                          phx-click="edit_epic"
-                          phx-value-id={epic.id}
-                        >
-                          {epic.name}
-                        </span>
-                      <% else %>
-                        <span class="font-semibold text-base-content">{epic.name}</span>
-                      <% end %>
-                    </div>
-                    <div :if={@can_edit} class="flex items-center gap-3">
-                      <button
-                        phx-click="add_task"
-                        phx-value-epic-id={epic.id}
-                        class="text-sm text-base-content/60 hover:text-base-content transition-colors"
-                      >
-                        + Add Task
-                      </button>
-                      <button
-                        phx-click="confirm_delete_epic"
+                        class="font-semibold text-base-content cursor-pointer hover:text-base-content/70"
+                        phx-click="edit_epic"
                         phx-value-id={epic.id}
-                        class="text-sm text-base-content/40 hover:text-error transition-colors"
                       >
-                        <.icon name="hero-trash" class="w-4 h-4" />
-                      </button>
-                    </div>
+                        {epic.name}
+                      </span>
+                    <% else %>
+                      <span class="font-semibold text-base-content">{epic.name}</span>
+                    <% end %>
+                  </div>
+                </td>
+                <td colspan={length(@estimation.roles) + 2} class="px-6 py-3 bg-base-200 text-right">
+                  <div :if={@can_edit} class="flex items-center justify-end gap-3">
+                    <button
+                      phx-click="add_task"
+                      phx-value-epic-id={epic.id}
+                      class="text-sm text-base-content/60 hover:text-base-content transition-colors"
+                    >
+                      + Add Task
+                    </button>
+                    <button
+                      phx-click="confirm_delete_epic"
+                      phx-value-id={epic.id}
+                      class="text-sm text-base-content/40 hover:text-error transition-colors"
+                    >
+                      <.icon name="hero-trash" class="w-4 h-4" />
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -101,7 +101,7 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimationTable do
                 data-id={task.id}
                 data-epic-id={epic.id}
               >
-                <td class="px-6 py-1.5">
+                <td class="px-6 py-1.5 sticky left-0 z-10 bg-base-100">
                   <div class="flex items-start gap-3">
                     <span
                       :if={@can_edit}
@@ -176,7 +176,7 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimationTable do
               </tr>
               <%!-- Epic Total Row (only shown if 2+ tasks) --%>
               <tr :if={length(epic.tasks) > 1} class="border-t border-base-content/10">
-                <td class="px-6 py-1.5 text-right text-xs text-base-content/40">
+                <td class="px-6 py-1.5 text-right text-xs text-base-content/40 sticky left-0 z-10 bg-base-100">
                   Subtotal
                 </td>
                 <td
@@ -200,9 +200,9 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimationTable do
               </tr>
             <% end %>
           </tbody>
-          <tfoot>
+          <tfoot class="sticky bottom-0 z-20">
             <tr class="bg-neutral text-neutral-content">
-              <td class="px-6 py-3 text-right font-semibold">
+              <td class="px-6 py-3 text-right font-semibold sticky left-0 z-10 bg-neutral">
                 Total
               </td>
               <td :for={role <- @estimation.roles} class="px-3 py-3 text-center text-sm font-mono">
