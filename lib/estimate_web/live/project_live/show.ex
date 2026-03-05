@@ -426,44 +426,76 @@ defmodule EstimateWeb.ProjectLive.Show do
         </div>
       <% else %>
         <%= for estimation <- @estimations do %>
-          <div class="flex items-center border-b border-base-content/10 last:border-b-0">
-            <.link
-              navigate={
-                ~p"/org/#{@org_id}/projects/#{@project.id}/estimations/#{estimation.id}/estimator"
-              }
-              class="flex-1 px-6 py-4 hover:bg-base-200 transition-colors"
-            >
-              <div class="flex items-center gap-2">
-                <h3 class="text-sm font-medium text-base-content">{estimation.name}</h3>
-                <span
-                  :if={estimation.is_current}
-                  class="text-[10px] px-1.5 py-0.5 bg-success/10 text-success rounded font-medium"
-                >
-                  Current
-                </span>
-              </div>
-              <p class="text-xs text-base-content/60 mt-0.5">
-                {length(estimation.roles)} roles · Updated {Calendar.strftime(
-                  estimation.updated_at,
-                  "%b %d, %Y"
-                )}
-              </p>
-            </.link>
-            <div class="px-4 flex items-center gap-2">
-              <button
-                :if={!estimation.is_current}
-                phx-click="set_current_estimation"
-                phx-value-id={estimation.id}
-                class="text-xs text-base-content/40 hover:text-base-content/70 px-2 py-1 rounded hover:bg-base-300"
-                title="Set as current"
-              >
-                Set current
-              </button>
-              <span :if={estimation.is_current} class="text-xs text-success px-2 py-1">
-                <.icon name="hero-check-circle-solid" class="w-4 h-4" />
+          <%= if @deleting_estimation == estimation.id do %>
+            <div class="flex items-center justify-between px-6 py-4 bg-error/5 border-b border-base-content/10 last:border-b-0">
+              <span class="text-sm text-error font-medium">
+                Delete "{estimation.name}"?
               </span>
+              <div class="flex items-center gap-2">
+                <button
+                  phx-click="cancel_delete_estimation"
+                  class="text-xs text-base-content/60 hover:text-base-content px-2 py-1"
+                >
+                  Cancel
+                </button>
+                <button
+                  phx-click="delete_estimation"
+                  phx-value-id={estimation.id}
+                  class="text-xs text-error font-medium px-2 py-1"
+                >
+                  Delete
+                </button>
+              </div>
             </div>
-          </div>
+          <% else %>
+            <div class="flex items-center border-b border-base-content/10 last:border-b-0">
+              <.link
+                navigate={
+                  ~p"/org/#{@org_id}/projects/#{@project.id}/estimations/#{estimation.id}/estimator"
+                }
+                class="flex-1 px-6 py-4 hover:bg-base-200 transition-colors"
+              >
+                <div class="flex items-center gap-2">
+                  <h3 class="text-sm font-medium text-base-content">{estimation.name}</h3>
+                  <span
+                    :if={estimation.is_current}
+                    class="text-[10px] px-1.5 py-0.5 bg-success/10 text-success rounded font-medium"
+                  >
+                    Current
+                  </span>
+                </div>
+                <p class="text-xs text-base-content/60 mt-0.5">
+                  {length(estimation.roles)} roles · Updated {Calendar.strftime(
+                    estimation.updated_at,
+                    "%b %d, %Y"
+                  )}
+                </p>
+              </.link>
+              <div class="w-36 px-4 flex items-center justify-end gap-2">
+                <button
+                  :if={!estimation.is_current}
+                  phx-click="set_current_estimation"
+                  phx-value-id={estimation.id}
+                  class="text-xs text-base-content/40 hover:text-base-content/70 px-2 py-1 rounded hover:bg-base-300"
+                  title="Set as current"
+                >
+                  Set current
+                </button>
+                <span :if={estimation.is_current} class="text-xs text-success px-2 py-1">
+                  <.icon name="hero-check-circle-solid" class="w-4 h-4" />
+                </span>
+                <button
+                  :if={!estimation.is_current && @can_delete_project}
+                  phx-click="confirm_delete_estimation"
+                  phx-value-id={estimation.id}
+                  class="text-base-content/40 hover:text-error transition-colors"
+                  title="Delete estimation"
+                >
+                  <.icon name="hero-trash" class="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          <% end %>
         <% end %>
       <% end %>
     </div>
@@ -528,6 +560,7 @@ defmodule EstimateWeb.ProjectLive.Show do
      |> assign(:tab, :overview)
      |> assign(:form, to_form(changeset))
      |> assign(:deleting_project, false)
+     |> assign(:deleting_estimation, nil)
      |> assign(:show_new_estimation_modal, false)
      |> assign(:estimation_form, to_form(%{}, as: "estimation"))
      |> assign(:selected_template_ids, Enum.map(role_templates, & &1.id))
@@ -909,6 +942,50 @@ defmodule EstimateWeb.ProjectLive.Show do
      socket
      |> assign(:estimations, estimations)
      |> assign(:current_estimation, current_estimation)}
+  end
+
+  def handle_event("confirm_delete_estimation", %{"id" => id}, socket) do
+    {:noreply, assign(socket, :deleting_estimation, id)}
+  end
+
+  def handle_event("cancel_delete_estimation", _params, socket) do
+    {:noreply, assign(socket, :deleting_estimation, nil)}
+  end
+
+  def handle_event("delete_estimation", %{"id" => id}, socket) do
+    unless socket.assigns.can_delete_project do
+      {:noreply,
+       socket
+       |> put_flash(:error, "Not authorized")
+       |> assign(:deleting_estimation, nil)}
+    else
+      org_id = socket.assigns.org_id
+      estimation = EstimationEngine.get_estimation!(id, org_id)
+
+      if estimation.is_current do
+        {:noreply,
+         socket
+         |> put_flash(:error, "Cannot delete current estimation")
+         |> assign(:deleting_estimation, nil)}
+      else
+        case EstimationEngine.soft_delete_estimation(estimation) do
+          {:ok, _} ->
+            estimations = EstimationEngine.list_estimations(socket.assigns.project.id)
+
+            {:noreply,
+             socket
+             |> assign(:estimations, estimations)
+             |> assign(:deleting_estimation, nil)
+             |> put_flash(:info, "Estimation deleted")}
+
+          {:error, _} ->
+            {:noreply,
+             socket
+             |> put_flash(:error, "Could not delete estimation")
+             |> assign(:deleting_estimation, nil)}
+        end
+      end
+    end
   end
 
   ## Collaborator Events
