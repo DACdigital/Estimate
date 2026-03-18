@@ -15,11 +15,14 @@ defmodule Estimate.EstimationEngine.Estimations do
     end)
   end
 
-  def list_recent_estimations_for_org(org_id, limit \\ 5) do
+  def list_estimations_for_org(org_id, opts \\ []) do
+    order_field = Keyword.get(opts, :order_by, :updated_at)
+    limit = Keyword.get(opts, :limit, 5)
+
     Repo.ensure_org_context(fn ->
       from(e in Estimation,
         where: e.organization_id == ^org_id and is_nil(e.deleted_at),
-        order_by: [desc: e.updated_at],
+        order_by: [{:desc, field(e, ^order_field)}],
         limit: ^limit,
         preload: [:currency, project: [:customer, :currency]]
       )
@@ -27,17 +30,11 @@ defmodule Estimate.EstimationEngine.Estimations do
     end)
   end
 
-  def list_newest_estimations_for_org(org_id, limit \\ 5) do
-    Repo.ensure_org_context(fn ->
-      from(e in Estimation,
-        where: e.organization_id == ^org_id and is_nil(e.deleted_at),
-        order_by: [desc: e.inserted_at],
-        limit: ^limit,
-        preload: [:currency, project: [:customer, :currency]]
-      )
-      |> Repo.all()
-    end)
-  end
+  def list_recent_estimations_for_org(org_id, limit \\ 5),
+    do: list_estimations_for_org(org_id, order_by: :updated_at, limit: limit)
+
+  def list_newest_estimations_for_org(org_id, limit \\ 5),
+    do: list_estimations_for_org(org_id, order_by: :inserted_at, limit: limit)
 
   def list_estimations(project_id) do
     Repo.ensure_org_context(fn ->
@@ -75,56 +72,31 @@ defmodule Estimate.EstimationEngine.Estimations do
   end
 
   def create_estimation(attrs) do
-    Repo.ensure_org_context(fn ->
-      Ecto.Multi.new()
-      |> Ecto.Multi.insert(:estimation, Estimation.changeset(%Estimation{}, attrs))
-      |> Ecto.Multi.run(:roles, fn _repo, %{estimation: estimation} ->
-        EstimationRole.default_roles()
-        |> Enum.with_index()
-        |> Enum.reduce_while({:ok, []}, fn {role_attrs, idx}, {:ok, acc} ->
-          %EstimationRole{}
-          |> EstimationRole.changeset(
-            Map.merge(role_attrs, %{estimation_id: estimation.id, position: idx})
-          )
-          |> Repo.insert()
-          |> case do
-            {:ok, role} -> {:cont, {:ok, [role | acc]}}
-            {:error, changeset} -> {:halt, {:error, changeset}}
-          end
-        end)
+    alias Estimate.EstimationEngine.Helpers
+
+    Helpers.build_estimation_multi(attrs, fn estimation ->
+      EstimationRole.default_roles()
+      |> Enum.with_index()
+      |> Enum.reduce_while({:ok, []}, fn {role_attrs, idx}, {:ok, acc} ->
+        %EstimationRole{}
+        |> EstimationRole.changeset(
+          Map.merge(role_attrs, %{estimation_id: estimation.id, position: idx})
+        )
+        |> Repo.insert()
+        |> case do
+          {:ok, role} -> {:cont, {:ok, [role | acc]}}
+          {:error, changeset} -> {:halt, {:error, changeset}}
+        end
       end)
-      |> Repo.transaction()
-      |> case do
-        {:ok, %{estimation: estimation}} -> {:ok, estimation}
-        {:error, _op, changeset, _} -> {:error, changeset}
-      end
     end)
   end
 
   def create_estimation_with_roles(attrs, role_ids) when is_list(role_ids) do
-    Repo.ensure_org_context(fn ->
-      attrs = prepare_estimation_attrs(attrs)
+    alias Estimate.EstimationEngine.{Roles, Helpers}
 
-      Ecto.Multi.new()
-      |> Ecto.Multi.insert(:estimation, Estimation.changeset(%Estimation{}, attrs))
-      |> Ecto.Multi.run(:roles, fn _repo, %{estimation: estimation} ->
-        project_roles = Estimate.Portfolio.list_project_roles_by_ids(role_ids)
-
-        Estimate.EstimationEngine.Roles.insert_roles_from_project_roles(
-          estimation.id,
-          project_roles
-        )
-      end)
-      |> Repo.transaction()
-      |> case do
-        {:ok, %{estimation: estimation}} ->
-          estimation = Repo.preload(estimation, project: :customer)
-          Search.index_estimation(estimation)
-          {:ok, estimation}
-
-        {:error, _op, changeset, _} ->
-          {:error, changeset}
-      end
+    Helpers.build_estimation_multi(attrs, fn estimation ->
+      project_roles = Estimate.Portfolio.list_project_roles_by_ids(role_ids)
+      Roles.insert_roles_from_project_roles(estimation.id, project_roles)
     end)
   end
 

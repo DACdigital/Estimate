@@ -57,7 +57,8 @@ defmodule Estimate.EstimationEngine do
   defdelegate update_role(role, attrs), to: Roles
   defdelegate delete_role(role), to: Roles
   defdelegate get_role!(id, org_id), to: Roles
-  defdelegate update_role_rate(role, hourly_rate, org_id), to: Roles
+  defdelegate reorder_roles(estimation_id, role_ids), to: Roles
+  defdelegate insert_roles_from_attrs(estimation_id, role_attrs_list), to: Roles
 
   ## Epics
   defdelegate create_epic(attrs), to: Epics
@@ -77,17 +78,12 @@ defmodule Estimate.EstimationEngine do
   defdelegate upsert_task_estimate(task_id, role_id, attrs, estimation_id \\ nil), to: Estimates
 
   ## Import
-  defdelegate create_estimation_from_templates(attrs, template_ids, currency_id), to: Import
+  defdelegate create_estimation_from_templates(attrs, role_attrs), to: Import
 
-  defdelegate create_estimation_from_estimation_template(
-                attrs,
-                template_id,
-                role_ids,
-                currency_id
-              ),
-              to: Import
+  defdelegate create_estimation_from_estimation_template(attrs, template_id, role_attrs),
+    to: Import
 
-  defdelegate create_estimation_from_json(attrs, parsed_json, role_ids, currency_id), to: Import
+  defdelegate create_estimation_from_json(attrs, parsed_json, role_attrs), to: Import
 
   ## Copy
   defdelegate copy_estimation(estimation, new_name, project_id, org_id), to: Copy

@@ -113,8 +113,7 @@ defmodule EstimateWeb.ProjectLive.Show do
         estimation_templates={@estimation_templates}
         source_estimation_id={@source_estimation_id}
         selected_estimation_template_id={@selected_estimation_template_id}
-        selected_template_ids={@selected_template_ids}
-        role_templates={@role_templates}
+        modal_roles={@modal_roles}
         currencies={@currencies}
         modal_currency_id={@modal_currency_id}
         modal_currency={@modal_currency}
@@ -528,23 +527,11 @@ defmodule EstimateWeb.ProjectLive.Show do
     estimation_templates = Estimate.Templates.list_estimation_templates(org_id)
     currencies = Currencies.list_currencies(org_id)
 
-    # Load the current estimation (is_current=true) with full data for the dashboard
     current_estimation =
       case Enum.find(estimations, & &1.is_current) do
         nil -> nil
         est -> EstimationEngine.get_estimation!(est.id, org_id)
       end
-
-    changeset = Portfolio.change_project(project)
-
-    is_org_admin = admin?(socket.assigns.current_membership)
-    collab_role = current_collaborator && current_collaborator.role
-
-    can_edit_project = is_org_admin || collab_role in ["owner", "editor"]
-    can_delete_project = is_org_admin || collab_role == "owner"
-
-    can_manage_collabs =
-      (current_collaborator && current_collaborator.role == "owner") || is_org_admin
 
     {:ok,
      socket
@@ -558,33 +545,54 @@ defmodule EstimateWeb.ProjectLive.Show do
      |> assign(:dashboard_tab, :by_role)
      |> assign(:customer_key, if(project.customer, do: project.customer.key))
      |> assign(:tab, :overview)
-     |> assign(:form, to_form(changeset))
+     |> assign(:form, to_form(Portfolio.change_project(project)))
      |> assign(:deleting_project, false)
      |> assign(:deleting_estimation, nil)
-     |> assign(:show_new_estimation_modal, false)
-     |> assign(:estimation_form, to_form(%{}, as: "estimation"))
-     |> assign(:selected_template_ids, Enum.map(role_templates, & &1.id))
-     |> assign(:modal_currency_id, project.currency_id)
-     |> assign(:modal_currency, project.currency)
-     |> assign(:estimation_source, "fresh")
-     |> assign(:source_estimation_id, nil)
      |> assign(:estimation_templates, estimation_templates)
-     |> assign(
-       :selected_estimation_template_id,
-       if(estimation_templates != [], do: hd(estimation_templates).id)
-     )
-     |> assign(:current_collaborator, current_collaborator)
-     |> assign(:can_edit_project, can_edit_project)
-     |> assign(:can_delete_project, can_delete_project)
-     |> assign(:can_manage_collaborators, can_manage_collabs)
-     |> assign(:collaborators, [])
-     |> assign(:available_members, [])
-     |> assign(:member_search, "")
-     |> assign(:show_member_dropdown, false)
-     |> assign(:selected_member, nil)
-     |> assign(:selected_role, "viewer")
-     |> assign(:removing_collaborator, nil)
+     |> init_modal_assigns(project, role_templates, estimation_templates)
+     |> init_permissions(current_collaborator, socket.assigns.current_membership)
+     |> init_collaborator_assigns()
      |> init_json_assigns()}
+  end
+
+  defp init_modal_assigns(socket, project, role_templates, estimation_templates) do
+    socket
+    |> assign(:show_new_estimation_modal, false)
+    |> assign(:estimation_form, to_form(%{}, as: "estimation"))
+    |> assign(:modal_currency_id, project.currency_id)
+    |> assign(:modal_currency, project.currency)
+    |> assign(:modal_roles, build_modal_roles_from_templates(role_templates, project.currency_id))
+    |> assign(:estimation_source, "fresh")
+    |> assign(:source_estimation_id, nil)
+    |> assign(
+      :selected_estimation_template_id,
+      if(estimation_templates != [], do: hd(estimation_templates).id)
+    )
+  end
+
+  defp init_permissions(socket, current_collaborator, membership) do
+    is_org_admin = admin?(membership)
+    collab_role = current_collaborator && current_collaborator.role
+
+    socket
+    |> assign(:current_collaborator, current_collaborator)
+    |> assign(:can_edit_project, is_org_admin || collab_role in ["owner", "editor"])
+    |> assign(:can_delete_project, is_org_admin || collab_role == "owner")
+    |> assign(
+      :can_manage_collaborators,
+      is_org_admin || (current_collaborator && current_collaborator.role == "owner")
+    )
+  end
+
+  defp init_collaborator_assigns(socket) do
+    socket
+    |> assign(:collaborators, [])
+    |> assign(:available_members, [])
+    |> assign(:member_search, "")
+    |> assign(:show_member_dropdown, false)
+    |> assign(:selected_member, nil)
+    |> assign(:selected_role, "viewer")
+    |> assign(:removing_collaborator, nil)
   end
 
   @impl true
@@ -636,9 +644,7 @@ defmodule EstimateWeb.ProjectLive.Show do
   end
 
   def handle_event("save", %{"project" => project_params}, socket) do
-    unless socket.assigns.can_edit_project do
-      {:noreply, put_flash(socket, :error, "Not authorized")}
-    else
+    if socket.assigns.can_edit_project do
       case Portfolio.update_project(socket.assigns.project, project_params) do
         {:ok, project} ->
           project = Portfolio.reload_project_with_roles(project)
@@ -653,6 +659,8 @@ defmodule EstimateWeb.ProjectLive.Show do
         {:error, changeset} ->
           {:noreply, assign(socket, form: to_form(changeset))}
       end
+    else
+      {:noreply, put_flash(socket, :error, "Not authorized")}
     end
   end
 
@@ -665,12 +673,7 @@ defmodule EstimateWeb.ProjectLive.Show do
   end
 
   def handle_event("delete_project", _params, socket) do
-    unless socket.assigns.can_delete_project do
-      {:noreply,
-       socket
-       |> put_flash(:error, "Not authorized")
-       |> assign(:deleting_project, false)}
-    else
+    if socket.assigns.can_delete_project do
       case Portfolio.delete_project(socket.assigns.project) do
         {:ok, _} ->
           {:noreply,
@@ -684,12 +687,20 @@ defmodule EstimateWeb.ProjectLive.Show do
            |> put_flash(:error, "Could not delete project")
            |> assign(:deleting_project, false)}
       end
+    else
+      {:noreply,
+       socket
+       |> put_flash(:error, "Not authorized")
+       |> assign(:deleting_project, false)}
     end
   end
 
-  def handle_event("set_dashboard_tab", %{"tab" => tab}, socket) do
+  @allowed_dashboard_tabs ~w(by_role by_epic by_priority)
+  def handle_event("set_dashboard_tab", %{"tab" => tab}, socket) when tab in @allowed_dashboard_tabs do
     {:noreply, assign(socket, :dashboard_tab, String.to_existing_atom(tab))}
   end
+
+  def handle_event("set_dashboard_tab", _params, socket), do: {:noreply, socket}
 
   ## Estimation Events
 
@@ -702,9 +713,12 @@ defmodule EstimateWeb.ProjectLive.Show do
      socket
      |> assign(:show_new_estimation_modal, true)
      |> assign(:estimation_form, to_form(%{"name" => "", "description" => ""}, as: "estimation"))
-     |> assign(:selected_template_ids, Enum.map(socket.assigns.role_templates, & &1.id))
      |> assign(:modal_currency_id, project.currency_id)
      |> assign(:modal_currency, project.currency)
+     |> assign(
+       :modal_roles,
+       build_modal_roles_from_templates(socket.assigns.role_templates, project.currency_id)
+     )
      |> assign(:estimation_source, "fresh")
      |> assign(:source_estimation_id, first_estimation_id)}
   end
@@ -750,26 +764,14 @@ defmodule EstimateWeb.ProjectLive.Show do
 
   def handle_event("validate_estimation", %{"json_input" => json_string} = params, socket)
       when json_string != "" do
-    socket = do_validate_json(socket, json_string)
-    template_ids = Map.get(params, "template_ids", [])
-    currency_id = Map.get(params, "currency_id")
-
-    socket =
-      if currency_id && currency_id != "" do
-        currency = Enum.find(socket.assigns.currencies, &(to_string(&1.id) == currency_id))
-
-        socket
-        |> assign(:modal_currency_id, currency_id)
-        |> assign(:modal_currency, currency)
-      else
-        socket
-      end
-
-    {:noreply, assign(socket, :selected_template_ids, template_ids)}
+    socket
+    |> do_validate_json(json_string)
+    |> maybe_assign_modal_currency(params)
+    |> update_modal_roles_from_params(params)
+    |> then(&{:noreply, &1})
   end
 
   def handle_event("validate_estimation", params, socket) do
-    # Clear JSON state if textarea was emptied
     socket =
       if Map.get(params, "json_input") == "" do
         clear_json(socket)
@@ -777,145 +779,92 @@ defmodule EstimateWeb.ProjectLive.Show do
         socket
       end
 
-    template_ids = Map.get(params, "template_ids", [])
-    currency_id = Map.get(params, "currency_id")
     source_estimation_id = Map.get(params, "source_estimation_id")
 
     socket =
-      if currency_id && currency_id != "" do
-        currency = Enum.find(socket.assigns.currencies, &(to_string(&1.id) == currency_id))
+      socket
+      |> maybe_assign_modal_currency(params)
+      |> maybe_apply_copy_source(source_estimation_id)
+      |> update_modal_roles_from_params(params)
 
-        socket
-        |> assign(:modal_currency_id, currency_id)
-        |> assign(:modal_currency, currency)
-      else
-        socket
-      end
+    {:noreply, socket}
+  end
 
-    # Handle source estimation change for copy mode
-    socket =
-      if source_estimation_id && source_estimation_id != "" do
-        est = Enum.find(socket.assigns.estimations, &(to_string(&1.id) == source_estimation_id))
+  def handle_event("remove_modal_role", %{"temp-id" => temp_id}, socket) do
+    temp_id = String.to_integer(temp_id)
+    roles = Enum.reject(socket.assigns.modal_roles, &(&1.temp_id == temp_id))
+    {:noreply, assign(socket, :modal_roles, roles)}
+  end
 
-        if est do
-          socket
-          |> assign(:source_estimation_id, source_estimation_id)
-          |> assign(
-            :estimation_form,
-            to_form(%{"name" => "Copy of #{est.name}", "description" => ""}, as: "estimation")
-          )
-          |> assign(:modal_currency_id, est.currency_id)
-          |> assign(
-            :modal_currency,
-            Enum.find(socket.assigns.currencies, &(&1.id == est.currency_id))
-          )
-        else
-          socket
-        end
-      else
-        socket
-      end
+  def handle_event("add_modal_role", _params, socket) do
+    new_role = %{
+      temp_id: System.unique_integer([:positive]),
+      name: "",
+      abbreviation: "",
+      hourly_rate: Decimal.new(0),
+      pm_overhead: Decimal.new(0),
+      qa_overhead: Decimal.new(0),
+      risk_buffer: Decimal.new(0),
+      template_id: nil
+    }
 
-    {:noreply, assign(socket, :selected_template_ids, template_ids)}
+    {:noreply, assign(socket, :modal_roles, socket.assigns.modal_roles ++ [new_role])}
+  end
+
+  def handle_event("reorder_modal_roles", %{"ids" => ids}, socket) do
+    id_order = Enum.map(ids, &String.to_integer/1)
+    roles_by_id = Map.new(socket.assigns.modal_roles, &{&1.temp_id, &1})
+    reordered = Enum.map(id_order, &Map.fetch!(roles_by_id, &1))
+    {:noreply, assign(socket, :modal_roles, reordered)}
+  end
+
+  def handle_event("reset_modal_roles", _params, socket) do
+    roles =
+      build_modal_roles_from_templates(
+        socket.assigns.role_templates,
+        socket.assigns.modal_currency_id
+      )
+
+    {:noreply, assign(socket, :modal_roles, roles)}
   end
 
   def handle_event("create_estimation", %{"estimation" => estimation_params} = params, socket) do
-    unless socket.assigns.can_edit_project do
-      {:noreply, put_flash(socket, :error, "Not authorized")}
-    else
+    socket = update_modal_roles_from_params(socket, params)
+
+    if socket.assigns.can_edit_project do
       source = Map.get(params, "source", "fresh")
-      project = socket.assigns.project
-      org_id = socket.assigns.org_id
 
-      result =
-        case source do
-          "copy" ->
-            source_estimation_id = Map.get(params, "source_estimation_id")
-            name = estimation_params["name"]
+      if source != "copy" && !roles_valid?(socket.assigns.modal_roles) do
+        {:noreply, put_flash(socket, :error, "All roles must have a name and abbreviation")}
+      else
+        project = socket.assigns.project
+        org_id = socket.assigns.org_id
 
-            if source_estimation_id && name && name != "" do
-              source_estimation = EstimationEngine.get_estimation!(source_estimation_id, org_id)
-              EstimationEngine.copy_estimation(source_estimation, name, project.id, org_id)
-            else
-              {:error, :invalid_params}
-            end
+        result = dispatch_create(source, estimation_params, params, socket, project, org_id)
 
-          "template" ->
-            estimation_template_id = Map.get(params, "estimation_template_id")
-            template_ids = Map.get(params, "template_ids", [])
-            currency_id = Map.get(params, "currency_id", project.currency_id)
+        case result do
+          {:ok, estimation} ->
+            estimations = EstimationEngine.list_estimations(project.id)
 
-            attrs =
-              Map.merge(estimation_params, %{
-                "project_id" => project.id,
-                "currency_id" => currency_id,
-                "organization_id" => org_id
-              })
+            {:noreply,
+             socket
+             |> put_flash(
+               :info,
+               if(source == "copy", do: "Estimation copied", else: "Estimation created")
+             )
+             |> assign(:show_new_estimation_modal, false)
+             |> assign(:estimations, estimations)
+             |> push_navigate(
+               to:
+                 ~p"/org/#{socket.assigns.org_id}/projects/#{project.id}/estimations/#{estimation.id}/estimator"
+             )}
 
-            EstimationEngine.create_estimation_from_estimation_template(
-              attrs,
-              estimation_template_id,
-              template_ids,
-              currency_id
-            )
-
-          "json" ->
-            parsed_json = socket.assigns.json_parsed
-
-            if parsed_json do
-              template_ids = Map.get(params, "template_ids", [])
-              currency_id = Map.get(params, "currency_id", project.currency_id)
-
-              attrs =
-                Map.merge(estimation_params, %{
-                  "project_id" => project.id,
-                  "currency_id" => currency_id,
-                  "organization_id" => org_id
-                })
-
-              EstimationEngine.create_estimation_from_json(
-                attrs,
-                parsed_json,
-                template_ids,
-                currency_id
-              )
-            else
-              {:error, :no_json}
-            end
-
-          _ ->
-            template_ids = Map.get(params, "template_ids", [])
-            currency_id = Map.get(params, "currency_id", project.currency_id)
-
-            attrs =
-              Map.merge(estimation_params, %{
-                "project_id" => project.id,
-                "currency_id" => currency_id
-              })
-
-            EstimationEngine.create_estimation_from_templates(attrs, template_ids, currency_id)
+          {:error, _} ->
+            {:noreply, put_flash(socket, :error, "Could not create estimation")}
         end
-
-      case result do
-        {:ok, estimation} ->
-          estimations = EstimationEngine.list_estimations(project.id)
-
-          {:noreply,
-           socket
-           |> put_flash(
-             :info,
-             if(source == "copy", do: "Estimation copied", else: "Estimation created")
-           )
-           |> assign(:show_new_estimation_modal, false)
-           |> assign(:estimations, estimations)
-           |> push_navigate(
-             to:
-               ~p"/org/#{socket.assigns.org_id}/projects/#{project.id}/estimations/#{estimation.id}/estimator"
-           )}
-
-        {:error, _} ->
-          {:noreply, put_flash(socket, :error, "Could not create estimation")}
       end
+    else
+      {:noreply, put_flash(socket, :error, "Not authorized")}
     end
   end
 
@@ -932,16 +881,30 @@ defmodule EstimateWeb.ProjectLive.Show do
   end
 
   def handle_event("set_current_estimation", %{"id" => id}, socket) do
-    org_id = socket.assigns.org_id
-    estimation = EstimationEngine.get_estimation!(id, org_id)
-    {:ok, _} = EstimationEngine.set_current_estimation(estimation)
-    estimations = EstimationEngine.list_estimations(socket.assigns.project.id)
-    current_estimation = EstimationEngine.get_estimation!(id, org_id)
+    if socket.assigns.can_edit_project do
+      org_id = socket.assigns.org_id
+      estimation = EstimationEngine.get_estimation!(id, org_id)
 
-    {:noreply,
-     socket
-     |> assign(:estimations, estimations)
-     |> assign(:current_estimation, current_estimation)}
+      if estimation.project_id != socket.assigns.project.id do
+        {:noreply, put_flash(socket, :error, "Not authorized")}
+      else
+        case EstimationEngine.set_current_estimation(estimation) do
+          {:ok, _} ->
+            estimations = EstimationEngine.list_estimations(socket.assigns.project.id)
+            current_estimation = EstimationEngine.get_estimation!(id, org_id)
+
+            {:noreply,
+             socket
+             |> assign(:estimations, estimations)
+             |> assign(:current_estimation, current_estimation)}
+
+          {:error, _} ->
+            {:noreply, put_flash(socket, :error, "Could not set current estimation")}
+        end
+      end
+    else
+      {:noreply, put_flash(socket, :error, "Not authorized")}
+    end
   end
 
   def handle_event("confirm_delete_estimation", %{"id" => id}, socket) do
@@ -953,38 +916,46 @@ defmodule EstimateWeb.ProjectLive.Show do
   end
 
   def handle_event("delete_estimation", %{"id" => id}, socket) do
-    unless socket.assigns.can_delete_project do
+    if socket.assigns.can_delete_project do
+      org_id = socket.assigns.org_id
+      estimation = EstimationEngine.get_estimation!(id, org_id)
+
+      cond do
+        estimation.project_id != socket.assigns.project.id ->
+          {:noreply,
+           socket
+           |> put_flash(:error, "Not authorized")
+           |> assign(:deleting_estimation, nil)}
+
+        estimation.is_current ->
+          {:noreply,
+           socket
+           |> put_flash(:error, "Cannot delete current estimation")
+           |> assign(:deleting_estimation, nil)}
+
+        true ->
+          case EstimationEngine.soft_delete_estimation(estimation) do
+            {:ok, _} ->
+              estimations = EstimationEngine.list_estimations(socket.assigns.project.id)
+
+              {:noreply,
+               socket
+               |> assign(:estimations, estimations)
+               |> assign(:deleting_estimation, nil)
+               |> put_flash(:info, "Estimation deleted")}
+
+            {:error, _} ->
+              {:noreply,
+               socket
+               |> put_flash(:error, "Could not delete estimation")
+               |> assign(:deleting_estimation, nil)}
+          end
+      end
+    else
       {:noreply,
        socket
        |> put_flash(:error, "Not authorized")
        |> assign(:deleting_estimation, nil)}
-    else
-      org_id = socket.assigns.org_id
-      estimation = EstimationEngine.get_estimation!(id, org_id)
-
-      if estimation.is_current do
-        {:noreply,
-         socket
-         |> put_flash(:error, "Cannot delete current estimation")
-         |> assign(:deleting_estimation, nil)}
-      else
-        case EstimationEngine.soft_delete_estimation(estimation) do
-          {:ok, _} ->
-            estimations = EstimationEngine.list_estimations(socket.assigns.project.id)
-
-            {:noreply,
-             socket
-             |> assign(:estimations, estimations)
-             |> assign(:deleting_estimation, nil)
-             |> put_flash(:info, "Estimation deleted")}
-
-          {:error, _} ->
-            {:noreply,
-             socket
-             |> put_flash(:error, "Could not delete estimation")
-             |> assign(:deleting_estimation, nil)}
-        end
-      end
     end
   end
 
@@ -1032,7 +1003,7 @@ defmodule EstimateWeb.ProjectLive.Show do
   end
 
   def handle_event("add_collaborator", _params, socket) do
-    if !socket.assigns.can_manage_collaborators do
+    unless socket.assigns.can_manage_collaborators do
       {:noreply, put_flash(socket, :error, "Not authorized")}
     else
       member = socket.assigns.selected_member
@@ -1054,7 +1025,7 @@ defmodule EstimateWeb.ProjectLive.Show do
   end
 
   def handle_event("change_collaborator_role", %{"id" => id, "role" => role}, socket) do
-    if !socket.assigns.can_manage_collaborators do
+    unless socket.assigns.can_manage_collaborators do
       {:noreply, put_flash(socket, :error, "Not authorized")}
     else
       collab = Enum.find(socket.assigns.collaborators, &(&1.id == id))
@@ -1196,4 +1167,196 @@ defmodule EstimateWeb.ProjectLive.Show do
         String.contains?(String.downcase(m.user.email), term)
     end)
   end
+
+  ## Modal Roles Helpers
+
+  defp build_modal_roles_from_templates(role_templates, currency_id) do
+    Enum.map(role_templates, fn template ->
+      rate = Enum.find(template.rates, fn r -> to_string(r.currency_id) == to_string(currency_id) end)
+
+      %{
+        temp_id: System.unique_integer([:positive]),
+        name: template.name,
+        abbreviation: template.abbreviation,
+        hourly_rate: if(rate, do: rate.hourly_rate, else: Decimal.new(0)),
+        pm_overhead: template.pm_overhead,
+        qa_overhead: template.qa_overhead,
+        risk_buffer: template.risk_buffer,
+        template_id: template.id
+      }
+    end)
+  end
+
+  defp dispatch_create("copy", estimation_params, params, _socket, project, org_id) do
+    source_estimation_id = Map.get(params, "source_estimation_id")
+    name = estimation_params["name"]
+
+    if source_estimation_id && name && name != "" do
+      source_estimation = EstimationEngine.get_estimation!(source_estimation_id, org_id)
+
+      if source_estimation.project_id != project.id do
+        {:error, :unauthorized}
+      else
+        EstimationEngine.copy_estimation(source_estimation, name, project.id, org_id)
+      end
+    else
+      {:error, :invalid_params}
+    end
+  end
+
+  defp dispatch_create("template", estimation_params, params, socket, project, org_id) do
+    estimation_template_id = Map.get(params, "estimation_template_id")
+    role_attrs = collect_role_attrs(socket.assigns.modal_roles)
+    attrs = build_estimation_attrs(estimation_params, params, project, org_id)
+
+    EstimationEngine.create_estimation_from_estimation_template(
+      attrs,
+      estimation_template_id,
+      role_attrs
+    )
+  end
+
+  defp dispatch_create("json", estimation_params, params, socket, project, org_id) do
+    case socket.assigns.json_parsed do
+      nil -> {:error, :no_json}
+      parsed_json ->
+        role_attrs = collect_role_attrs(socket.assigns.modal_roles)
+        attrs = build_estimation_attrs(estimation_params, params, project, org_id)
+        EstimationEngine.create_estimation_from_json(attrs, parsed_json, role_attrs)
+    end
+  end
+
+  defp dispatch_create(_fresh, estimation_params, params, socket, project, org_id) do
+    role_attrs = collect_role_attrs(socket.assigns.modal_roles)
+    attrs = build_estimation_attrs(estimation_params, params, project, org_id)
+    EstimationEngine.create_estimation_from_templates(attrs, role_attrs)
+  end
+
+  defp build_estimation_attrs(estimation_params, params, project, org_id) do
+    currency_id = Map.get(params, "currency_id", project.currency_id)
+
+    Map.merge(estimation_params, %{
+      "project_id" => project.id,
+      "currency_id" => currency_id,
+      "organization_id" => org_id
+    })
+  end
+
+  defp maybe_assign_modal_currency(socket, params) do
+    currency_id = Map.get(params, "currency_id")
+
+    if currency_id && currency_id != "" do
+      currency = Enum.find(socket.assigns.currencies, &(to_string(&1.id) == currency_id))
+      old_currency_id = socket.assigns.modal_currency_id
+
+      socket
+      |> assign(:modal_currency_id, currency_id)
+      |> assign(:modal_currency, currency)
+      |> maybe_update_modal_role_rates(old_currency_id, currency_id)
+    else
+      socket
+    end
+  end
+
+  defp maybe_apply_copy_source(socket, source_estimation_id)
+       when is_nil(source_estimation_id) or source_estimation_id == "",
+       do: socket
+
+  defp maybe_apply_copy_source(socket, source_estimation_id) do
+    case Enum.find(socket.assigns.estimations, &(to_string(&1.id) == source_estimation_id)) do
+      nil ->
+        socket
+
+      est ->
+        socket
+        |> assign(:source_estimation_id, source_estimation_id)
+        |> assign(
+          :estimation_form,
+          to_form(%{"name" => "Copy of #{est.name}", "description" => ""}, as: "estimation")
+        )
+        |> assign(:modal_currency_id, est.currency_id)
+        |> assign(
+          :modal_currency,
+          Enum.find(socket.assigns.currencies, &(&1.id == est.currency_id))
+        )
+    end
+  end
+
+  defp update_modal_roles_from_params(socket, params) do
+    case Map.get(params, "roles") do
+      nil ->
+        socket
+
+      roles_params when is_map(roles_params) ->
+        updated =
+          Enum.map(socket.assigns.modal_roles, fn role ->
+            case Map.get(roles_params, to_string(role.temp_id)) do
+              nil ->
+                role
+
+              fields ->
+                role
+                |> Map.put(:name, Map.get(fields, "name", role.name))
+                |> Map.put(:abbreviation, Map.get(fields, "abbreviation", role.abbreviation))
+                |> Map.put(:hourly_rate, parse_decimal(Map.get(fields, "hourly_rate"), role.hourly_rate))
+            end
+          end)
+
+        assign(socket, :modal_roles, updated)
+    end
+  end
+
+  defp maybe_update_modal_role_rates(socket, old_currency_id, new_currency_id)
+       when old_currency_id == new_currency_id,
+       do: socket
+
+  defp maybe_update_modal_role_rates(socket, _old, new_currency_id) do
+    templates_by_id =
+      Map.new(socket.assigns.role_templates, &{&1.id, &1})
+
+    updated =
+      Enum.map(socket.assigns.modal_roles, fn role ->
+        case role.template_id && Map.get(templates_by_id, role.template_id) do
+          nil ->
+            role
+
+          template ->
+            rate = Enum.find(template.rates, fn r -> to_string(r.currency_id) == to_string(new_currency_id) end)
+            %{role | hourly_rate: if(rate, do: rate.hourly_rate, else: Decimal.new(0))}
+        end
+      end)
+
+    assign(socket, :modal_roles, updated)
+  end
+
+  defp collect_role_attrs(modal_roles) do
+    Enum.map(modal_roles, fn role ->
+      %{
+        name: role.name,
+        abbreviation: role.abbreviation,
+        hourly_rate: role.hourly_rate,
+        pm_overhead: role[:pm_overhead] || Decimal.new(0),
+        qa_overhead: role[:qa_overhead] || Decimal.new(0),
+        risk_buffer: role[:risk_buffer] || Decimal.new(0)
+      }
+    end)
+  end
+
+  defp roles_valid?(roles) do
+    Enum.all?(roles, fn role ->
+      String.trim(role.name || "") != "" && String.trim(role.abbreviation || "") != ""
+    end)
+  end
+
+  defp parse_decimal(nil, default), do: default
+  defp parse_decimal("", default), do: default
+
+  defp parse_decimal(value, default) when is_binary(value) do
+    case Decimal.parse(value) do
+      {decimal, _} -> decimal
+      :error -> default
+    end
+  end
+
+  defp parse_decimal(value, _default), do: value
 end

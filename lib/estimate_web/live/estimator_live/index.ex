@@ -175,6 +175,10 @@ defmodule EstimateWeb.EstimatorLive.Index do
     else
       project = Portfolio.get_project!(project_id, org_id)
       estimation = EstimationEngine.get_estimation!(id, org_id)
+
+      unless estimation.project_id == project_id do
+        raise Ecto.NoResultsError, queryable: Estimate.EstimationEngine.Estimation
+      end
       currencies = Currencies.list_currencies(org_id)
       can_edit = can_edit?(collaborator, socket.assigns.current_membership)
 
@@ -214,61 +218,53 @@ defmodule EstimateWeb.EstimatorLive.Index do
 
   @impl true
   def handle_event("add_epic", _params, socket) do
-    case authorize_edit(socket) do
-      :ok ->
-        changeset = EstimationEngine.Epic.changeset(%EstimationEngine.Epic{}, %{})
+    with_edit_auth(socket, fn socket ->
+      changeset = EstimationEngine.Epic.changeset(%EstimationEngine.Epic{}, %{})
 
-        {:noreply,
-         socket
-         |> assign(:modal, :epic)
-         |> assign(:epic_form, to_form(changeset))}
-
-      {:unauthorized, socket} ->
-        {:noreply, socket}
-    end
+      {:noreply,
+       socket
+       |> assign(:modal, :epic)
+       |> assign(:epic_form, to_form(changeset))}
+    end)
   end
 
   def handle_event("edit_epic", %{"id" => id}, socket) do
-    epic = EstimationEngine.get_epic!(id, socket.assigns.org_id)
-    changeset = EstimationEngine.Epic.changeset(epic, %{})
+    with_edit_auth(socket, fn socket ->
+      epic = EstimationEngine.get_epic!(id, socket.assigns.org_id)
+      changeset = EstimationEngine.Epic.changeset(epic, %{})
 
-    {:noreply,
-     socket
-     |> assign(:modal, :epic)
-     |> assign(:epic_form, to_form(changeset))}
+      {:noreply,
+       socket
+       |> assign(:modal, :epic)
+       |> assign(:epic_form, to_form(changeset))}
+    end)
   end
 
   def handle_event("save_epic", %{"epic" => epic_params}, socket) do
-    case authorize_edit(socket) do
-      :ok ->
-        epic = socket.assigns.epic_form.data
-        estimation = socket.assigns.estimation
+    with_edit_auth(socket, fn socket ->
+      epic = socket.assigns.epic_form.data
+      estimation = socket.assigns.estimation
 
-        result =
-          if epic.id do
-            EstimationEngine.update_epic(epic, epic_params)
-          else
-            attrs = Map.put(epic_params, "estimation_id", estimation.id)
-            EstimationEngine.create_epic(attrs)
-          end
-
-        case result do
-          {:ok, _epic} ->
-            estimation = EstimationEngine.get_estimation!(estimation.id, socket.assigns.org_id)
-
-            {:noreply,
-             socket
-             |> assign(:estimation, estimation)
-             |> assign(:modal, nil)
-             |> assign(:epic_form, nil)}
-
-          {:error, changeset} ->
-            {:noreply, assign(socket, :epic_form, to_form(changeset))}
+      result =
+        if epic.id do
+          EstimationEngine.update_epic(epic, epic_params)
+        else
+          attrs = Map.put(epic_params, "estimation_id", estimation.id)
+          EstimationEngine.create_epic(attrs)
         end
 
-      {:unauthorized, socket} ->
-        {:noreply, socket}
-    end
+      case result do
+        {:ok, _epic} ->
+          {:noreply,
+           socket
+           |> reload_estimation()
+           |> assign(:modal, nil)
+           |> assign(:epic_form, nil)}
+
+        {:error, changeset} ->
+          {:noreply, assign(socket, :epic_form, to_form(changeset))}
+      end
+    end)
   end
 
   def handle_event("confirm_delete_epic", %{"id" => id}, socket) do
@@ -281,43 +277,39 @@ defmodule EstimateWeb.EstimatorLive.Index do
   end
 
   def handle_event("delete_epic", _params, socket) do
-    case authorize_edit(socket) do
-      :ok ->
-        epic = socket.assigns.deleting_epic
-        {:ok, _} = EstimationEngine.delete_epic(epic)
+    with_edit_auth(socket, fn socket ->
+      {:ok, _} = EstimationEngine.delete_epic(socket.assigns.deleting_epic)
 
-        estimation =
-          EstimationEngine.get_estimation!(socket.assigns.estimation.id, socket.assigns.org_id)
-
-        {:noreply,
-         socket
-         |> assign(:estimation, estimation)
-         |> assign(:deleting_epic, nil)}
-
-      {:unauthorized, socket} ->
-        {:noreply, socket}
-    end
+      {:noreply,
+       socket
+       |> reload_estimation()
+       |> assign(:deleting_epic, nil)}
+    end)
   end
 
   def handle_event("add_task", %{"epic-id" => epic_id}, socket) do
-    changeset = EstimationEngine.Task.changeset(%EstimationEngine.Task{}, %{})
+    with_edit_auth(socket, fn socket ->
+      changeset = EstimationEngine.Task.changeset(%EstimationEngine.Task{}, %{})
 
-    {:noreply,
-     socket
-     |> assign(:modal, :task)
-     |> assign(:task_form, to_form(changeset))
-     |> assign(:current_epic_id, epic_id)}
+      {:noreply,
+       socket
+       |> assign(:modal, :task)
+       |> assign(:task_form, to_form(changeset))
+       |> assign(:current_epic_id, epic_id)}
+    end)
   end
 
   def handle_event("edit_task", %{"id" => id}, socket) do
-    task = EstimationEngine.get_task!(id, socket.assigns.org_id)
-    changeset = EstimationEngine.Task.changeset(task, %{})
+    with_edit_auth(socket, fn socket ->
+      task = EstimationEngine.get_task!(id, socket.assigns.org_id)
+      changeset = EstimationEngine.Task.changeset(task, %{})
 
-    {:noreply,
-     socket
-     |> assign(:modal, :task)
-     |> assign(:task_form, to_form(changeset))
-     |> assign(:current_epic_id, task.epic_id)}
+      {:noreply,
+       socket
+       |> assign(:modal, :task)
+       |> assign(:task_form, to_form(changeset))
+       |> assign(:current_epic_id, task.epic_id)}
+    end)
   end
 
   def handle_event("validate_task", %{"task" => task_params}, socket) do
@@ -327,41 +319,31 @@ defmodule EstimateWeb.EstimatorLive.Index do
   end
 
   def handle_event("save_task", %{"task" => task_params}, socket) do
-    case authorize_edit(socket) do
-      :ok ->
-        task = socket.assigns.task_form.data
-        epic_id = socket.assigns.current_epic_id
+    with_edit_auth(socket, fn socket ->
+      task = socket.assigns.task_form.data
+      epic_id = socket.assigns.current_epic_id
 
-        result =
-          if task.id do
-            EstimationEngine.update_task(task, task_params)
-          else
-            attrs = Map.put(task_params, "epic_id", epic_id)
-            EstimationEngine.create_task(attrs)
-          end
-
-        case result do
-          {:ok, _task} ->
-            estimation =
-              EstimationEngine.get_estimation!(
-                socket.assigns.estimation.id,
-                socket.assigns.org_id
-              )
-
-            {:noreply,
-             socket
-             |> assign(:estimation, estimation)
-             |> assign(:modal, nil)
-             |> assign(:task_form, nil)
-             |> assign(:current_epic_id, nil)}
-
-          {:error, changeset} ->
-            {:noreply, assign(socket, :task_form, to_form(changeset))}
+      result =
+        if task.id do
+          EstimationEngine.update_task(task, task_params)
+        else
+          attrs = Map.put(task_params, "epic_id", epic_id)
+          EstimationEngine.create_task(attrs)
         end
 
-      {:unauthorized, socket} ->
-        {:noreply, socket}
-    end
+      case result do
+        {:ok, _task} ->
+          {:noreply,
+           socket
+           |> reload_estimation()
+           |> assign(:modal, nil)
+           |> assign(:task_form, nil)
+           |> assign(:current_epic_id, nil)}
+
+        {:error, changeset} ->
+          {:noreply, assign(socket, :task_form, to_form(changeset))}
+      end
+    end)
   end
 
   def handle_event("confirm_delete_task", %{"id" => id}, socket) do
@@ -374,22 +356,14 @@ defmodule EstimateWeb.EstimatorLive.Index do
   end
 
   def handle_event("delete_task", _params, socket) do
-    case authorize_edit(socket) do
-      :ok ->
-        task = socket.assigns.deleting_task
-        {:ok, _} = EstimationEngine.delete_task(task)
+    with_edit_auth(socket, fn socket ->
+      {:ok, _} = EstimationEngine.delete_task(socket.assigns.deleting_task)
 
-        estimation =
-          EstimationEngine.get_estimation!(socket.assigns.estimation.id, socket.assigns.org_id)
-
-        {:noreply,
-         socket
-         |> assign(:estimation, estimation)
-         |> assign(:deleting_task, nil)}
-
-      {:unauthorized, socket} ->
-        {:noreply, socket}
-    end
+      {:noreply,
+       socket
+       |> reload_estimation()
+       |> assign(:deleting_task, nil)}
+    end)
   end
 
   def handle_event("close_modal", _params, socket) do
@@ -414,100 +388,70 @@ defmodule EstimateWeb.EstimatorLive.Index do
   end
 
   def handle_event("save_rate", %{"role-id" => role_id, "value" => value}, socket) do
-    case authorize_edit(socket) do
-      :ok ->
-        estimation = socket.assigns.estimation
+    with_edit_auth(socket, fn socket ->
+      estimation = socket.assigns.estimation
 
-        if belongs_to_estimation?(estimation, :role, role_id) do
-          org_id = socket.assigns.org_id
-          role = EstimationEngine.get_role!(role_id, org_id)
-          hourly_rate = parse_decimal(value)
+      if belongs_to_estimation?(estimation, :role, role_id) do
+        role = EstimationEngine.get_role!(role_id, socket.assigns.org_id)
+        hourly_rate = parse_decimal(value)
 
-          case EstimationEngine.update_role_rate(role, hourly_rate, org_id) do
-            {:ok, updated_role} ->
-              estimation = update_role_in_memory(estimation, updated_role)
+        case EstimationEngine.update_role(role, %{hourly_rate: hourly_rate}) do
+          {:ok, updated_role} ->
+            {:noreply,
+             socket
+             |> assign(:estimation, update_role_in_memory(estimation, updated_role))
+             |> assign(:editing_rate, nil)}
 
-              {:noreply,
-               socket
-               |> assign(:estimation, estimation)
-               |> assign(:editing_rate, nil)}
-
-            {:error, _changeset} ->
-              {:noreply, assign(socket, :editing_rate, nil)}
-          end
-        else
-          {:noreply, assign(socket, :editing_rate, nil)}
+          {:error, _changeset} ->
+            {:noreply, assign(socket, :editing_rate, nil)}
         end
-
-      {:unauthorized, socket} ->
+      else
         {:noreply, assign(socket, :editing_rate, nil)}
-    end
+      end
+    end)
   end
 
   def handle_event("save_estimate", params, socket) do
-    case authorize_edit(socket) do
-      :ok ->
-        %{"task-id" => task_id, "role-id" => role_id, "value" => value} = params
-        estimation = socket.assigns.estimation
+    with_edit_auth(socket, fn socket ->
+      %{"task-id" => task_id, "role-id" => role_id, "value" => value} = params
+      estimation = socket.assigns.estimation
 
-        if belongs_to_estimation?(estimation, :task, task_id) and
-             belongs_to_estimation?(estimation, :role, role_id) do
-          hours = parse_decimal(value)
+      if belongs_to_estimation?(estimation, :task, task_id) and
+           belongs_to_estimation?(estimation, :role, role_id) do
+        hours = parse_decimal(value)
 
-          case EstimationEngine.upsert_task_estimate(
-                 task_id,
-                 role_id,
-                 %{hours: hours},
-                 estimation.id
-               ) do
-            {:ok, updated_estimate} ->
-              estimation = update_estimate_in_memory(estimation, updated_estimate)
+        case EstimationEngine.upsert_task_estimate(task_id, role_id, %{hours: hours}, estimation.id) do
+          {:ok, updated_estimate} ->
+            {:noreply,
+             socket
+             |> assign(:estimation, update_estimate_in_memory(estimation, updated_estimate))
+             |> assign(:editing, nil)}
 
-              {:noreply,
-               socket
-               |> assign(:estimation, estimation)
-               |> assign(:editing, nil)}
-
-            {:error, _changeset} ->
-              {:noreply, assign(socket, :editing, nil)}
-          end
-        else
-          {:noreply, assign(socket, :editing, nil)}
+          {:error, _changeset} ->
+            {:noreply, assign(socket, :editing, nil)}
         end
-
-      {:unauthorized, socket} ->
+      else
         {:noreply, assign(socket, :editing, nil)}
-    end
+      end
+    end)
   end
 
   def handle_event("reorder_epics", %{"ids" => ids}, socket) do
-    case authorize_edit(socket) do
-      :ok ->
-        EstimationEngine.reorder_epics(socket.assigns.estimation.id, ids)
-
-        estimation =
-          EstimationEngine.get_estimation!(socket.assigns.estimation.id, socket.assigns.org_id)
-
-        {:noreply, assign(socket, :estimation, estimation)}
-
-      {:unauthorized, socket} ->
-        {:noreply, socket}
-    end
+    with_edit_auth(socket, fn socket ->
+      EstimationEngine.reorder_epics(socket.assigns.estimation.id, ids)
+      {:noreply, reload_estimation(socket)}
+    end)
   end
 
   def handle_event("reorder_tasks", %{"epic_id" => epic_id, "ids" => ids}, socket) do
-    case authorize_edit(socket) do
-      :ok ->
+    with_edit_auth(socket, fn socket ->
+      if Enum.any?(socket.assigns.estimation.epics, &(&1.id == epic_id)) do
         EstimationEngine.reorder_tasks(epic_id, ids)
-
-        estimation =
-          EstimationEngine.get_estimation!(socket.assigns.estimation.id, socket.assigns.org_id)
-
-        {:noreply, assign(socket, :estimation, estimation)}
-
-      {:unauthorized, socket} ->
+        {:noreply, reload_estimation(socket)}
+      else
         {:noreply, socket}
-    end
+      end
+    end)
   end
 
   def handle_event("toggle_breakdown", _params, socket) do
@@ -565,27 +509,33 @@ defmodule EstimateWeb.EstimatorLive.Index do
   end
 
   def handle_event("open_settings", _params, socket) do
-    {:noreply, assign(socket, :modal, :settings)}
+    with_edit_auth(socket, fn socket ->
+      {:noreply, assign(socket, :modal, :settings)}
+    end)
   end
 
   def handle_event("open_save_as_template", _params, socket) do
-    {:noreply, assign(socket, :modal, :save_template)}
+    with_edit_auth(socket, fn socket ->
+      {:noreply, assign(socket, :modal, :save_template)}
+    end)
   end
 
   def handle_event("save_as_template", %{"template_name" => name}, socket) when name != "" do
-    estimation = socket.assigns.estimation
-    org_id = socket.assigns.org_id
+    with_edit_auth(socket, fn socket ->
+      estimation = socket.assigns.estimation
+      org_id = socket.assigns.org_id
 
-    case Estimate.Templates.create_from_estimation(org_id, name, estimation) do
-      {:ok, _template} ->
-        {:noreply,
-         socket
-         |> assign(:modal, nil)
-         |> put_flash(:info, "Template saved")}
+      case Estimate.Templates.create_from_estimation(org_id, name, estimation) do
+        {:ok, _template} ->
+          {:noreply,
+           socket
+           |> assign(:modal, nil)
+           |> put_flash(:info, "Template saved")}
 
-      {:error, _} ->
-        {:noreply, put_flash(socket, :error, "Could not save template")}
-    end
+        {:error, _} ->
+          {:noreply, put_flash(socket, :error, "Could not save template")}
+      end
+    end)
   end
 
   def handle_event("save_as_template", _params, socket), do: {:noreply, socket}
@@ -596,80 +546,103 @@ defmodule EstimateWeb.EstimatorLive.Index do
         socket
       )
       when name != "" and abbr != "" do
-    case authorize_edit(socket) do
-      :ok ->
-        estimation = socket.assigns.estimation
-        position = length(estimation.roles)
+    with_edit_auth(socket, fn socket ->
+      estimation = socket.assigns.estimation
 
-        attrs = %{
-          name: name,
-          abbreviation: String.upcase(abbr),
-          estimation_id: estimation.id,
-          position: position,
-          hourly_rate: Decimal.new(0),
-          pm_overhead: Decimal.new(0),
-          qa_overhead: Decimal.new(0),
-          risk_buffer: Decimal.new(0)
-        }
+      attrs = %{
+        name: name,
+        abbreviation: String.upcase(abbr),
+        estimation_id: estimation.id,
+        position: length(estimation.roles),
+        hourly_rate: Decimal.new(0),
+        pm_overhead: Decimal.new(0),
+        qa_overhead: Decimal.new(0),
+        risk_buffer: Decimal.new(0)
+      }
 
-        case EstimationEngine.create_role(attrs) do
-          {:ok, _role} ->
-            estimation = EstimationEngine.get_estimation!(estimation.id, socket.assigns.org_id)
+      case EstimationEngine.create_role(attrs) do
+        {:ok, _role} ->
+          {:noreply, reload_estimation(socket) |> put_flash(:info, "Role added")}
 
-            {:noreply, assign(socket, :estimation, estimation) |> put_flash(:info, "Role added")}
-
-          {:error, _} ->
-            {:noreply, put_flash(socket, :error, "Could not add role")}
-        end
-
-      {:unauthorized, socket} ->
-        {:noreply, socket}
-    end
+        {:error, _} ->
+          {:noreply, put_flash(socket, :error, "Could not add role")}
+      end
+    end)
   end
 
   def handle_event("add_estimation_role", _params, socket), do: {:noreply, socket}
 
   def handle_event("save_settings", params, socket) do
-    case authorize_edit(socket) do
-      {:unauthorized, socket} ->
-        {:noreply, socket}
+    with_edit_auth(socket, fn socket ->
+      estimation = socket.assigns.estimation
+      org_id = socket.assigns.org_id
 
-      :ok ->
-        estimation = socket.assigns.estimation
-        org_id = socket.assigns.org_id
+      attrs = %{
+        "name" => params["name"],
+        "currency_id" => params["currency_id"]
+      }
 
-        attrs = %{
-          "name" => params["name"],
-          "currency_id" => params["currency_id"]
-        }
+      roles_params = params["roles"] || %{}
 
-        roles_params = params["roles"] || %{}
-
-        Enum.each(roles_params, fn {role_id, role_attrs} ->
+      roles_result =
+        Enum.reduce_while(roles_params, :ok, fn {role_id, role_attrs}, :ok ->
           role = EstimationEngine.get_role!(role_id, org_id)
 
-          EstimationEngine.update_role(role, %{
-            hourly_rate: parse_decimal(role_attrs["hourly_rate"]),
-            pm_overhead: parse_decimal(role_attrs["pm_overhead"]),
-            qa_overhead: parse_decimal(role_attrs["qa_overhead"]),
-            risk_buffer: parse_decimal(role_attrs["risk_buffer"])
-          })
+          if role.estimation_id != estimation.id do
+            {:halt, {:error, :unauthorized_role}}
+          else
+            case EstimationEngine.update_role(role, %{
+                   name: role_attrs["name"] || role.name,
+                   abbreviation: role_attrs["abbreviation"] || role.abbreviation,
+                   hourly_rate: parse_decimal(role_attrs["hourly_rate"]),
+                   pm_overhead: parse_decimal(role_attrs["pm_overhead"]),
+                   qa_overhead: parse_decimal(role_attrs["qa_overhead"]),
+                   risk_buffer: parse_decimal(role_attrs["risk_buffer"])
+                 }) do
+              {:ok, _} -> {:cont, :ok}
+              {:error, _} -> {:halt, {:error, :role_update_failed}}
+            end
+          end
         end)
 
-        case EstimationEngine.update_estimation(estimation, attrs) do
-          {:ok, _} ->
-            estimation = EstimationEngine.get_estimation!(estimation.id, org_id)
+      case roles_result do
+        {:error, _reason} ->
+          {:noreply, put_flash(socket, :error, "Could not update roles")}
 
-            {:noreply,
-             socket
-             |> assign(:estimation, estimation)
-             |> assign(:modal, nil)
-             |> put_flash(:info, "Settings saved")}
+        :ok ->
+          case EstimationEngine.update_estimation(estimation, attrs) do
+            {:ok, _} ->
+              {:noreply,
+               socket
+               |> reload_estimation()
+               |> assign(:modal, nil)
+               |> put_flash(:info, "Settings saved")}
 
-          {:error, _changeset} ->
-            {:noreply, put_flash(socket, :error, "Could not save settings")}
-        end
-    end
+            {:error, _changeset} ->
+              {:noreply, put_flash(socket, :error, "Could not save settings")}
+          end
+      end
+    end)
+  end
+
+  def handle_event("delete_estimation_role", %{"id" => role_id}, socket) do
+    with_edit_auth(socket, fn socket ->
+      role = EstimationEngine.get_role!(role_id, socket.assigns.org_id)
+
+      if role.estimation_id != socket.assigns.estimation.id do
+        {:noreply, put_flash(socket, :error, "Not authorized")}
+      else
+        EstimationEngine.delete_role(role)
+        {:noreply, reload_estimation(socket) |> put_flash(:info, "Role deleted")}
+      end
+    end)
+  end
+
+  def handle_event("reorder_roles", %{"ids" => ids}, socket) do
+    with_edit_auth(socket, fn socket ->
+      EstimationEngine.reorder_roles(socket.assigns.estimation.id, ids)
+      {:noreply, socket}
+    end)
   end
 
   def handle_event(
@@ -713,22 +686,14 @@ defmodule EstimateWeb.EstimatorLive.Index do
      |> put_flash(:error, "AI error: #{reason}")}
   end
 
-  def handle_info({:estimation_updated, _estimation}, socket) do
-    estimation =
-      EstimationEngine.get_estimation!(socket.assigns.estimation.id, socket.assigns.org_id)
-
-    {:noreply, assign(socket, :estimation, estimation)}
-  end
-
+  # All broadcast events trigger a full reload
   def handle_info({:tasks_reordered, _epic_id, _task_ids}, socket) do
-    estimation =
-      EstimationEngine.get_estimation!(socket.assigns.estimation.id, socket.assigns.org_id)
-
-    {:noreply, assign(socket, :estimation, estimation)}
+    {:noreply, reload_estimation(socket)}
   end
 
   def handle_info({event, _data}, socket)
       when event in [
+             :estimation_updated,
              :epic_created,
              :epic_updated,
              :epic_deleted,
@@ -739,12 +704,10 @@ defmodule EstimateWeb.EstimatorLive.Index do
              :estimate_updated,
              :role_created,
              :role_updated,
-             :role_deleted
+             :role_deleted,
+             :roles_reordered
            ] do
-    estimation =
-      EstimationEngine.get_estimation!(socket.assigns.estimation.id, socket.assigns.org_id)
-
-    {:noreply, assign(socket, :estimation, estimation)}
+    {:noreply, reload_estimation(socket)}
   end
 
   defp filtered_epics(estimation, enabled_priorities) do
@@ -774,6 +737,20 @@ defmodule EstimateWeb.EstimatorLive.Index do
     else
       {:unauthorized, put_flash(socket, :error, "You don't have edit access")}
     end
+  end
+
+  defp with_edit_auth(socket, fun) do
+    case authorize_edit(socket) do
+      :ok -> fun.(socket)
+      {:unauthorized, socket} -> {:noreply, socket}
+    end
+  end
+
+  defp reload_estimation(socket) do
+    estimation =
+      EstimationEngine.get_estimation!(socket.assigns.estimation.id, socket.assigns.org_id)
+
+    assign(socket, :estimation, estimation)
   end
 
   defp belongs_to_estimation?(estimation, :task, id),

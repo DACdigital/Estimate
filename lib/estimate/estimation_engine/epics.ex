@@ -5,6 +5,8 @@ defmodule Estimate.EstimationEngine.Epics do
   alias Estimate.Repo
   alias Estimate.EstimationEngine.Epic
 
+  alias Estimate.EstimationEngine.Helpers
+
   def create_epic(attrs) do
     Repo.ensure_org_context(fn ->
       result =
@@ -13,47 +15,27 @@ defmodule Estimate.EstimationEngine.Epics do
         |> Repo.insert()
 
       case result do
-        {:ok, epic} ->
-          Estimate.EstimationEngine.broadcast(epic.estimation_id, {:epic_created, epic})
-          {:ok, epic}
-
-        error ->
-          error
+        {:ok, epic} -> Helpers.with_broadcast(result, epic.estimation_id, &{:epic_created, &1})
+        error -> error
       end
     end)
   end
 
   def update_epic(%Epic{} = epic, attrs) do
     Repo.ensure_org_context(fn ->
-      result =
-        epic
-        |> Epic.changeset(attrs)
-        |> Repo.update()
-
-      case result do
-        {:ok, epic} ->
-          Estimate.EstimationEngine.broadcast(epic.estimation_id, {:epic_updated, epic})
-          {:ok, epic}
-
-        error ->
-          error
-      end
+      epic
+      |> Epic.changeset(attrs)
+      |> Repo.update()
+      |> Helpers.with_broadcast(epic.estimation_id, &{:epic_updated, &1})
     end)
   end
 
   def delete_epic(%Epic{} = epic) do
+    estimation_id = epic.estimation_id
+
     Repo.ensure_org_context(fn ->
-      estimation_id = epic.estimation_id
-      result = Repo.delete(epic)
-
-      case result do
-        {:ok, epic} ->
-          Estimate.EstimationEngine.broadcast(estimation_id, {:epic_deleted, epic})
-          {:ok, epic}
-
-        error ->
-          error
-      end
+      Repo.delete(epic)
+      |> Helpers.with_broadcast(estimation_id, &{:epic_deleted, &1})
     end)
   end
 
@@ -68,22 +50,10 @@ defmodule Estimate.EstimationEngine.Epics do
   end
 
   def reorder_epics(estimation_id, epic_ids) do
-    Repo.ensure_org_context(fn ->
-      case Repo.transaction(fn ->
-             epic_ids
-             |> Enum.with_index()
-             |> Enum.each(fn {id, position} ->
-               from(e in Epic, where: e.id == ^id and e.estimation_id == ^estimation_id)
-               |> Repo.update_all(set: [position: position])
-             end)
-           end) do
-        {:ok, _} ->
-          Estimate.EstimationEngine.broadcast(estimation_id, {:epics_reordered, epic_ids})
-          :ok
+    alias Estimate.EstimationEngine.Helpers
 
-        {:error, reason} ->
-          {:error, reason}
-      end
+    Helpers.reorder_children(Epic, :estimation_id, estimation_id, epic_ids, fn ->
+      Estimate.EstimationEngine.broadcast(estimation_id, {:epics_reordered, epic_ids})
     end)
   end
 end

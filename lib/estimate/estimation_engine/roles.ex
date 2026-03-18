@@ -5,6 +5,8 @@ defmodule Estimate.EstimationEngine.Roles do
   alias Estimate.Repo
   alias Estimate.EstimationEngine.EstimationRole
 
+  alias Estimate.EstimationEngine.Helpers
+
   def create_role(attrs) do
     Repo.ensure_org_context(fn ->
       result =
@@ -12,47 +14,34 @@ defmodule Estimate.EstimationEngine.Roles do
         |> EstimationRole.changeset(attrs)
         |> Repo.insert()
 
-      case result do
-        {:ok, role} ->
-          Estimate.EstimationEngine.broadcast(role.estimation_id, {:role_created, role})
-          {:ok, role}
-
-        error ->
-          error
-      end
+      Helpers.with_broadcast(result, result_estimation_id(result), &{:role_created, &1})
     end)
   end
 
+  defp result_estimation_id({:ok, record}), do: record.estimation_id
+  defp result_estimation_id(_), do: nil
+
   def update_role(%EstimationRole{} = role, attrs) do
     Repo.ensure_org_context(fn ->
-      result =
-        role
-        |> EstimationRole.changeset(attrs)
-        |> Repo.update()
-
-      case result do
-        {:ok, role} ->
-          Estimate.EstimationEngine.broadcast(role.estimation_id, {:role_updated, role})
-          {:ok, role}
-
-        error ->
-          error
-      end
+      role
+      |> EstimationRole.changeset(attrs)
+      |> Repo.update()
+      |> Helpers.with_broadcast(role.estimation_id, &{:role_updated, &1})
     end)
   end
 
   def delete_role(%EstimationRole{} = role) do
     Repo.ensure_org_context(fn ->
-      result = Repo.delete(role)
+      Repo.delete(role)
+      |> Helpers.with_broadcast(role.estimation_id, &{:role_deleted, &1})
+    end)
+  end
 
-      case result do
-        {:ok, role} ->
-          Estimate.EstimationEngine.broadcast(role.estimation_id, {:role_deleted, role})
-          {:ok, role}
+  def reorder_roles(estimation_id, role_ids) do
+    alias Estimate.EstimationEngine.Helpers
 
-        error ->
-          error
-      end
+    Helpers.reorder_children(EstimationRole, :estimation_id, estimation_id, role_ids, fn ->
+      Estimate.EstimationEngine.broadcast(estimation_id, {:roles_reordered, role_ids})
     end)
   end
 
@@ -66,25 +55,19 @@ defmodule Estimate.EstimationEngine.Roles do
     end)
   end
 
-  def update_role_rate(%EstimationRole{} = role, hourly_rate, _org_id) do
-    Repo.ensure_org_context(fn ->
-      result =
-        role
-        |> EstimationRole.changeset(%{hourly_rate: hourly_rate})
-        |> Repo.update()
-
-      case result do
-        {:ok, updated_role} ->
-          Estimate.EstimationEngine.broadcast(
-            updated_role.estimation_id,
-            {:role_updated, updated_role}
-          )
-
-          {:ok, updated_role}
-
-        error ->
-          error
-      end
+  @doc false
+  def insert_roles_from_attrs(estimation_id, role_attrs_list) do
+    insert_roles(role_attrs_list, fn attrs, idx ->
+      %{
+        name: attrs.name,
+        abbreviation: attrs.abbreviation,
+        hourly_rate: attrs.hourly_rate || Decimal.new(0),
+        pm_overhead: attrs.pm_overhead || Decimal.new(0),
+        qa_overhead: attrs.qa_overhead || Decimal.new(0),
+        risk_buffer: attrs.risk_buffer || Decimal.new(0),
+        position: idx,
+        estimation_id: estimation_id
+      }
     end)
   end
 
@@ -136,5 +119,9 @@ defmodule Estimate.EstimationEngine.Roles do
         {:error, changeset} -> {:halt, {:error, changeset}}
       end
     end)
+    |> case do
+      {:ok, roles} -> {:ok, Enum.reverse(roles)}
+      error -> error
+    end
   end
 end

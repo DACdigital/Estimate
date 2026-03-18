@@ -78,28 +78,15 @@ defmodule Estimate.EstimationEngine.Tasks do
   end
 
   def reorder_tasks(epic_id, task_ids) do
-    Repo.ensure_org_context(fn ->
-      epic = Repo.get!(Epic, epic_id)
+    alias Estimate.EstimationEngine.Helpers
 
-      case Repo.transaction(fn ->
-             task_ids
-             |> Enum.with_index()
-             |> Enum.each(fn {id, position} ->
-               from(t in Task, where: t.id == ^id and t.epic_id == ^epic_id)
-               |> Repo.update_all(set: [position: position])
-             end)
-           end) do
-        {:ok, _} ->
-          Estimate.EstimationEngine.broadcast(
-            epic.estimation_id,
-            {:tasks_reordered, epic_id, task_ids}
-          )
+    epic = Repo.ensure_org_context(fn -> Repo.get!(Epic, epic_id) end)
 
-          :ok
-
-        {:error, reason} ->
-          {:error, reason}
-      end
+    Helpers.reorder_children(Task, :epic_id, epic_id, task_ids, fn ->
+      Estimate.EstimationEngine.broadcast(
+        epic.estimation_id,
+        {:tasks_reordered, epic_id, task_ids}
+      )
     end)
   end
 end

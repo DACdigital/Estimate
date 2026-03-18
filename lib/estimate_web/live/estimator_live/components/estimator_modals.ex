@@ -1,5 +1,6 @@
 defmodule EstimateWeb.EstimatorLive.Components.EstimatorModals do
   use EstimateWeb, :html
+  use EstimateWeb.FormClasses
 
   import EstimateWeb.EstimatorLive.Helpers
 
@@ -49,58 +50,26 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimatorModals do
       <.form for={@epic_form} id="epic-form" phx-submit="save_epic">
         <div class="space-y-4">
           <div>
-            <label class="block text-xs font-medium text-base-content/60 mb-1.5">Epic Name *</label>
+            <label class={@label_class}>Epic Name *</label>
             <input
               type="text"
               name={@epic_form[:name].name}
               value={@epic_form[:name].value}
               placeholder="e.g. User Authentication"
               required
-              class="w-full px-3 py-2 border border-base-content/20 rounded-lg text-sm"
+              class={@input_class}
             />
           </div>
           <div>
             <div class="flex items-center justify-between mb-1.5">
               <label class="block text-xs font-medium text-base-content/60">Description</label>
-              <button
+              <.ai_enhance_button
                 :if={@ai_configured}
-                type="button"
                 id="ai-enhance-epic"
-                phx-hook="AiEnhance"
-                data-textarea-name={@epic_form[:description].name}
-                data-name-input={@epic_form[:name].name}
-                disabled={@ai_loading != nil}
-                class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-purple-50 text-purple-700 border border-purple-200 rounded-md hover:bg-purple-100 hover:border-purple-300 transition-colors disabled:opacity-50"
-                title="Enhance with AI"
-              >
-                <.icon
-                  :if={@ai_loading != @epic_form[:description].name}
-                  name="hero-sparkles-solid"
-                  class="w-3.5 h-3.5"
-                />
-                <svg
-                  :if={@ai_loading == @epic_form[:description].name}
-                  class="animate-spin w-3.5 h-3.5"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    class="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    stroke-width="4"
-                  />
-                  <path
-                    class="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                  />
-                </svg>
-                Enhance with AI
-              </button>
+                textarea_name={@epic_form[:description].name}
+                name_input={@epic_form[:name].name}
+                ai_loading={@ai_loading}
+              />
             </div>
             <textarea
               name={@epic_form[:description].name}
@@ -110,22 +79,7 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimatorModals do
             ><%= @epic_form[:description].value %></textarea>
           </div>
         </div>
-        <div class="mt-6 flex justify-end gap-3">
-          <button
-            type="button"
-            phx-click="close_modal"
-            class="px-4 py-2 text-sm text-base-content/70 hover:text-base-content transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            phx-disable-with="Saving..."
-            class="px-4 py-2 bg-neutral text-neutral-content text-sm rounded-lg hover:bg-neutral/90 transition-colors font-medium"
-          >
-            {if @epic_form.data.id, do: "Save Changes", else: "Create Epic"}
-          </button>
-        </div>
+        <.modal_footer submit_label={if @epic_form.data.id, do: "Save Changes", else: "Create Epic"} />
       </.form>
     </.modal>
     """
@@ -140,77 +94,44 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimatorModals do
       <.form for={@task_form} id="task-form" phx-submit="save_task" phx-change="validate_task">
         <div class="space-y-4">
           <div>
-            <label class="block text-xs font-medium text-base-content/60 mb-1.5">Task Name *</label>
+            <label class={@label_class}>Task Name *</label>
             <input
               type="text"
               name={@task_form[:name].name}
               value={@task_form[:name].value}
               placeholder="e.g. Implement login form"
               required
-              class="w-full px-3 py-2 border border-base-content/20 rounded-lg text-sm"
+              class={@input_class}
             />
           </div>
           <div>
-            <label class="block text-xs font-medium text-base-content/60 mb-1.5">
-              Priority (MoSCoW)
-            </label>
+            <label class={@label_class}>Priority (MoSCoW)</label>
             <div class="flex gap-2">
-              <%= for p <- ["must", "should", "could", "wont"] do %>
-                <label class={"flex-1 text-center py-2 px-3 text-sm rounded-lg border cursor-pointer transition-colors #{if (@task_form[:priority].value || "must") == p, do: "bg-neutral text-neutral-content border-neutral", else: "bg-base-100 text-base-content/70 border-base-content/20 hover:border-base-content/40"}"}>
-                  <input
-                    type="radio"
-                    name={@task_form[:priority].name}
-                    value={p}
-                    checked={(@task_form[:priority].value || "must") == p}
-                    class="sr-only"
-                  />
-                  {priority_label(p)}
-                </label>
-              <% end %>
+              <label
+                :for={p <- ["must", "should", "could", "wont"]}
+                class={"flex-1 text-center py-2 px-3 text-sm rounded-lg border cursor-pointer transition-colors #{if (@task_form[:priority].value || "must") == p, do: "bg-neutral text-neutral-content border-neutral", else: "bg-base-100 text-base-content/70 border-base-content/20 hover:border-base-content/40"}"}
+              >
+                <input
+                  type="radio"
+                  name={@task_form[:priority].name}
+                  value={p}
+                  checked={(@task_form[:priority].value || "must") == p}
+                  class="sr-only"
+                />
+                {priority_label(p)}
+              </label>
             </div>
           </div>
           <div>
             <div class="flex items-center justify-between mb-1.5">
               <label class="block text-xs font-medium text-base-content/60">Description</label>
-              <button
+              <.ai_enhance_button
                 :if={@ai_configured}
-                type="button"
                 id="ai-enhance-task"
-                phx-hook="AiEnhance"
-                data-textarea-name={@task_form[:description].name}
-                data-name-input={@task_form[:name].name}
-                disabled={@ai_loading != nil}
-                class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-purple-50 text-purple-700 border border-purple-200 rounded-md hover:bg-purple-100 hover:border-purple-300 transition-colors disabled:opacity-50"
-                title="Enhance with AI"
-              >
-                <.icon
-                  :if={@ai_loading != @task_form[:description].name}
-                  name="hero-sparkles-solid"
-                  class="w-3.5 h-3.5"
-                />
-                <svg
-                  :if={@ai_loading == @task_form[:description].name}
-                  class="animate-spin w-3.5 h-3.5"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    class="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    stroke-width="4"
-                  />
-                  <path
-                    class="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                  />
-                </svg>
-                Enhance with AI
-              </button>
+                textarea_name={@task_form[:description].name}
+                name_input={@task_form[:name].name}
+                ai_loading={@ai_loading}
+              />
             </div>
             <textarea
               name={@task_form[:description].name}
@@ -220,22 +141,7 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimatorModals do
             ><%= @task_form[:description].value %></textarea>
           </div>
         </div>
-        <div class="mt-6 flex justify-end gap-3">
-          <button
-            type="button"
-            phx-click="close_modal"
-            class="px-4 py-2 text-sm text-base-content/70 hover:text-base-content transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            phx-disable-with="Saving..."
-            class="px-4 py-2 bg-neutral text-neutral-content text-sm rounded-lg hover:bg-neutral/90 transition-colors font-medium"
-          >
-            {if @task_form.data.id, do: "Save Changes", else: "Create Task"}
-          </button>
-        </div>
+        <.modal_footer submit_label={if @task_form.data.id, do: "Save Changes", else: "Create Task"} />
       </.form>
     </.modal>
     """
@@ -266,6 +172,9 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimatorModals do
   end
 
   defp settings_modal(assigns) do
+    assigns = assign(assigns, :label_class, @label_class)
+    assigns = assign(assigns, :input_class, @input_class)
+
     ~H"""
     <.modal id="settings-modal" show on_cancel={JS.push("close_modal")}>
       <h2 class="text-xl font-semibold text-base-content mb-6">Estimation Settings</h2>
@@ -273,30 +182,19 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimatorModals do
         <div class="space-y-6">
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="block text-xs font-medium text-base-content/60 mb-1.5">
-                Estimation Name
-              </label>
-              <input
-                type="text"
-                name="name"
-                value={@estimation.name}
-                class="w-full px-3 py-2 border border-base-content/20 rounded-lg text-sm"
-              />
+              <label class={@label_class}>Estimation Name</label>
+              <input type="text" name="name" value={@estimation.name} class={@input_class} />
             </div>
             <div>
-              <label class="block text-xs font-medium text-base-content/60 mb-1.5">Currency</label>
-              <select
-                name="currency_id"
-                class="w-full px-3 py-2 border border-base-content/20 rounded-lg text-sm"
-              >
-                <%= for currency <- @currencies do %>
-                  <option
-                    value={currency.id}
-                    selected={@estimation.currency && currency.id == @estimation.currency.id}
-                  >
-                    {currency.code} - {currency.name} ({currency.symbol})
-                  </option>
-                <% end %>
+              <label class={@label_class}>Currency</label>
+              <select name="currency_id" class={@input_class}>
+                <option
+                  :for={currency <- @currencies}
+                  value={currency.id}
+                  selected={@estimation.currency && currency.id == @estimation.currency.id}
+                >
+                  {currency.code} - {currency.name} ({currency.symbol})
+                </option>
               </select>
             </div>
           </div>
@@ -314,64 +212,52 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimatorModals do
                     <th class="px-3 py-2 text-right w-16">PM %</th>
                     <th class="px-3 py-2 text-right w-16">QA %</th>
                     <th class="px-3 py-2 text-right w-16">Risk %</th>
+                    <th class="w-8"></th>
                   </tr>
                 </thead>
-                <tbody class="divide-y divide-base-content/10">
-                  <%= for role <- @estimation.roles do %>
-                    <tr class="hover:bg-base-200">
-                      <td class="px-3 py-2">
-                        <div class="flex items-center gap-2">
-                          <span class="w-6 h-6 rounded bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold text-[10px]">
-                            {role.abbreviation}
-                          </span>
-                          <span class="text-base-content">{role.name}</span>
-                        </div>
-                      </td>
-                      <td class="px-3 py-2">
+                <tbody
+                  id="roles-sortable"
+                  phx-hook="TemplateSortable"
+                  data-sort-event="reorder_roles"
+                  class="divide-y divide-base-content/10"
+                >
+                  <tr :for={role <- @estimation.roles} data-id={role.id} class="hover:bg-base-200">
+                    <td class="px-3 py-2">
+                      <div class="flex items-center gap-2">
+                        <span class="drag-handle cursor-grab text-base-content/30 hover:text-base-content/60">
+                          <.icon name="hero-bars-3-mini" class="w-4 h-4" />
+                        </span>
                         <input
-                          type="number"
-                          step="1"
-                          min="0"
-                          name={"roles[#{role.id}][hourly_rate]"}
-                          value={format_percent(role.hourly_rate)}
-                          class="w-full px-2 py-1 border border-base-300 rounded text-sm font-mono text-right hover:border-base-content/30"
+                          type="text"
+                          name={"roles[#{role.id}][abbreviation]"}
+                          value={role.abbreviation}
+                          maxlength="5"
+                          class="w-12 px-1 py-1 border border-base-300 rounded text-[10px] font-semibold text-center uppercase bg-gradient-to-br from-indigo-500 to-purple-600 text-white hover:border-base-content/30"
                         />
-                      </td>
-                      <td class="px-3 py-2">
                         <input
-                          type="number"
-                          step="1"
-                          min="0"
-                          max="100"
-                          name={"roles[#{role.id}][pm_overhead]"}
-                          value={format_percent(role.pm_overhead)}
-                          class="w-full px-2 py-1 border border-base-300 rounded text-sm font-mono text-right hover:border-base-content/30"
+                          type="text"
+                          name={"roles[#{role.id}][name]"}
+                          value={role.name}
+                          class="w-full px-2 py-1 border border-base-300 rounded text-sm hover:border-base-content/30"
                         />
-                      </td>
-                      <td class="px-3 py-2">
-                        <input
-                          type="number"
-                          step="1"
-                          min="0"
-                          max="100"
-                          name={"roles[#{role.id}][qa_overhead]"}
-                          value={format_percent(role.qa_overhead)}
-                          class="w-full px-2 py-1 border border-base-300 rounded text-sm font-mono text-right hover:border-base-content/30"
-                        />
-                      </td>
-                      <td class="px-3 py-2">
-                        <input
-                          type="number"
-                          step="1"
-                          min="0"
-                          max="100"
-                          name={"roles[#{role.id}][risk_buffer]"}
-                          value={format_percent(role.risk_buffer)}
-                          class="w-full px-2 py-1 border border-base-300 rounded text-sm font-mono text-right hover:border-base-content/30"
-                        />
-                      </td>
-                    </tr>
-                  <% end %>
+                      </div>
+                    </td>
+                    <.role_number_input field="hourly_rate" role={role} />
+                    <.role_number_input field="pm_overhead" role={role} max="100" />
+                    <.role_number_input field="qa_overhead" role={role} max="100" />
+                    <.role_number_input field="risk_buffer" role={role} max="100" />
+                    <td class="px-1 py-2">
+                      <button
+                        type="button"
+                        phx-click="delete_estimation_role"
+                        phx-value-id={role.id}
+                        data-confirm="Delete role and all its estimates?"
+                        class="text-base-content/40 hover:text-error transition-colors"
+                      >
+                        <.icon name="hero-trash-mini" class="w-4 h-4" />
+                      </button>
+                    </td>
+                  </tr>
                 </tbody>
               </table>
             </div>
@@ -406,64 +292,135 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimatorModals do
             <p class="text-xs text-base-content/40 mt-1.5">Changes apply only to this estimation</p>
           </div>
         </div>
-        <div class="mt-6 flex justify-end gap-3">
-          <button
-            type="button"
-            phx-click="close_modal"
-            class="px-4 py-2 text-sm text-base-content/70 hover:text-base-content transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            phx-disable-with="Saving..."
-            class="px-4 py-2 bg-neutral text-neutral-content text-sm rounded-lg hover:bg-neutral/90 transition-colors font-medium"
-          >
-            Save
-          </button>
-        </div>
+        <.modal_footer submit_label="Save" />
       </.form>
     </.modal>
     """
   end
 
   defp save_template_modal(assigns) do
+    assigns = assign(assigns, :label_class, @label_class)
+    assigns = assign(assigns, :input_class, @input_class)
+
     ~H"""
     <.modal id="save-template-modal" show on_cancel={JS.push("close_modal")}>
       <h2 class="text-xl font-semibold text-base-content mb-4">Save as Template</h2>
       <p class="text-sm text-base-content/60 mb-4">
         Save the epic & task structure as a reusable template. No hours or roles will be included.
       </p>
-      <form phx-submit="save_as_template">
+      <.form for={%{}} as={:template} id="template-form" phx-submit="save_as_template">
         <div>
-          <label class="block text-xs font-medium text-base-content/60 mb-1.5">Template Name *</label>
+          <label class={@label_class}>Template Name *</label>
           <input
             type="text"
             name="template_name"
             value={@estimation.name}
             required
             autofocus
-            class="w-full px-3 py-2 border border-base-content/20 rounded-lg text-sm"
+            class={@input_class}
           />
         </div>
-        <div class="mt-6 flex justify-end gap-3">
-          <button
-            type="button"
-            phx-click="close_modal"
-            class="px-4 py-2 text-sm text-base-content/70 hover:text-base-content transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            phx-disable-with="Saving..."
-            class="px-4 py-2 bg-neutral text-neutral-content text-sm rounded-lg hover:bg-neutral/90 transition-colors font-medium"
-          >
-            Save Template
-          </button>
-        </div>
-      </form>
+        <.modal_footer submit_label="Save Template" />
+      </.form>
     </.modal>
     """
   end
+
+  # Shared components
+
+  attr :id, :string, required: true
+  attr :textarea_name, :string, required: true
+  attr :name_input, :string, required: true
+  attr :ai_loading, :string, default: nil
+
+  defp ai_enhance_button(assigns) do
+    ~H"""
+    <button
+      type="button"
+      id={@id}
+      phx-hook="AiEnhance"
+      data-textarea-name={@textarea_name}
+      data-name-input={@name_input}
+      disabled={@ai_loading != nil}
+      class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-purple-50 text-purple-700 border border-purple-200 rounded-md hover:bg-purple-100 hover:border-purple-300 transition-colors disabled:opacity-50"
+      title="Enhance with AI"
+    >
+      <.icon
+        :if={@ai_loading != @textarea_name}
+        name="hero-sparkles-solid"
+        class="w-3.5 h-3.5"
+      />
+      <svg
+        :if={@ai_loading == @textarea_name}
+        class="animate-spin w-3.5 h-3.5"
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+        viewBox="0 0 24 24"
+      >
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+        <path
+          class="opacity-75"
+          fill="currentColor"
+          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+        />
+      </svg>
+      Enhance with AI
+    </button>
+    """
+  end
+
+  attr :submit_label, :string, required: true
+
+  defp modal_footer(assigns) do
+    ~H"""
+    <div class="mt-6 flex justify-end gap-3">
+      <button
+        type="button"
+        phx-click="close_modal"
+        class="px-4 py-2 text-sm text-base-content/70 hover:text-base-content transition-colors"
+      >
+        Cancel
+      </button>
+      <button
+        type="submit"
+        phx-disable-with="Saving..."
+        class="px-4 py-2 bg-neutral text-neutral-content text-sm rounded-lg hover:bg-neutral/90 transition-colors font-medium"
+      >
+        {@submit_label}
+      </button>
+    </div>
+    """
+  end
+
+  attr :field, :string, required: true
+  attr :role, :map, required: true
+  attr :max, :string, default: nil
+
+  defp role_number_input(assigns) do
+    assigns = assign(assigns, :value, format_number(Map.get(assigns.role, String.to_existing_atom(assigns.field))))
+
+    ~H"""
+    <td class="px-3 py-2">
+      <input
+        type="number"
+        step="1"
+        min="0"
+        max={@max}
+        name={"roles[#{@role.id}][#{@field}]"}
+        value={@value}
+        class="w-full px-2 py-1 border border-base-300 rounded text-sm font-mono text-right hover:border-base-content/30"
+      />
+    </td>
+    """
+  end
+
+  defp format_number(nil), do: ""
+
+  defp format_number(%Decimal{} = d) do
+    if Decimal.equal?(d, Decimal.round(d, 0)),
+      do: Decimal.to_integer(d) |> to_string(),
+      else: Decimal.to_string(d)
+  end
+
+  defp format_number(val), do: to_string(val)
 end
