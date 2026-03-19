@@ -62,7 +62,7 @@ defmodule EstimateWeb.DashboardLive.Index do
           <p class="mt-1 text-base-content/60">Data quality issues across your organization</p>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <.watchtower_card
             count={@watchtower_customers}
             label="Customers Missing Description"
@@ -80,6 +80,12 @@ defmodule EstimateWeb.DashboardLive.Index do
             label="Members Without 2FA"
             icon="hero-shield-exclamation"
             navigate={~p"/org/#{@org_id}/settings/members"}
+          />
+          <.watchtower_card
+            count={@watchtower_deleted_estimations}
+            label="Deleted Estimations"
+            icon="hero-trash"
+            navigate={~p"/org/#{@org_id}/settings/trash"}
           />
         </div>
       </div>
@@ -200,10 +206,11 @@ defmodule EstimateWeb.DashboardLive.Index do
         %{
           customers: CRM.count_customers_missing_description(org_id),
           projects: Portfolio.count_projects_missing_descriptions(org_id),
-          tfa: Organizations.count_members_without_2fa(org_id)
+          tfa: Organizations.count_members_without_2fa(org_id),
+          deleted_estimations: EstimationEngine.count_deleted_estimations_for_org(org_id)
         }
       else
-        %{customers: 0, projects: 0, tfa: 0}
+        %{customers: 0, projects: 0, tfa: 0, deleted_estimations: 0}
       end
 
     {:ok,
@@ -217,6 +224,7 @@ defmodule EstimateWeb.DashboardLive.Index do
      |> assign(:watchtower_customers, watchtower.customers)
      |> assign(:watchtower_projects, watchtower.projects)
      |> assign(:watchtower_2fa, watchtower.tfa)
+     |> assign(:watchtower_deleted_estimations, watchtower.deleted_estimations)
      |> assign(:page_title, "Dashboard")
      |> assign(:active_tab, :dashboard)}
   end

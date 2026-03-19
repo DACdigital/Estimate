@@ -130,15 +130,39 @@ defmodule EstimateWeb.ProjectLive.Show do
         show
         on_cancel={JS.push("cancel_delete_project")}
       >
-        <div class="text-center">
+        <div>
           <div class="w-12 h-12 rounded-full bg-error/10 flex items-center justify-center mx-auto mb-4">
             <.icon name="hero-exclamation-triangle" class="w-6 h-6 text-error" />
           </div>
-          <h3 class="text-lg font-semibold text-base-content mb-2">Delete Project</h3>
-          <p class="text-sm text-base-content/60 mb-6">
-            Are you sure you want to delete <span class="font-medium text-base-content"><%= @project.name %></span>?
-            This will also delete all estimations. This action cannot be undone.
+          <h3 class="text-lg font-semibold text-base-content mb-2 text-center">Delete Project</h3>
+          <p class="text-sm text-base-content/60 mb-4 text-center">
+            This will permanently delete:
           </p>
+          <ul class="text-sm text-base-content/60 mb-4 space-y-1 pl-4">
+            <li>
+              <span class="font-medium text-base-content">{@delete_impact.estimation_count}</span>
+              estimations (including trash)
+            </li>
+            <li>
+              <span class="font-medium text-base-content">{@delete_impact.task_count}</span>
+              tasks across all estimations
+            </li>
+            <li>
+              <span class="font-medium text-base-content">{@delete_impact.collaborator_count}</span>
+              collaborator assignments
+            </li>
+          </ul>
+          <p class="text-sm text-base-content/60 mb-2">
+            Type <span class="font-medium text-base-content">{@project.name}</span> to confirm:
+          </p>
+          <input
+            type="text"
+            phx-keyup="validate_delete_confirmation"
+            value={@delete_confirmation_input}
+            class="w-full px-3 py-2 border border-base-content/20 rounded-lg text-sm mb-4"
+            placeholder={@project.name}
+            autocomplete="off"
+          />
           <div class="flex gap-3 justify-center">
             <button
               phx-click="cancel_delete_project"
@@ -148,7 +172,8 @@ defmodule EstimateWeb.ProjectLive.Show do
             </button>
             <button
               phx-click="delete_project"
-              class="px-4 py-2 bg-error text-neutral-content text-sm rounded-lg hover:bg-error/90 font-medium"
+              disabled={@delete_confirmation_input != @project.name}
+              class={"px-4 py-2 text-sm rounded-lg font-medium #{if @delete_confirmation_input == @project.name, do: "bg-error text-neutral-content hover:bg-error/90", else: "bg-base-300 text-base-content/30 cursor-not-allowed"}"}
             >
               Delete Project
             </button>
@@ -454,15 +479,7 @@ defmodule EstimateWeb.ProjectLive.Show do
                 }
                 class="flex-1 px-6 py-4 hover:bg-base-200 transition-colors"
               >
-                <div class="flex items-center gap-2">
-                  <h3 class="text-sm font-medium text-base-content">{estimation.name}</h3>
-                  <span
-                    :if={estimation.is_current}
-                    class="text-[10px] px-1.5 py-0.5 bg-success/10 text-success rounded font-medium"
-                  >
-                    Current
-                  </span>
-                </div>
+                <h3 class="text-sm font-medium text-base-content">{estimation.name}</h3>
                 <p class="text-xs text-base-content/60 mt-0.5">
                   {length(estimation.roles)} roles · Updated {Calendar.strftime(
                     estimation.updated_at,
@@ -470,7 +487,7 @@ defmodule EstimateWeb.ProjectLive.Show do
                   )}
                 </p>
               </.link>
-              <div class="w-36 px-4 flex items-center justify-end gap-2">
+              <div class="flex items-center justify-end gap-2 px-4 pr-6 shrink-0 self-stretch">
                 <button
                   :if={!estimation.is_current}
                   phx-click="set_current_estimation"
@@ -480,8 +497,11 @@ defmodule EstimateWeb.ProjectLive.Show do
                 >
                   Set current
                 </button>
-                <span :if={estimation.is_current} class="text-xs text-success px-2 py-1">
-                  <.icon name="hero-check-circle-solid" class="w-4 h-4" />
+                <span
+                  :if={estimation.is_current}
+                  class="text-[10px] px-1.5 py-0.5 bg-success/10 text-success rounded font-medium"
+                >
+                  Current
                 </span>
                 <button
                   :if={!estimation.is_current && @can_delete_project}
@@ -497,6 +517,79 @@ defmodule EstimateWeb.ProjectLive.Show do
           <% end %>
         <% end %>
       <% end %>
+    </div>
+
+    <%!-- Trash Section --%>
+    <div :if={@deleted_estimations != []} class="mt-6">
+      <button
+        phx-click="toggle_trash"
+        class="flex items-center gap-2 text-sm text-base-content/40 hover:text-base-content/60 transition-colors mb-3"
+      >
+        <.icon name="hero-trash" class="w-4 h-4" />
+        <span>Trash ({length(@deleted_estimations)})</span>
+        <.icon
+          name={if @show_trash, do: "hero-chevron-up-mini", else: "hero-chevron-down-mini"}
+          class="w-4 h-4"
+        />
+      </button>
+
+      <div
+        :if={@show_trash}
+        class="bg-base-100 border border-base-300 rounded-xl overflow-hidden"
+      >
+        <%= for estimation <- @deleted_estimations do %>
+          <%= if @permanently_deleting == estimation.id do %>
+            <div class="flex items-center justify-between px-6 py-4 bg-error/5 border-b border-base-content/10 last:border-b-0">
+              <span class="text-sm text-error font-medium">
+                Permanently delete "{estimation.name}"?
+              </span>
+              <div class="flex items-center gap-2">
+                <button
+                  phx-click="cancel_permanent_delete"
+                  class="text-xs text-base-content/60 hover:text-base-content px-2 py-1"
+                >
+                  Cancel
+                </button>
+                <button
+                  phx-click="permanent_delete_estimation"
+                  phx-value-id={estimation.id}
+                  class="text-xs text-error font-medium px-2 py-1"
+                >
+                  Delete Forever
+                </button>
+              </div>
+            </div>
+          <% else %>
+            <div class="flex items-center border-b border-base-content/10 last:border-b-0">
+              <div class="flex-1 px-6 py-4">
+                <h3 class="text-sm font-medium text-base-content/50">{estimation.name}</h3>
+                <p class="text-xs text-base-content/40 mt-0.5">
+                  Deleted {Calendar.strftime(estimation.deleted_at, "%b %d, %Y")}
+                  · {length(estimation.roles)} roles
+                </p>
+              </div>
+              <div :if={@can_delete_project} class="flex items-center gap-2 px-4 pr-6 shrink-0">
+                <button
+                  phx-click="restore_estimation"
+                  phx-value-id={estimation.id}
+                  class="text-base-content/40 hover:text-info transition-colors"
+                  title="Restore estimation"
+                >
+                  <.icon name="hero-arrow-uturn-left" class="w-4 h-4" />
+                </button>
+                <button
+                  phx-click="confirm_permanent_delete"
+                  phx-value-id={estimation.id}
+                  class="text-base-content/40 hover:text-error transition-colors"
+                  title="Delete forever"
+                >
+                  <.icon name="hero-trash" class="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          <% end %>
+        <% end %>
+      </div>
     </div>
     """
   end
@@ -547,7 +640,12 @@ defmodule EstimateWeb.ProjectLive.Show do
      |> assign(:tab, :overview)
      |> assign(:form, to_form(Portfolio.change_project(project)))
      |> assign(:deleting_project, false)
+     |> assign(:delete_impact, %{estimation_count: 0, task_count: 0, collaborator_count: 0})
+     |> assign(:delete_confirmation_input, "")
      |> assign(:deleting_estimation, nil)
+     |> assign(:deleted_estimations, [])
+     |> assign(:show_trash, false)
+     |> assign(:permanently_deleting, nil)
      |> assign(:estimation_templates, estimation_templates)
      |> init_modal_assigns(project, role_templates, estimation_templates)
      |> init_permissions(current_collaborator, socket.assigns.current_membership)
@@ -619,8 +717,11 @@ defmodule EstimateWeb.ProjectLive.Show do
   end
 
   defp apply_action(socket, :estimations, _params) do
+    deleted = EstimationEngine.list_deleted_estimations(socket.assigns.project.id)
+
     socket
     |> assign(:tab, :estimations)
+    |> assign(:deleted_estimations, deleted)
     |> assign(:page_title, "Estimations - #{socket.assigns.project.name}")
   end
 
@@ -665,15 +766,29 @@ defmodule EstimateWeb.ProjectLive.Show do
   end
 
   def handle_event("confirm_delete_project", _params, socket) do
-    {:noreply, assign(socket, :deleting_project, true)}
+    impact = Portfolio.deletion_impact(socket.assigns.project)
+
+    {:noreply,
+     socket
+     |> assign(:deleting_project, true)
+     |> assign(:delete_impact, impact)
+     |> assign(:delete_confirmation_input, "")}
   end
 
   def handle_event("cancel_delete_project", _params, socket) do
-    {:noreply, assign(socket, :deleting_project, false)}
+    {:noreply,
+     socket
+     |> assign(:deleting_project, false)
+     |> assign(:delete_confirmation_input, "")}
+  end
+
+  def handle_event("validate_delete_confirmation", %{"value" => value}, socket) do
+    {:noreply, assign(socket, :delete_confirmation_input, value)}
   end
 
   def handle_event("delete_project", _params, socket) do
-    if socket.assigns.can_delete_project do
+    if socket.assigns.can_delete_project &&
+         socket.assigns.delete_confirmation_input == socket.assigns.project.name do
       case Portfolio.delete_project(socket.assigns.project) do
         {:ok, _} ->
           {:noreply,
@@ -936,13 +1051,16 @@ defmodule EstimateWeb.ProjectLive.Show do
         true ->
           case EstimationEngine.soft_delete_estimation(estimation) do
             {:ok, _} ->
-              estimations = EstimationEngine.list_estimations(socket.assigns.project.id)
+              project_id = socket.assigns.project.id
+              estimations = EstimationEngine.list_estimations(project_id)
+              deleted = EstimationEngine.list_deleted_estimations(project_id)
 
               {:noreply,
                socket
                |> assign(:estimations, estimations)
+               |> assign(:deleted_estimations, deleted)
                |> assign(:deleting_estimation, nil)
-               |> put_flash(:info, "Estimation deleted")}
+               |> put_flash(:info, "Estimation moved to trash")}
 
             {:error, _} ->
               {:noreply,
@@ -956,6 +1074,94 @@ defmodule EstimateWeb.ProjectLive.Show do
        socket
        |> put_flash(:error, "Not authorized")
        |> assign(:deleting_estimation, nil)}
+    end
+  end
+
+  ## Trash Events
+
+  def handle_event("toggle_trash", _params, socket) do
+    {:noreply, assign(socket, :show_trash, !socket.assigns.show_trash)}
+  end
+
+  def handle_event("restore_estimation", %{"id" => id}, socket) do
+    if socket.assigns.can_delete_project do
+      org_id = socket.assigns.org_id
+      project_id = socket.assigns.project.id
+
+      estimation =
+        Enum.find(socket.assigns.deleted_estimations, &(&1.id == id))
+
+      if estimation do
+        case EstimationEngine.restore_estimation(estimation) do
+          {:ok, _} ->
+            estimations = EstimationEngine.list_estimations(project_id)
+            deleted = EstimationEngine.list_deleted_estimations(project_id)
+
+            current_estimation =
+              case Enum.find(estimations, & &1.is_current) do
+                nil -> nil
+                est -> EstimationEngine.get_estimation!(est.id, org_id)
+              end
+
+            {:noreply,
+             socket
+             |> assign(:estimations, estimations)
+             |> assign(:deleted_estimations, deleted)
+             |> assign(:current_estimation, current_estimation)
+             |> put_flash(:info, "Estimation restored")}
+
+          {:error, _} ->
+            {:noreply, put_flash(socket, :error, "Could not restore estimation")}
+        end
+      else
+        {:noreply, put_flash(socket, :error, "Estimation not found")}
+      end
+    else
+      {:noreply, put_flash(socket, :error, "Not authorized")}
+    end
+  end
+
+  def handle_event("confirm_permanent_delete", %{"id" => id}, socket) do
+    {:noreply, assign(socket, :permanently_deleting, id)}
+  end
+
+  def handle_event("cancel_permanent_delete", _params, socket) do
+    {:noreply, assign(socket, :permanently_deleting, nil)}
+  end
+
+  def handle_event("permanent_delete_estimation", %{"id" => id}, socket) do
+    if socket.assigns.can_delete_project do
+      estimation =
+        Enum.find(socket.assigns.deleted_estimations, &(&1.id == id))
+
+      if estimation do
+        case EstimationEngine.hard_delete_estimation(estimation) do
+          {:ok, _} ->
+            deleted = EstimationEngine.list_deleted_estimations(socket.assigns.project.id)
+
+            {:noreply,
+             socket
+             |> assign(:deleted_estimations, deleted)
+             |> assign(:permanently_deleting, nil)
+             |> put_flash(:info, "Estimation permanently deleted")}
+
+          {:error, _} ->
+            {:noreply,
+             socket
+             |> put_flash(:error, "Could not delete estimation")
+             |> assign(:permanently_deleting, nil)}
+        end
+      else
+        {:noreply,
+         socket
+         |> put_flash(:error, "Estimation not found")
+         |> assign(:permanently_deleting, nil)}
+      end
+    else
+      {:noreply,
+       socket
+       |> put_flash(:error, "Not authorized")
+       |> assign(:permanently_deleting, nil)}
     end
   end
 

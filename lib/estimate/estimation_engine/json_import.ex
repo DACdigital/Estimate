@@ -11,8 +11,11 @@ defmodule Estimate.EstimationEngine.JsonImport do
   Parses a JSON string and validates the estimation structure.
   Returns {:ok, parsed} or {:error, reason}.
   """
+  @max_json_size 1_000_000
+
   def parse_and_validate(json_string) when is_binary(json_string) do
-    with {:ok, decoded} <- decode_json(json_string),
+    with :ok <- check_size(json_string),
+         {:ok, decoded} <- decode_json(json_string),
          :ok <- validate_epics(decoded),
          parsed <- normalize(decoded) do
       {:ok, parsed}
@@ -20,6 +23,11 @@ defmodule Estimate.EstimationEngine.JsonImport do
   end
 
   def parse_and_validate(_), do: {:error, "Input must be a JSON string"}
+
+  defp check_size(str) when byte_size(str) > @max_json_size,
+    do: {:error, "JSON too large (max #{@max_json_size} bytes)"}
+
+  defp check_size(_str), do: :ok
 
   defp decode_json(str) do
     case Jason.decode(str) do

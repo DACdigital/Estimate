@@ -109,26 +109,29 @@ defmodule Estimate.Organizations.Currencies do
 
         case Estimate.ExchangeRates.fetch_rates(main.code, target_codes) do
           {:ok, rates} ->
-            updated_count =
-              Enum.count(others, fn currency ->
-                case Map.get(rates, currency.code) do
-                  nil ->
-                    false
-
-                  rate ->
-                    from(c in Currency, where: c.id == ^currency.id)
-                    |> Repo.update_all(set: [exchange_rate: rate])
-
-                    true
-                end
-              end)
-
             now = DateTime.truncate(DateTime.utc_now(), :second)
 
-            from(o in Organization, where: o.id == ^org_id)
-            |> Repo.update_all(set: [rates_fetched_at: now])
+            updates =
+              others
+              |> Enum.filter(&Map.has_key?(rates, &1.code))
+              |> Enum.map(fn currency -> {currency.id, Map.get(rates, currency.code)} end)
 
-            {:ok, %{fetched_at: now, updated_count: updated_count}}
+            multi =
+              Enum.reduce(updates, Ecto.Multi.new(), fn {id, rate}, multi ->
+                Ecto.Multi.update_all(multi, {:rate, id},
+                  from(c in Currency, where: c.id == ^id),
+                  set: [exchange_rate: rate]
+                )
+              end)
+              |> Ecto.Multi.update_all(:fetched_at,
+                from(o in Organization, where: o.id == ^org_id),
+                set: [rates_fetched_at: now]
+              )
+
+            case Repo.transaction(multi) do
+              {:ok, _} -> {:ok, %{fetched_at: now, updated_count: length(updates)}}
+              {:error, _op, changeset, _} -> {:error, changeset}
+            end
 
           {:error, reason} ->
             {:error, reason}

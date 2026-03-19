@@ -45,6 +45,7 @@ defmodule Estimate.Portfolio.Project do
     |> validate_format(:repository_url, ~r/^https?:\/\//,
       message: "must start with http:// or https://"
     )
+    |> foreign_key_constraint(:currency_id)
     |> unique_constraint([:customer_id, :key])
     |> update_change(:key, fn
       nil -> nil

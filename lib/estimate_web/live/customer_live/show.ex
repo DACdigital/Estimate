@@ -116,15 +116,58 @@ defmodule EstimateWeb.CustomerLive.Show do
         </.link>
       </div>
 
-      <.confirm_modal
+      <.modal
         :if={@deleting_customer}
         id="delete-customer-modal"
-        title="Delete Customer"
-        message={"Are you sure you want to delete #{@customer.name}? This will also delete all their projects and estimations."}
-        confirm_event="delete"
-        cancel_event="cancel_delete"
-        confirm_text="Delete Customer"
-      />
+        show
+        on_cancel={JS.push("cancel_delete")}
+      >
+        <div>
+          <div class="w-12 h-12 rounded-full bg-error/10 flex items-center justify-center mx-auto mb-4">
+            <.icon name="hero-exclamation-triangle" class="w-6 h-6 text-error" />
+          </div>
+          <h3 class="text-lg font-semibold text-base-content mb-2 text-center">Delete Customer</h3>
+          <p class="text-sm text-base-content/60 mb-4 text-center">
+            This will permanently delete:
+          </p>
+          <ul class="text-sm text-base-content/60 mb-4 space-y-1 pl-4">
+            <li>
+              <span class="font-medium text-base-content">{@delete_impact.project_count}</span>
+              projects
+            </li>
+            <li>
+              <span class="font-medium text-base-content">{@delete_impact.estimation_count}</span>
+              estimations
+            </li>
+          </ul>
+          <p class="text-sm text-base-content/60 mb-2">
+            Type <span class="font-medium text-base-content">{@customer.name}</span> to confirm:
+          </p>
+          <input
+            type="text"
+            phx-keyup="validate_delete_confirmation"
+            value={@delete_confirmation_input}
+            class="w-full px-3 py-2 border border-base-content/20 rounded-lg text-sm mb-4"
+            placeholder={@customer.name}
+            autocomplete="off"
+          />
+          <div class="flex gap-3 justify-center">
+            <button
+              phx-click="cancel_delete"
+              class="px-4 py-2 text-sm text-base-content/70 hover:text-base-content"
+            >
+              Cancel
+            </button>
+            <button
+              phx-click="delete"
+              disabled={@delete_confirmation_input != @customer.name}
+              class={"px-4 py-2 text-sm rounded-lg font-medium #{if @delete_confirmation_input == @customer.name, do: "bg-error text-neutral-content hover:bg-error/90", else: "bg-base-300 text-base-content/30 cursor-not-allowed"}"}
+            >
+              Delete Customer
+            </button>
+          </div>
+        </div>
+      </.modal>
     </div>
     """
   end
@@ -144,22 +187,41 @@ defmodule EstimateWeb.CustomerLive.Show do
      |> assign(:customer, customer)
      |> assign(:projects, projects)
      |> assign(:is_admin, admin?(socket.assigns.current_membership))
-     |> assign(:deleting_customer, false)}
+     |> assign(:deleting_customer, false)
+     |> assign(:delete_impact, %{project_count: 0, estimation_count: 0})
+     |> assign(:delete_confirmation_input, "")}
   end
 
   @impl true
   def handle_event("confirm_delete", _params, socket) do
-    {:noreply, assign(socket, :deleting_customer, true)}
+    impact = CRM.deletion_impact(socket.assigns.customer)
+
+    {:noreply,
+     socket
+     |> assign(:deleting_customer, true)
+     |> assign(:delete_impact, impact)
+     |> assign(:delete_confirmation_input, "")}
   end
 
   def handle_event("cancel_delete", _params, socket) do
-    {:noreply, assign(socket, :deleting_customer, false)}
+    {:noreply,
+     socket
+     |> assign(:deleting_customer, false)
+     |> assign(:delete_confirmation_input, "")}
+  end
+
+  def handle_event("validate_delete_confirmation", %{"value" => value}, socket) do
+    {:noreply, assign(socket, :delete_confirmation_input, value)}
   end
 
   def handle_event("delete", _params, socket) do
-    require_admin(socket, fn ->
-      do_delete_customer(socket)
-    end)
+    if socket.assigns.delete_confirmation_input != socket.assigns.customer.name do
+      {:noreply, put_flash(socket, :error, "Name does not match")}
+    else
+      require_admin(socket, fn ->
+        do_delete_customer(socket)
+      end)
+    end
   end
 
   defp do_delete_customer(socket) do

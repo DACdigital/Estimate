@@ -31,23 +31,31 @@ defmodule EstimateWeb.GoogleAuthController do
 
     case @strategy.callback(config, params) do
       {:ok, %{user: google_user}} ->
-        email = google_user["email"]
-        name = google_user["name"] || email
+        if google_user["email_verified"] do
+          email = google_user["email"]
+          name = google_user["name"] || email
 
-        case Accounts.find_or_create_oauth_user(%{email: email, name: name}) do
-          {:ok, user} ->
-            if Estimate.Accounts.User.totp_enabled?(user) do
+          case Accounts.find_or_create_oauth_user(%{email: email, name: name}) do
+            {:ok, user} ->
+              if Estimate.Accounts.User.totp_enabled?(user) do
+                conn
+                |> UserAuth.put_pending_2fa(user)
+                |> redirect(to: ~p"/users/two-factor")
+              else
+                conn
+                |> put_flash(:info, "Welcome back!")
+                |> UserAuth.log_in_user(user)
+              end
+
+            {:error, _changeset} ->
               conn
-              |> UserAuth.put_pending_2fa(user)
-              |> redirect(to: ~p"/users/two-factor")
-            else
-              UserAuth.log_in_user(conn, user)
-            end
-
-          {:error, _changeset} ->
-            conn
-            |> put_flash(:error, "Failed to create account")
-            |> redirect(to: ~p"/users/log_in")
+              |> put_flash(:error, "Failed to create account")
+              |> redirect(to: ~p"/users/log_in")
+          end
+        else
+          conn
+          |> put_flash(:error, "Google account email is not verified")
+          |> redirect(to: ~p"/users/log_in")
         end
 
       {:error, _reason} ->

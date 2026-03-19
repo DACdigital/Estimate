@@ -45,22 +45,7 @@ defmodule Estimate.Accounts do
         role: "owner"
       })
     end)
-    |> Ecto.Multi.run(:set_org_context, fn _repo, %{organization: org} ->
-      Repo.query!("SELECT set_config('app.current_org_id', $1, true)", [org.id])
-      {:ok, :context_set}
-    end)
-    |> Ecto.Multi.run(:currencies, fn _repo, %{organization: org} ->
-      case seed_default_currencies(org.id) do
-        :ok -> {:ok, :seeded}
-        {:error, changeset} -> {:error, changeset}
-      end
-    end)
-    |> Ecto.Multi.run(:role_templates, fn _repo, %{organization: org} ->
-      case seed_default_role_templates(org.id) do
-        :ok -> {:ok, :seeded}
-        {:error, changeset} -> {:error, changeset}
-      end
-    end)
+    |> seed_org_defaults()
     |> Repo.transaction()
     |> case do
       {:ok, %{user: user, organization: org, membership: membership}} ->
@@ -85,6 +70,16 @@ defmodule Estimate.Accounts do
         role: "owner"
       })
     end)
+    |> seed_org_defaults()
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{organization: org}} -> {:ok, org}
+      {:error, _failed_op, changeset, _} -> {:error, changeset}
+    end
+  end
+
+  defp seed_org_defaults(multi) do
+    multi
     |> Ecto.Multi.run(:set_org_context, fn _repo, %{organization: org} ->
       Repo.query!("SELECT set_config('app.current_org_id', $1, true)", [org.id])
       {:ok, :context_set}
@@ -101,11 +96,6 @@ defmodule Estimate.Accounts do
         {:error, changeset} -> {:error, changeset}
       end
     end)
-    |> Repo.transaction()
-    |> case do
-      {:ok, %{organization: org}} -> {:ok, org}
-      {:error, _failed_op, changeset, _} -> {:error, changeset}
-    end
   end
 
   def find_or_create_oauth_user(%{email: email} = attrs) do

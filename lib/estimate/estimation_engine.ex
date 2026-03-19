@@ -49,6 +49,11 @@ defmodule Estimate.EstimationEngine do
   defdelegate create_estimation_with_roles(attrs, role_ids), to: Estimations
   defdelegate update_estimation(estimation, attrs), to: Estimations
   defdelegate soft_delete_estimation(estimation), to: Estimations
+  defdelegate restore_estimation(estimation), to: Estimations
+  defdelegate hard_delete_estimation(estimation), to: Estimations
+  defdelegate list_deleted_estimations(project_id), to: Estimations
+  defdelegate list_deleted_estimations_for_org(org_id, limit \\ 10), to: Estimations
+  defdelegate count_deleted_estimations_for_org(org_id), to: Estimations
   defdelegate set_current_estimation(estimation), to: Estimations
   defdelegate change_estimation(estimation, attrs \\ %{}), to: Estimations
 

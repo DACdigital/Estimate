@@ -141,6 +141,7 @@ defmodule Estimate.EstimationEngine.Estimations do
   def set_current_estimation(%Estimation{} = estimation) do
     Repo.ensure_org_context(fn ->
       Ecto.Multi.new()
+      |> Ecto.Multi.update(:set_current, Estimation.changeset(estimation, %{is_current: true}))
       |> Ecto.Multi.update_all(
         :unset_others,
         fn _ ->
@@ -152,12 +153,83 @@ defmodule Estimate.EstimationEngine.Estimations do
         end,
         set: [is_current: false]
       )
-      |> Ecto.Multi.update(:set_current, Estimation.changeset(estimation, %{is_current: true}))
       |> Repo.transaction()
       |> case do
         {:ok, %{set_current: estimation}} -> {:ok, estimation}
         {:error, _op, changeset, _} -> {:error, changeset}
       end
+    end)
+  end
+
+  def restore_estimation(%Estimation{deleted_at: nil}), do: {:error, :not_deleted}
+
+  def restore_estimation(%Estimation{} = estimation) do
+    Repo.ensure_org_context(fn ->
+      Ecto.Multi.new()
+      |> Ecto.Multi.update(:restore, Ecto.Changeset.change(estimation, deleted_at: nil))
+      |> Ecto.Multi.run(:auto_current, fn _repo, %{restore: restored} ->
+        maybe_auto_set_current(restored)
+        {:ok, :done}
+      end)
+      |> Repo.transaction()
+      |> case do
+        {:ok, %{restore: estimation}} ->
+          estimation = Repo.preload(estimation, [project: :customer], force: true)
+          Search.index_estimation(estimation)
+          {:ok, estimation}
+
+        {:error, _op, changeset, _} ->
+          {:error, changeset}
+      end
+    end)
+  end
+
+  def hard_delete_estimation(%Estimation{deleted_at: nil}), do: {:error, :not_deleted}
+
+  def hard_delete_estimation(%Estimation{} = estimation) do
+    Repo.ensure_org_context(fn ->
+      result = Repo.delete(estimation)
+
+      case result do
+        {:ok, estimation} ->
+          Search.remove_index("estimation", estimation.id)
+          {:ok, estimation}
+
+        error ->
+          error
+      end
+    end)
+  end
+
+  def list_deleted_estimations(project_id) do
+    Repo.ensure_org_context(fn ->
+      from(e in Estimation,
+        where: e.project_id == ^project_id and not is_nil(e.deleted_at),
+        order_by: [desc: e.deleted_at],
+        preload: [:roles, :currency]
+      )
+      |> Repo.all()
+    end)
+  end
+
+  def list_deleted_estimations_for_org(org_id, limit \\ 10) do
+    Repo.ensure_org_context(fn ->
+      from(e in Estimation,
+        where: e.organization_id == ^org_id and not is_nil(e.deleted_at),
+        order_by: [desc: e.deleted_at],
+        limit: ^limit,
+        preload: [:currency, project: [:customer]]
+      )
+      |> Repo.all()
+    end)
+  end
+
+  def count_deleted_estimations_for_org(org_id) do
+    Repo.ensure_org_context(fn ->
+      from(e in Estimation,
+        where: e.organization_id == ^org_id and not is_nil(e.deleted_at)
+      )
+      |> Repo.aggregate(:count)
     end)
   end
 
@@ -173,7 +245,26 @@ defmodule Estimate.EstimationEngine.Estimations do
   end
 
   defp count_estimations_for_project(project_id) do
-    from(e in Estimation, where: e.project_id == ^project_id and is_nil(e.deleted_at))
-    |> Repo.aggregate(:count)
+    Repo.ensure_org_context(fn ->
+      from(e in Estimation, where: e.project_id == ^project_id and is_nil(e.deleted_at))
+      |> Repo.aggregate(:count)
+    end)
+  end
+
+  defp maybe_auto_set_current(%Estimation{} = estimation) do
+    has_current =
+      from(e in Estimation,
+        where:
+          e.project_id == ^estimation.project_id and
+            e.is_current == true and
+            is_nil(e.deleted_at)
+      )
+      |> Repo.exists?()
+
+    unless has_current do
+      estimation
+      |> Ecto.Changeset.change(is_current: true)
+      |> Repo.update()
+    end
   end
 end

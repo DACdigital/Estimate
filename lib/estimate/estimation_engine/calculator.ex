@@ -188,22 +188,13 @@ defmodule Estimate.EstimationEngine.Calculator do
     Decimal.mult(base_cost, Decimal.div(overhead_percent, 100))
   end
 
-  def role_pm_overhead(epics, role) do
-    base = role_base_cost(epics, role)
-    percent = Decimal.div(role.pm_overhead, 100)
-    Decimal.mult(base, percent)
-  end
+  def role_pm_overhead(epics, role), do: role_overhead(epics, role, :pm_overhead)
+  def role_qa_overhead(epics, role), do: role_overhead(epics, role, :qa_overhead)
+  def role_risk_buffer(epics, role), do: role_overhead(epics, role, :risk_buffer)
 
-  def role_qa_overhead(epics, role) do
+  defp role_overhead(epics, role, field) do
     base = role_base_cost(epics, role)
-    percent = Decimal.div(role.qa_overhead, 100)
-    Decimal.mult(base, percent)
-  end
-
-  def role_risk_buffer(epics, role) do
-    base = role_base_cost(epics, role)
-    percent = Decimal.div(role.risk_buffer, 100)
-    Decimal.mult(base, percent)
+    Decimal.mult(base, Decimal.div(Map.get(role, field), 100))
   end
 
   # Aggregate overhead calculations

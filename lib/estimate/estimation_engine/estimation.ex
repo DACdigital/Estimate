@@ -22,10 +22,11 @@ defmodule Estimate.EstimationEngine.Estimation do
     |> cast(attrs, [:name, :description, :currency_id, :project_id, :is_current])
     |> validate_required([:name, :project_id])
     |> validate_length(:name, min: 1, max: 200)
+    |> foreign_key_constraint(:currency_id)
   end
 
   def soft_delete_changeset(estimation) do
     now = DateTime.utc_now() |> DateTime.truncate(:second)
-    change(estimation, deleted_at: now)
+    change(estimation, deleted_at: now, is_current: false)
   end
 end

@@ -14,7 +14,7 @@ defmodule Estimate.EstimationEngine.Tasks do
 
       case result do
         {:ok, task} ->
-          epic = Repo.get!(Epic, task.epic_id)
+          epic = get_epic_for_task!(task)
           Estimate.EstimationEngine.broadcast(epic.estimation_id, {:task_created, task})
           Estimate.EstimationEngine.reindex_estimation_async(epic.estimation_id)
           {:ok, task}
@@ -34,7 +34,7 @@ defmodule Estimate.EstimationEngine.Tasks do
 
       case result do
         {:ok, task} ->
-          epic = Repo.get!(Epic, task.epic_id)
+          epic = get_epic_for_task!(task)
           Estimate.EstimationEngine.broadcast(epic.estimation_id, {:task_updated, task})
 
           if attrs["name"] || attrs[:name] do
@@ -51,7 +51,7 @@ defmodule Estimate.EstimationEngine.Tasks do
 
   def delete_task(%Task{} = task) do
     Repo.ensure_org_context(fn ->
-      epic = Repo.get!(Epic, task.epic_id)
+      epic = get_epic_for_task!(task)
       result = Repo.delete(task)
 
       case result do
@@ -88,5 +88,14 @@ defmodule Estimate.EstimationEngine.Tasks do
         {:tasks_reordered, epic_id, task_ids}
       )
     end)
+  end
+
+  defp get_epic_for_task!(%Task{epic_id: epic_id}) do
+    from(ep in Epic,
+      join: e in assoc(ep, :estimation),
+      where: ep.id == ^epic_id,
+      select: ep
+    )
+    |> Repo.one!()
   end
 end

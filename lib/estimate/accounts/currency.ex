@@ -30,8 +30,25 @@ defmodule Estimate.Accounts.Currency do
     |> validate_length(:code, is: 3)
     |> validate_inclusion(:symbol_position, ["prefix", "suffix"])
     |> validate_number(:exchange_rate, greater_than: 0)
+    |> validate_main_currency_rate()
     |> unique_constraint([:organization_id, :code])
     |> update_change(:code, &String.upcase/1)
+  end
+
+  defp validate_main_currency_rate(changeset) do
+    if get_field(changeset, :is_main) do
+      case get_field(changeset, :exchange_rate) do
+        %Decimal{} = rate ->
+          if Decimal.equal?(rate, Decimal.new("1.0")),
+            do: changeset,
+            else: add_error(changeset, :exchange_rate, "must be 1.0 for main currency")
+
+        _ ->
+          changeset
+      end
+    else
+      changeset
+    end
   end
 
   def default_currencies do

@@ -120,23 +120,27 @@ defmodule Estimate.Organizations do
 
   defp handle_2fa_enforcement_change(%Organization{enforce_2fa: true} = org, false) do
     # Toggled ON: set deadline on members without TOTP
-    deadline =
-      DateTime.utc_now()
-      |> DateTime.add(org.enforce_2fa_grace_period_days * 86400, :second)
-      |> DateTime.truncate(:second)
+    Repo.ensure_org_context(fn ->
+      deadline =
+        DateTime.utc_now()
+        |> DateTime.add(org.enforce_2fa_grace_period_days * 86400, :second)
+        |> DateTime.truncate(:second)
 
-    from(m in Membership,
-      where: m.organization_id == ^org.id,
-      join: u in assoc(m, :user),
-      where: is_nil(u.totp_enabled_at) and is_nil(m.totp_required_by)
-    )
-    |> Repo.update_all(set: [totp_required_by: deadline])
+      from(m in Membership,
+        where: m.organization_id == ^org.id,
+        join: u in assoc(m, :user),
+        where: is_nil(u.totp_enabled_at) and is_nil(m.totp_required_by)
+      )
+      |> Repo.update_all(set: [totp_required_by: deadline])
+    end)
   end
 
   defp handle_2fa_enforcement_change(%Organization{enforce_2fa: false} = org, true) do
     # Toggled OFF: clear all deadlines
-    from(m in Membership, where: m.organization_id == ^org.id)
-    |> Repo.update_all(set: [totp_required_by: nil])
+    Repo.ensure_org_context(fn ->
+      from(m in Membership, where: m.organization_id == ^org.id)
+      |> Repo.update_all(set: [totp_required_by: nil])
+    end)
   end
 
   defp handle_2fa_enforcement_change(_org, _prev), do: :ok
@@ -195,14 +199,12 @@ defmodule Estimate.Organizations do
     |> Repo.update()
   end
 
-  def delete_membership(%Membership{} = membership), do: delete_membership(membership, %{})
-
   @doc """
   Deletes membership with optional ownership reassignment.
   `reassignments` is a map of `%{project_id => new_owner_user_id}`.
   Validates all project_ids belong to the org and all new owners are org members.
   """
-  def delete_membership(%Membership{} = membership, reassignments)
+  def delete_membership(%Membership{} = membership, reassignments \\ %{})
       when is_map(reassignments) do
     Repo.ensure_org_context(fn ->
       org_id = membership.organization_id

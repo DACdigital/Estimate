@@ -35,6 +35,7 @@ defmodule Estimate.CRM.Customer do
     |> validate_format(:website_url, ~r/^https?:\/\//,
       message: "must start with http:// or https://"
     )
+    |> foreign_key_constraint(:default_currency_id)
     |> unique_constraint([:organization_id, :key])
     |> update_change(:key, &String.upcase/1)
     |> update_change(:country, fn

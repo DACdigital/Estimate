@@ -144,68 +144,49 @@ defmodule Estimate.Templates do
   ## Create from JSON import
 
   def create_template_from_json(org_id, attrs, parsed_json) do
+    epics =
+      parsed_json.epics
+      |> Enum.with_index()
+      |> Enum.map(fn {epic, idx} -> Map.put(epic, :position, idx) end)
+
+    create_template_with_epics(org_id, %{
+      name: attrs["name"] || parsed_json.estimation || "Imported Template",
+      description: attrs["description"] || parsed_json.description,
+      epics: epics
+    })
+  end
+
+  ## Create from existing estimation
+
+  def create_from_estimation(org_id, name, estimation) do
+    create_template_with_epics(org_id, %{
+      name: name,
+      description: estimation.description,
+      epics: estimation.epics
+    })
+  end
+
+  defp create_template_with_epics(org_id, %{name: name, description: desc, epics: epics}) do
     Repo.ensure_org_context(fn ->
       Ecto.Multi.new()
       |> Ecto.Multi.insert(:template, fn _ ->
         EstimationTemplate.changeset(%EstimationTemplate{}, %{
-          name: attrs["name"] || parsed_json.estimation || "Imported Template",
-          description: attrs["description"] || parsed_json.description,
+          name: name,
+          description: desc,
           organization_id: org_id
         })
       end)
       |> Ecto.Multi.run(:epics_tasks, fn _repo, %{template: template} ->
-        parsed_json.epics
-        |> Enum.with_index()
-        |> Enum.reduce_while(:ok, fn {epic, position}, :ok ->
+        epics
+        |> Enum.reduce_while(:ok, fn epic, :ok ->
+          position = Map.get(epic, :position) || 0
+
           with {:ok, new_epic} <-
                  %EstimationTemplateEpic{}
                  |> EstimationTemplateEpic.changeset(%{
                    name: epic.name,
                    description: epic.description,
                    position: position,
-                   estimation_template_id: template.id
-                 })
-                 |> Repo.insert(),
-               :ok <- insert_template_tasks(epic.tasks, new_epic.id) do
-            {:cont, :ok}
-          else
-            {:error, changeset} -> {:halt, {:error, changeset}}
-          end
-        end)
-        |> case do
-          :ok -> {:ok, :done}
-          {:error, changeset} -> {:error, changeset}
-        end
-      end)
-      |> Repo.transaction()
-      |> case do
-        {:ok, %{template: template}} -> {:ok, template}
-        {:error, _op, changeset, _} -> {:error, changeset}
-      end
-    end)
-  end
-
-  ## Create from existing estimation
-
-  def create_from_estimation(org_id, name, estimation) do
-    Repo.ensure_org_context(fn ->
-      Ecto.Multi.new()
-      |> Ecto.Multi.insert(:template, fn _ ->
-        EstimationTemplate.changeset(%EstimationTemplate{}, %{
-          name: name,
-          description: estimation.description,
-          organization_id: org_id
-        })
-      end)
-      |> Ecto.Multi.run(:epics_tasks, fn _repo, %{template: template} ->
-        estimation.epics
-        |> Enum.reduce_while(:ok, fn epic, :ok ->
-          with {:ok, new_epic} <-
-                 %EstimationTemplateEpic{}
-                 |> EstimationTemplateEpic.changeset(%{
-                   name: epic.name,
-                   description: epic.description,
-                   position: epic.position,
                    estimation_template_id: template.id
                  })
                  |> Repo.insert(),

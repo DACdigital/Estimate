@@ -73,7 +73,6 @@ defmodule Estimate.Search do
     query
     |> String.replace(~r/[^a-zA-Z0-9\s]/, "")
     |> String.split(~r/\s+/, trim: true)
-    |> Enum.reject(&(&1 == ""))
     |> Enum.map(fn word -> "#{word}:*" end)
     |> Enum.join(" & ")
     |> case do
@@ -135,9 +134,10 @@ defmodule Estimate.Search do
 
   def index_project(%{id: _id, customer_id: customer_id} = project) do
     Repo.ensure_org_context(fn ->
-      # Load customer if not preloaded
-      customer = Repo.get!(Estimate.CRM.Customer, customer_id)
-      index_project(%{project | customer: customer})
+      case Repo.get(Estimate.CRM.Customer, customer_id) do
+        nil -> {:error, :customer_not_found}
+        customer -> index_project(%{project | customer: customer})
+      end
     end)
   end
 
@@ -189,9 +189,10 @@ defmodule Estimate.Search do
 
   def index_estimation(%{id: _id, project_id: project_id} = estimation) do
     Repo.ensure_org_context(fn ->
-      # Load project with customer if not preloaded
-      project = Repo.get!(Estimate.Portfolio.Project, project_id) |> Repo.preload(:customer)
-      index_estimation(%{estimation | project: project})
+      case Repo.get(Estimate.Portfolio.Project, project_id) do
+        nil -> {:error, :project_not_found}
+        project -> index_estimation(%{estimation | project: Repo.preload(project, :customer)})
+      end
     end)
   end
 

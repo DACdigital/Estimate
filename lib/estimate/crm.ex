@@ -115,6 +115,24 @@ defmodule Estimate.CRM do
     end)
   end
 
+  def deletion_impact(%Customer{} = customer) do
+    Repo.ensure_org_context(fn ->
+      project_count =
+        from(p in Estimate.Portfolio.Project, where: p.customer_id == ^customer.id)
+        |> Repo.aggregate(:count)
+
+      estimation_count =
+        from(e in Estimate.EstimationEngine.Estimation,
+          join: p in Estimate.Portfolio.Project,
+          on: e.project_id == p.id,
+          where: p.customer_id == ^customer.id
+        )
+        |> Repo.aggregate(:count)
+
+      %{project_count: project_count, estimation_count: estimation_count}
+    end)
+  end
+
   def change_customer(%Customer{} = customer, attrs \\ %{}) do
     Customer.changeset(customer, attrs)
   end

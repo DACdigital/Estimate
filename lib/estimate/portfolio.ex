@@ -248,6 +248,36 @@ defmodule Estimate.Portfolio do
     end)
   end
 
+  def deletion_impact(%Project{} = project) do
+    Repo.ensure_org_context(fn ->
+      estimation_count =
+        from(e in Estimate.EstimationEngine.Estimation,
+          where: e.project_id == ^project.id
+        )
+        |> Repo.aggregate(:count)
+
+      task_count =
+        from(t in Estimate.EstimationEngine.Task,
+          join: ep in Estimate.EstimationEngine.Epic,
+          on: t.epic_id == ep.id,
+          join: e in Estimate.EstimationEngine.Estimation,
+          on: ep.estimation_id == e.id,
+          where: e.project_id == ^project.id
+        )
+        |> Repo.aggregate(:count)
+
+      collaborator_count =
+        from(pc in ProjectCollaborator, where: pc.project_id == ^project.id)
+        |> Repo.aggregate(:count)
+
+      %{
+        estimation_count: estimation_count,
+        task_count: task_count,
+        collaborator_count: collaborator_count
+      }
+    end)
+  end
+
   def change_project(%Project{} = project, attrs \\ %{}) do
     Project.changeset(project, attrs)
   end
