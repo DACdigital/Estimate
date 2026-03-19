@@ -44,6 +44,9 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimatorModals do
   end
 
   defp epic_modal(assigns) do
+    assigns = assign(assigns, :label_class, @label_class)
+    assigns = assign(assigns, :input_class, @input_class)
+
     ~H"""
     <.modal id="epic-modal" show on_cancel={JS.push("close_modal")}>
       <h2 class="text-xl font-semibold text-base-content mb-6">
@@ -88,6 +91,9 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimatorModals do
   end
 
   defp task_modal(assigns) do
+    assigns = assign(assigns, :label_class, @label_class)
+    assigns = assign(assigns, :input_class, @input_class)
+
     ~H"""
     <.modal id="task-modal" show on_cancel={JS.push("close_modal")}>
       <h2 class="text-xl font-semibold text-base-content mb-6">
