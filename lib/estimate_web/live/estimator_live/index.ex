@@ -152,6 +152,7 @@ defmodule EstimateWeb.EstimatorLive.Index do
         settings_form={@settings_form}
         deleting_epic={@deleting_epic}
         deleting_task={@deleting_task}
+        deleting_role_id={@deleting_role_id}
         estimation={@estimation}
         currencies={@currencies}
         ai_configured={@ai_configured}
@@ -204,6 +205,7 @@ defmodule EstimateWeb.EstimatorLive.Index do
        |> assign(:current_epic_id, nil)
        |> assign(:deleting_epic, nil)
        |> assign(:deleting_task, nil)
+       |> assign(:deleting_role_id, nil)
        |> assign(:show_breakdown, false)
        |> assign(:show_all_in_rates, false)
        |> assign(:show_descriptions, false)
@@ -625,15 +627,36 @@ defmodule EstimateWeb.EstimatorLive.Index do
     end)
   end
 
-  def handle_event("delete_estimation_role", %{"id" => role_id}, socket) do
+  def handle_event("confirm_delete_role", %{"id" => role_id}, socket) do
     with_edit_auth(socket, fn socket ->
-      role = EstimationEngine.get_role!(role_id, socket.assigns.org_id)
+      {:noreply, assign(socket, :deleting_role_id, role_id)}
+    end)
+  end
 
-      if role.estimation_id != socket.assigns.estimation.id do
-        {:noreply, put_flash(socket, :error, "Not authorized")}
-      else
-        EstimationEngine.delete_role(role)
-        {:noreply, reload_estimation(socket) |> put_flash(:info, "Role deleted")}
+  def handle_event("cancel_delete_role", _params, socket) do
+    {:noreply, assign(socket, :deleting_role_id, nil)}
+  end
+
+  def handle_event("delete_estimation_role", _params, socket) do
+    with_edit_auth(socket, fn socket ->
+      case socket.assigns.deleting_role_id do
+        nil ->
+          {:noreply, socket}
+
+        role_id ->
+          role = EstimationEngine.get_role!(role_id, socket.assigns.org_id)
+
+          if role.estimation_id != socket.assigns.estimation.id do
+            {:noreply, put_flash(socket, :error, "Not authorized")}
+          else
+            EstimationEngine.delete_role(role)
+
+            {:noreply,
+             socket
+             |> reload_estimation()
+             |> assign(:deleting_role_id, nil)
+             |> put_flash(:info, "Role deleted")}
+          end
       end
     end)
   end

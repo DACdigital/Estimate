@@ -141,18 +141,16 @@ defmodule Estimate.EstimationEngine.Estimations do
   def set_current_estimation(%Estimation{} = estimation) do
     Repo.ensure_org_context(fn ->
       Ecto.Multi.new()
-      |> Ecto.Multi.update(:set_current, Estimation.changeset(estimation, %{is_current: true}))
       |> Ecto.Multi.update_all(
         :unset_others,
-        fn _ ->
-          from(e in Estimation,
-            where:
-              e.project_id == ^estimation.project_id and e.id != ^estimation.id and
-                e.is_current == true
-          )
-        end,
+        from(e in Estimation,
+          where:
+            e.project_id == ^estimation.project_id and e.id != ^estimation.id and
+              e.is_current == true
+        ),
         set: [is_current: false]
       )
+      |> Ecto.Multi.update(:set_current, Estimation.changeset(estimation, %{is_current: true}))
       |> Repo.transaction()
       |> case do
         {:ok, %{set_current: estimation}} -> {:ok, estimation}

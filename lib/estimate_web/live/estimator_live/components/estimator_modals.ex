@@ -10,6 +10,7 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimatorModals do
   attr :settings_form, :map, default: nil
   attr :deleting_epic, :map, default: nil
   attr :deleting_task, :map, default: nil
+  attr :deleting_role_id, :string, default: nil
   attr :estimation, :map, required: true
   attr :currencies, :list, default: []
   attr :ai_configured, :boolean, default: false
@@ -36,6 +37,7 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimatorModals do
       settings_form={@settings_form}
       estimation={@estimation}
       currencies={@currencies}
+      deleting_role_id={@deleting_role_id}
     />
     <.save_template_modal :if={@modal == :save_template} estimation={@estimation} />
     """
@@ -247,53 +249,69 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimatorModals do
                     <.role_number_input field="qa_overhead" role={role} max="100" />
                     <.role_number_input field="risk_buffer" role={role} max="100" />
                     <td class="px-1 py-2">
-                      <button
-                        type="button"
-                        phx-click="delete_estimation_role"
-                        phx-value-id={role.id}
-                        data-confirm="Delete role and all its estimates?"
-                        class="text-base-content/40 hover:text-error transition-colors"
-                      >
-                        <.icon name="hero-trash-mini" class="w-4 h-4" />
-                      </button>
+                      <%= if to_string(@deleting_role_id) == to_string(role.id) do %>
+                        <div class="flex items-center gap-1">
+                          <button
+                            type="button"
+                            phx-click="delete_estimation_role"
+                            class="text-error hover:text-error/80 transition-colors"
+                            title="Confirm delete"
+                          >
+                            <.icon name="hero-check-mini" class="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            phx-click="cancel_delete_role"
+                            class="text-base-content/40 hover:text-base-content/70 transition-colors"
+                            title="Cancel"
+                          >
+                            <.icon name="hero-x-mark-mini" class="w-4 h-4" />
+                          </button>
+                        </div>
+                      <% else %>
+                        <button
+                          type="button"
+                          phx-click="confirm_delete_role"
+                          phx-value-id={role.id}
+                          class="text-base-content/40 hover:text-error transition-colors"
+                        >
+                          <.icon name="hero-trash-mini" class="w-4 h-4" />
+                        </button>
+                      <% end %>
                     </td>
                   </tr>
                 </tbody>
               </table>
             </div>
 
-            <div class="mt-3 flex items-center gap-2">
-              <input
-                type="text"
-                name="new_role_name"
-                placeholder="Role name"
-                phx-keydown="add_estimation_role"
-                phx-key="Enter"
-                class="flex-1 px-2 py-1.5 border border-base-300 rounded text-sm hover:border-base-content/30"
-              />
-              <input
-                type="text"
-                name="new_role_abbr"
-                placeholder="ABBR"
-                maxlength="5"
-                phx-keydown="add_estimation_role"
-                phx-key="Enter"
-                class="w-16 px-2 py-1.5 border border-base-300 rounded text-sm font-mono uppercase text-center hover:border-base-content/30"
-              />
-              <button
-                type="button"
-                phx-click="add_estimation_role"
-                class="px-3 py-1.5 bg-neutral text-neutral-content text-sm rounded hover:bg-neutral/90 transition-colors"
-              >
-                Add
-              </button>
-            </div>
-
-            <p class="text-xs text-base-content/40 mt-1.5">Changes apply only to this estimation</p>
           </div>
         </div>
-        <.modal_footer submit_label="Save" />
       </.form>
+
+      <.form for={%{}} phx-submit="add_estimation_role" class="mt-3 flex items-center gap-2">
+        <input
+          type="text"
+          name="new_role_name"
+          placeholder="Role name"
+          class="flex-1 px-2 py-1.5 border border-base-300 rounded text-sm hover:border-base-content/30"
+        />
+        <input
+          type="text"
+          name="new_role_abbr"
+          placeholder="ABBR"
+          maxlength="5"
+          class="w-16 px-2 py-1.5 border border-base-300 rounded text-sm font-mono uppercase text-center hover:border-base-content/30"
+        />
+        <button
+          type="submit"
+          class="px-3 py-1.5 bg-neutral text-neutral-content text-sm rounded hover:bg-neutral/90 transition-colors"
+        >
+          Add
+        </button>
+      </.form>
+      <p class="text-xs text-base-content/40 mt-1.5">Changes apply only to this estimation</p>
+
+      <.modal_footer submit_label="Save" form="settings-form" />
     </.modal>
     """
   end
@@ -370,6 +388,7 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimatorModals do
   end
 
   attr :submit_label, :string, required: true
+  attr :form, :string, default: nil
 
   defp modal_footer(assigns) do
     ~H"""
@@ -383,6 +402,7 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimatorModals do
       </button>
       <button
         type="submit"
+        form={@form}
         phx-disable-with="Saving..."
         class="px-4 py-2 bg-neutral text-neutral-content text-sm rounded-lg hover:bg-neutral/90 transition-colors font-medium"
       >
