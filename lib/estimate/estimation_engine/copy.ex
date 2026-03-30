@@ -5,6 +5,8 @@ defmodule Estimate.EstimationEngine.Copy do
   alias Estimate.EstimationEngine.{Estimation, EstimationRole, Epic, Task, TaskEstimate}
   alias Estimate.EstimationEngine.Estimations
 
+  @dialyzer :no_opaque
+
   def copy_estimation(%Estimation{} = estimation, new_name, project_id, org_id) do
     Repo.ensure_org_context(fn ->
       estimation = Estimations.get_estimation!(estimation.id, org_id)

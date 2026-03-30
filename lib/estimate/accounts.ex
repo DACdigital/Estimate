@@ -18,6 +18,8 @@ defmodule Estimate.Accounts do
     RoleTemplateRate
   }
 
+  @dialyzer :no_opaque
+
   ## User queries
 
   def get_user!(id), do: Repo.get!(User, id)

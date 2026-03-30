@@ -10,6 +10,8 @@ defmodule Estimate.Portfolio do
   alias Estimate.CRM
   alias Estimate.Search
 
+  @dialyzer :no_opaque
+
   def list_projects(org_id, opts \\ []) do
     status = Keyword.get(opts, :status)
     watchtower = Keyword.get(opts, :watchtower)

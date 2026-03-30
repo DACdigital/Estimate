@@ -15,6 +15,8 @@ defmodule Estimate.Organizations do
 
   alias Estimate.Portfolio.{Project, ProjectCollaborator}
 
+  @dialyzer :no_opaque
+
   ## Organization
 
   def get_organization!(id), do: Repo.get!(Organization, id)

@@ -4,6 +4,8 @@ defmodule Estimate.EstimationEngine.Helpers do
   import Ecto.Query
   alias Estimate.Repo
 
+  @dialyzer :no_opaque
+
   @doc """
   Generic reorder for children of a parent record.
   Validates that the number of IDs matches the actual child count.

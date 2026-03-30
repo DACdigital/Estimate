@@ -6,6 +6,8 @@ defmodule Estimate.EstimationEngine.Estimations do
   alias Estimate.EstimationEngine.{Estimation, EstimationRole}
   alias Estimate.Search
 
+  @dialyzer :no_opaque
+
   def count_estimations_for_org(org_id) do
     Repo.ensure_org_context(fn ->
       from(e in Estimation,

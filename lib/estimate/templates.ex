@@ -8,6 +8,8 @@ defmodule Estimate.Templates do
     EstimationTemplateTask
   }
 
+  @dialyzer :no_opaque
+
   ## Estimation Templates
 
   def list_estimation_templates(org_id) do

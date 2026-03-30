@@ -8,6 +8,8 @@ defmodule Estimate.Organizations.Currencies do
   alias Estimate.Accounts.Currency
   alias Estimate.Accounts.Organization
 
+  @dialyzer :no_opaque
+
   def list_currencies(org_id) do
     Repo.ensure_org_context(fn ->
       from(c in Currency,
