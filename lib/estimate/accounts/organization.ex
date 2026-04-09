@@ -6,16 +6,16 @@ defmodule Estimate.Accounts.Organization do
 
   schema "organizations" do
     field :name, :string
-    field :encrypted_openrouter_api_key, :binary
-    field :openrouter_api_key_nonce, :binary
+    field :encrypted_openrouter_api_key, :binary, redact: true
+    field :openrouter_api_key_nonce, :binary, redact: true
     field :openrouter_model, :string
     field :openrouter_system_prompt, :string
 
     field :smtp_host, :string
     field :smtp_port, :integer
     field :smtp_username, :string
-    field :encrypted_smtp_password, :binary
-    field :smtp_password_nonce, :binary
+    field :encrypted_smtp_password, :binary, redact: true
+    field :smtp_password_nonce, :binary, redact: true
     field :smtp_from_name, :string
     field :smtp_from_email, :string
 
@@ -26,8 +26,8 @@ defmodule Estimate.Accounts.Organization do
     field :enforce_2fa_grace_period_days, :integer, default: 14
 
     # Virtual — for form input only, never persisted
-    field :openrouter_api_key, :string, virtual: true
-    field :smtp_password, :string, virtual: true
+    field :openrouter_api_key, :string, virtual: true, redact: true
+    field :smtp_password, :string, virtual: true, redact: true
 
     has_many :memberships, Estimate.Accounts.Membership
     has_many :users, through: [:memberships, :user]

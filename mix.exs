@@ -70,7 +70,7 @@ defmodule Estimate.MixProject do
       {:number, "~> 1.0"},
       {:dotenvy, "~> 0.8"},
       {:assent, "~> 0.3"},
-      {:jose, "~> 1.11"},
+      # jose is resolved transitively via assent
       {:nimble_totp, "~> 1.0"},
       {:eqrcode, "~> 0.2"}
     ]

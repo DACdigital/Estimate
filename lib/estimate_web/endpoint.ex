@@ -1,13 +1,11 @@
 defmodule EstimateWeb.Endpoint do
   use Phoenix.Endpoint, otp_app: :estimate
 
-  # The session will be stored in the cookie and signed,
-  # this means its contents can be read but not tampered with.
-  # Set :encryption_salt if you would also like to encrypt it.
   @session_options [
     store: :cookie,
     key: "_estimate_key",
     signing_salt: "J0o4oT0B",
+    encryption_salt: "xK2mP9qR",
     same_site: "Lax"
   ]
 
@@ -37,9 +35,11 @@ defmodule EstimateWeb.Endpoint do
     plug Phoenix.Ecto.CheckRepoStatus, otp_app: :estimate
   end
 
-  plug Phoenix.LiveDashboard.RequestLogger,
-    param_key: "request_logger",
-    cookie_key: "request_logger"
+  if code_reloading? do
+    plug Phoenix.LiveDashboard.RequestLogger,
+      param_key: "request_logger",
+      cookie_key: "request_logger"
+  end
 
   plug Plug.RequestId
   plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
@@ -47,6 +47,7 @@ defmodule EstimateWeb.Endpoint do
   plug Plug.Parsers,
     parsers: [:urlencoded, :multipart, :json],
     pass: ["*/*"],
+    length: 1_000_000,
     json_decoder: Phoenix.json_library()
 
   plug Plug.MethodOverride

@@ -1,6 +1,8 @@
 import Config
 
-Dotenvy.source!([".env", System.get_env()])
+if config_env() in [:dev, :test] do
+  Dotenvy.source!([".env", System.get_env()])
+end
 
 # config/runtime.exs is executed for all environments, including
 # during releases. It is executed after compilation and before the
@@ -42,12 +44,17 @@ if config_env() == :prod do
   maybe_ipv6 = if System.get_env("ECTO_IPV6") in ~w(true 1), do: [:inet6], else: []
 
   config :estimate, Estimate.Repo,
-    # ssl: true,
+    ssl: true,
+    ssl_opts: [
+      verify: :verify_peer,
+      cacerts: :public_key.cacerts_get(),
+      server_name_indication: String.to_charlist(URI.parse(database_url).host || "localhost")
+    ],
     url: database_url,
     pool_size: String.to_integer(System.get_env("POOL_SIZE") || "20"),
-    # For machines with several cores, consider starting multiple pools of `pool_size`
-    # pool_count: 4,
-    socket_options: maybe_ipv6,
+    queue_target: 5_000,
+    queue_interval: 1_000,
+    socket_options: [:keepalive | maybe_ipv6],
     after_connect: {Estimate.Repo, :after_connect, []}
 
   # The secret key base is used to sign/encrypt cookies and other secrets.
@@ -62,7 +69,9 @@ if config_env() == :prod do
       You can generate one by calling: mix phx.gen.secret
       """
 
-  host = System.get_env("PHX_HOST") || "example.com"
+  host =
+    System.get_env("PHX_HOST") ||
+      raise "environment variable PHX_HOST is missing."
 
   config :estimate, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
