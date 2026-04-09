@@ -27,10 +27,10 @@ end
 config :estimate, EstimateWeb.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
-if google_client_id = Dotenvy.env!("GOOGLE_CLIENT_ID", :string, nil) do
+if google_client_id = System.get_env("GOOGLE_CLIENT_ID") do
   config :estimate, :google_oauth,
     client_id: google_client_id,
-    client_secret: Dotenvy.env!("GOOGLE_CLIENT_SECRET", :string, nil)
+    client_secret: System.get_env("GOOGLE_CLIENT_SECRET")
 end
 
 if config_env() == :prod do
