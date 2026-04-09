@@ -2,9 +2,6 @@ import Config
 
 if config_env() in [:dev, :test] do
   Dotenvy.source!([".env", System.get_env()])
-else
-  # In prod, Dotenvy still needs initialization for Dotenvy.env! calls below
-  Dotenvy.source!([System.get_env()])
 end
 
 # config/runtime.exs is executed for all environments, including
