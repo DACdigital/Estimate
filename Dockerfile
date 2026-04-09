@@ -82,7 +82,7 @@ USER nobody
 
 EXPOSE 4000
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget --spider -q http://localhost:4000/ || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD wget --spider -q http://localhost:4000/healthz || exit 1
 
 CMD ["/app/bin/migrate_and_server"]

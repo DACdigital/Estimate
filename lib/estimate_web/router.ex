@@ -17,6 +17,14 @@ defmodule EstimateWeb.Router do
     plug :accepts, ["json"]
   end
 
+  # Health check endpoints (no auth, no session)
+  scope "/", EstimateWeb do
+    pipe_through :api
+    get "/health", HealthController, :liveness
+    get "/healthz", HealthController, :liveness
+    get "/readyz", HealthController, :readiness
+  end
+
   # Auth routes - redirect if authenticated
   scope "/", EstimateWeb do
     pipe_through [:browser, :redirect_if_user_is_authenticated]
