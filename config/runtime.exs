@@ -49,7 +49,7 @@ if config_env() == :prod do
     pool_size: String.to_integer(System.get_env("POOL_SIZE") || "20"),
     queue_target: 5_000,
     queue_interval: 1_000,
-    socket_options: [:keepalive | maybe_ipv6],
+    socket_options: maybe_ipv6,
     after_connect: {Estimate.Repo, :after_connect, []}
 
   # The secret key base is used to sign/encrypt cookies and other secrets.
