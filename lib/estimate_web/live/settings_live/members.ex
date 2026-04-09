@@ -166,7 +166,10 @@ defmodule EstimateWeb.SettingsLive.Members do
       user = socket.assigns.current_user
       org_id = socket.assigns.org_id
 
-      case Organizations.create_invite(org_id, atomize_keys(params), user.id) do
+      if params["role"] not in @assignable_roles do
+        {:noreply, put_flash(socket, :error, "Invalid role")}
+      else
+        case Organizations.create_invite(org_id, atomize_keys(params), user.id) do
         {:ok, invite} ->
           invites = Organizations.list_organization_invites(org_id)
           org = socket.assigns.current_organization
@@ -192,6 +195,7 @@ defmodule EstimateWeb.SettingsLive.Members do
 
         {:error, _changeset} ->
           {:noreply, put_flash(socket, :error, "Could not create invitation")}
+      end
       end
     end)
   end
@@ -386,10 +390,13 @@ defmodule EstimateWeb.SettingsLive.Members do
 
   def handle_event("generate_invite_code", %{"role" => role}, socket) do
     require_admin(socket, fn ->
-      user = socket.assigns.current_user
-      org_id = socket.assigns.org_id
+      if role not in @assignable_roles do
+        {:noreply, put_flash(socket, :error, "Invalid role")}
+      else
+        user = socket.assigns.current_user
+        org_id = socket.assigns.org_id
 
-      case Organizations.create_invite_code(org_id, role, user.id) do
+        case Organizations.create_invite_code(org_id, role, user.id) do
         {:ok, invite} ->
           invites = Organizations.list_organization_invites(org_id)
 
@@ -401,13 +408,18 @@ defmodule EstimateWeb.SettingsLive.Members do
         {:error, _changeset} ->
           {:noreply, put_flash(socket, :error, "Could not generate invite code")}
       end
+      end
     end)
   end
 
   def handle_event("confirm_disable_2fa", %{"id" => user_id}, socket) do
     require_admin(socket, fn ->
-      user = Estimate.Accounts.get_user!(user_id)
-      {:noreply, assign(socket, :disabling_2fa_user, user)}
+      if Organizations.get_user_membership(user_id, socket.assigns.org_id) do
+        user = Estimate.Accounts.get_user!(user_id)
+        {:noreply, assign(socket, :disabling_2fa_user, user)}
+      else
+        {:noreply, put_flash(socket, :error, "Not authorized")}
+      end
     end)
   end
 
