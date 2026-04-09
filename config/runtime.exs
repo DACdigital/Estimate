@@ -44,12 +44,9 @@ if config_env() == :prod do
   maybe_ipv6 = if System.get_env("ECTO_IPV6") in ~w(true 1), do: [:inet6], else: []
 
   config :estimate, Estimate.Repo,
-    ssl: true,
-    ssl_opts: [
-      verify: :verify_peer,
-      cacerts: :public_key.cacerts_get(),
-      server_name_indication: String.to_charlist(URI.parse(database_url).host || "localhost")
-    ],
+    # ssl: true,
+    # TODO: enable once prod PG has SSL configured
+    # ssl_opts: [verify: :verify_peer, cacerts: :public_key.cacerts_get()],
     url: database_url,
     pool_size: String.to_integer(System.get_env("POOL_SIZE") || "20"),
     queue_target: 5_000,
