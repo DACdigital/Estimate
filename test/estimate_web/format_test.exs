@@ -106,6 +106,10 @@ defmodule EstimateWeb.FormatTest do
     test "invalid string → supplied default" do
       assert Format.parse_decimal("nope", :fallback) == :fallback
     end
+
+    test "non-string value (e.g. a Decimal) passes through unchanged" do
+      assert Decimal.equal?(Format.parse_decimal(Decimal.new("3.3"), :fallback), Decimal.new("3.3"))
+    end
   end
 
   describe "decimal_to_number/1" do

@@ -74,7 +74,13 @@ defmodule EstimateWeb.Format do
   def parse_decimal(value) when is_number(value), do: Decimal.new(value)
   def parse_decimal(_), do: Decimal.new(0)
 
-  @doc "Parses a value to Decimal, returning `default` on nil/empty/failure."
+  @doc """
+  Parses a value to Decimal, returning `default` on nil/empty/failure.
+
+  Note: unlike `parse_decimal/1` (which treats trailing garbage like `"12abc"`
+  as invalid → 0), this arity returns the parsed prefix for such input. This
+  divergence is intentional — both are faithful copies of pre-existing behavior.
+  """
   def parse_decimal(nil, default), do: default
   def parse_decimal("", default), do: default
 
