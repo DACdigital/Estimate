@@ -65,6 +65,7 @@ defmodule EstimateWeb.CoreComponents.AuthInputTest do
     assert html =~ ~s(name="user[email]")
     assert html =~ "border-error"
     assert html =~ "can&#39;t be blank" or html =~ "can't be blank"
+    assert html =~ ~s(value="bad")
   end
 
   test "passes through functional attrs" do
