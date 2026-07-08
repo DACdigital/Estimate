@@ -30,46 +30,11 @@ defmodule EstimateWeb.UserLive.Registration do
           Oops, something went wrong! Please check the errors below.
         </div>
 
-        <div>
-          <input
-            type="text"
-            name="user[name]"
-            value={@form[:name].value}
-            placeholder="Full Name"
-            required
-            class={"w-full px-4 py-3 border rounded-lg text-base-content placeholder-base-content/60 #{if @form[:name].errors != [], do: "border-error", else: "border-base-content/20"}"}
-          />
-          <p :for={error <- @form[:name].errors} class="mt-1 text-sm text-error">
-            {translate_error(error)}
-          </p>
-        </div>
+        <.auth_input field={@form[:name]} type="text" placeholder="Full Name" required />
 
-        <div>
-          <input
-            type="email"
-            name="user[email]"
-            value={@form[:email].value}
-            placeholder="Email Address"
-            required
-            class={"w-full px-4 py-3 border rounded-lg text-base-content placeholder-base-content/60 #{if @form[:email].errors != [], do: "border-error", else: "border-base-content/20"}"}
-          />
-          <p :for={error <- @form[:email].errors} class="mt-1 text-sm text-error">
-            {translate_error(error)}
-          </p>
-        </div>
+        <.auth_input field={@form[:email]} type="email" placeholder="Email Address" required />
 
-        <div>
-          <input
-            type="password"
-            name="user[password]"
-            placeholder="Password"
-            required
-            class={"w-full px-4 py-3 border rounded-lg text-base-content placeholder-base-content/60 #{if @form[:password].errors != [], do: "border-error", else: "border-base-content/20"}"}
-          />
-          <p :for={error <- @form[:password].errors} class="mt-1 text-sm text-error">
-            {translate_error(error)}
-          </p>
-        </div>
+        <.auth_input field={@form[:password]} type="password" placeholder="Password" required />
 
         <div class="relative my-6">
           <div class="absolute inset-0 flex items-center">
@@ -95,32 +60,23 @@ defmodule EstimateWeb.UserLive.Registration do
         </div>
 
         <%= if @has_invite_code do %>
-          <div>
-            <input
-              type="text"
-              name="invite_code"
-              value={@invite_code}
-              placeholder="e.g. XK7F2MPA"
-              maxlength="8"
-              class={"w-full px-4 py-3 border rounded-lg text-base-content placeholder-base-content/60 font-mono tracking-wider uppercase #{if @invite_code_error, do: "border-error", else: "border-base-content/20"}"}
-            />
-            <p :if={@invite_code_error} class="mt-1 text-sm text-error">
-              {@invite_code_error}
-            </p>
-          </div>
+          <.auth_input
+            name="invite_code"
+            value={@invite_code}
+            error={@invite_code_error}
+            type="text"
+            placeholder="e.g. XK7F2MPA"
+            maxlength="8"
+            class="font-mono tracking-wider uppercase"
+          />
         <% else %>
           <div>
-            <input
+            <.auth_input
+              field={@org_form[:name]}
               type="text"
-              name="organization[name]"
-              value={@org_form[:name].value}
               placeholder="Organization Name"
               required
-              class={"w-full px-4 py-3 border rounded-lg text-base-content placeholder-base-content/60 #{if @org_form[:name].errors != [], do: "border-error", else: "border-base-content/20"}"}
             />
-            <p :for={error <- @org_form[:name].errors} class="mt-1 text-sm text-error">
-              {translate_error(error)}
-            </p>
             <p class="mt-1 text-xs text-base-content/60">You can invite team members later</p>
           </div>
         <% end %>

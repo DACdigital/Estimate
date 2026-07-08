@@ -23,33 +23,19 @@ defmodule EstimateWeb.UserLive.ResetPassword do
           Oops, something went wrong! Please check the errors below.
         </div>
 
-        <div>
-          <input
-            type="password"
-            name="user[password]"
-            value={@form[:password].value}
-            placeholder="New password"
-            required
-            class={"w-full px-4 py-3 border rounded-lg text-base-content placeholder-base-content/60 #{if @form[:password].errors != [], do: "border-error", else: "border-base-content/20"}"}
-          />
-          <p :for={error <- @form[:password].errors} class="mt-1 text-sm text-error">
-            {translate_error(error)}
-          </p>
-        </div>
+        <.auth_input
+          field={@form[:password]}
+          type="password"
+          placeholder="New password"
+          required
+        />
 
-        <div>
-          <input
-            type="password"
-            name="user[password_confirmation]"
-            value={@form[:password_confirmation].value}
-            placeholder="Confirm new password"
-            required
-            class={"w-full px-4 py-3 border rounded-lg text-base-content placeholder-base-content/60 #{if @form[:password_confirmation].errors != [], do: "border-error", else: "border-base-content/20"}"}
-          />
-          <p :for={error <- @form[:password_confirmation].errors} class="mt-1 text-sm text-error">
-            {translate_error(error)}
-          </p>
-        </div>
+        <.auth_input
+          field={@form[:password_confirmation]}
+          type="password"
+          placeholder="Confirm new password"
+          required
+        />
 
         <button
           type="submit"

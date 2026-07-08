@@ -14,16 +14,7 @@ defmodule EstimateWeb.UserLive.ForgotPassword do
       </p>
 
       <form id="reset_password_form" phx-submit="send_email" class="space-y-4">
-        <div>
-          <input
-            type="email"
-            name="user[email]"
-            value={@form[:email].value}
-            placeholder="Email Address"
-            required
-            class="w-full px-4 py-3 border border-base-content/20 rounded-lg text-base-content placeholder-base-content/60"
-          />
-        </div>
+        <.auth_input field={@form[:email]} type="email" placeholder="Email Address" required />
 
         <button
           type="submit"
