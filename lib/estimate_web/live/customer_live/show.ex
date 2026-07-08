@@ -3,7 +3,6 @@ defmodule EstimateWeb.CustomerLive.Show do
 
   alias Estimate.CRM
   alias Estimate.Portfolio
-  import EstimateWeb.LiveHelpers
 
   @impl true
   def render(assigns) do

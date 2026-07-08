@@ -2,7 +2,6 @@ defmodule EstimateWeb.SettingsLive.Trash do
   use EstimateWeb, :live_view
 
   alias Estimate.EstimationEngine
-  import EstimateWeb.LiveHelpers
 
   @impl true
   def render(assigns) do

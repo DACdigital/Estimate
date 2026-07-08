@@ -2,7 +2,6 @@ defmodule EstimateWeb.SettingsLive.Currencies do
   use EstimateWeb, :live_view
 
   alias Estimate.Organizations.Currencies
-  import EstimateWeb.LiveHelpers
 
   @impl true
   def render(assigns) do

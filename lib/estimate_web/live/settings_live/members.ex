@@ -2,7 +2,6 @@ defmodule EstimateWeb.SettingsLive.Members do
   use EstimateWeb, :live_view
 
   alias Estimate.{Organizations, Portfolio}
-  import EstimateWeb.LiveHelpers
   import EstimateWeb.SettingsLive.Components.MemberComponents
   import EstimateWeb.SettingsLive.Components.ReassignmentModal
 
