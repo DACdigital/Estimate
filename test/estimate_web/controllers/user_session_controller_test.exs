@@ -94,4 +94,29 @@ defmodule EstimateWeb.UserSessionControllerTest do
       assert redirected_to(conn) == ~p"/users/log_in"
     end
   end
+
+  describe "POST /users/two-factor/verify with a backup code" do
+    test "a backup code logs in once and cannot be reused", %{conn: conn} do
+      %{user: user, backup_codes: [code | _]} = user_with_totp_fixture()
+
+      # 1st pending session + verify with backup code -> success
+      conn1 =
+        post(conn, ~p"/users/log_in", %{
+          "user" => %{"email" => user.email, "password" => @password}
+        })
+
+      conn1 = post(conn1, ~p"/users/two-factor/verify", %{"code" => code})
+      assert get_session(conn1, :user_token)
+
+      # fresh pending session + SAME backup code -> rejected
+      conn2 =
+        post(build_conn(), ~p"/users/log_in", %{
+          "user" => %{"email" => user.email, "password" => @password}
+        })
+
+      conn2 = post(conn2, ~p"/users/two-factor/verify", %{"code" => code})
+      refute get_session(conn2, :user_token)
+      assert Phoenix.Flash.get(conn2.assigns.flash, :error) =~ "Invalid verification code"
+    end
+  end
 end

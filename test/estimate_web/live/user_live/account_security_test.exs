@@ -4,7 +4,7 @@ defmodule EstimateWeb.UserLive.AccountSecurityTest do
   import Phoenix.LiveViewTest
   import Estimate.AccountsFixtures
 
-  alias Estimate.Accounts.User
+  alias Estimate.Accounts.{Membership, User}
 
   describe "TOTP setup" do
     setup :register_and_log_in_user
@@ -25,6 +25,35 @@ defmodule EstimateWeb.UserLive.AccountSecurityTest do
 
       assert html =~ "Invalid code"
       refute User.totp_enabled?(Estimate.Accounts.get_user!(user.id))
+    end
+
+    test "valid code enables TOTP, shows backup codes, and clears 2FA deadlines",
+         %{conn: conn} do
+      # Use an org-owner (not the plain user from setup) so we can also pin
+      # the clear_2fa_deadlines_for_user side-effect on their membership.
+      %{user: user, membership: membership} = user_with_organization_fixture()
+
+      future =
+        DateTime.utc_now() |> DateTime.add(30 * 86400, :second) |> DateTime.truncate(:second)
+
+      membership
+      |> Ecto.Changeset.change(totp_required_by: future)
+      |> Estimate.Repo.update!()
+
+      conn = log_in_user(conn, user)
+      {:ok, lv, _html} = live(conn, ~p"/account/two-factor/setup")
+      secret = :sys.get_state(lv.pid).socket.assigns.secret
+
+      lv |> element("button", "Next") |> render_click()
+
+      html =
+        lv
+        |> form(~s(form[phx-submit="verify_code"]), %{"code" => valid_totp_code(secret)})
+        |> render_submit()
+
+      assert User.totp_enabled?(Estimate.Accounts.get_user!(user.id))
+      assert html =~ "Save these backup codes in a safe place"
+      assert is_nil(Estimate.Repo.get!(Membership, membership.id).totp_required_by)
     end
   end
 
