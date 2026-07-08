@@ -78,4 +78,45 @@ defmodule EstimateWeb.OrgScopedSmokeTest do
                )
     end
   end
+
+  describe "action-variant routes render" do
+    test "customer new", %{conn: conn, org: org} do
+      assert {:ok, _view, _html} = live(conn, ~p"/org/#{org.id}/customers/new")
+    end
+
+    test "customer edit", %{conn: conn, org: org} do
+      customer = Estimate.CRMFixtures.customer_fixture(org)
+      assert {:ok, _view, _html} = live(conn, ~p"/org/#{org.id}/customers/#{customer.id}/edit")
+    end
+
+    test "project new", %{conn: conn, org: org} do
+      assert {:ok, _view, _html} = live(conn, ~p"/org/#{org.id}/projects/new")
+    end
+
+    test "project edit", %{conn: conn, org: org, user: user} do
+      project = Estimate.PortfolioFixtures.project_fixture(nil, user)
+      assert {:ok, _view, _html} = live(conn, ~p"/org/#{org.id}/projects/#{project.id}/edit")
+    end
+
+    test "project collaborators", %{conn: conn, org: org, user: user} do
+      project = Estimate.PortfolioFixtures.project_fixture(nil, user)
+
+      assert {:ok, _view, _html} =
+               live(conn, ~p"/org/#{org.id}/projects/#{project.id}/collaborators")
+    end
+
+    test "project estimations", %{conn: conn, org: org, user: user} do
+      project = Estimate.PortfolioFixtures.project_fixture(nil, user)
+
+      assert {:ok, _view, _html} =
+               live(conn, ~p"/org/#{org.id}/projects/#{project.id}/estimations")
+    end
+
+    test "project new estimation", %{conn: conn, org: org, user: user} do
+      project = Estimate.PortfolioFixtures.project_fixture(nil, user)
+
+      assert {:ok, _view, _html} =
+               live(conn, ~p"/org/#{org.id}/projects/#{project.id}/estimations/new")
+    end
+  end
 end
