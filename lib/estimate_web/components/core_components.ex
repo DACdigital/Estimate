@@ -452,7 +452,7 @@ defmodule EstimateWeb.CoreComponents do
       <input
         type={@type}
         name={@name}
-        value={if @type == "password", do: nil, else: @value}
+        value={@value}
         placeholder={@placeholder}
         class={[
           "w-full px-4 py-3 border rounded-lg text-base-content placeholder-base-content/60",

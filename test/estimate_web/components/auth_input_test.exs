@@ -37,15 +37,15 @@ defmodule EstimateWeb.CoreComponents.AuthInputTest do
     assert html =~ "border-error"
   end
 
-  test "password type never echoes a value" do
+  test "password input echoes an explicit value like other inputs" do
     html =
       render_component(&CoreComponents.auth_input/1,
         type: "password",
         name: "user[password]",
-        value: "supersecret"
+        value: "typed-pw"
       )
 
-    refute html =~ "supersecret"
+    assert html =~ ~s(value="typed-pw")
   end
 
   test "appends extra classes" do
