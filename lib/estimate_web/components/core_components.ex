@@ -410,8 +410,6 @@ defmodule EstimateWeb.CoreComponents do
   translated from it — or a raw `name`/`value` plus an explicit `error` string
   (for inputs not backed by a changeset, e.g. TOTP codes, invite codes).
 
-  Password inputs never echo their value.
-
   ## Examples
 
       <.auth_input field={@form[:email]} type="email" placeholder="Email Address" required />
