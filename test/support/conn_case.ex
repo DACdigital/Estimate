@@ -35,4 +35,34 @@ defmodule EstimateWeb.ConnCase do
     Estimate.DataCase.setup_sandbox(tags)
     {:ok, conn: Phoenix.ConnTest.build_conn()}
   end
+
+  @doc """
+  Logs the given `user` into the `conn` by writing a real session token.
+  """
+  def log_in_user(conn, user) do
+    token = Estimate.Accounts.generate_user_session_token(user)
+
+    conn
+    |> Phoenix.ConnTest.init_test_session(%{})
+    |> Plug.Conn.put_session(:user_token, token)
+  end
+
+  @doc """
+  ExUnit setup helper: registers a plain user and logs them in.
+  """
+  def register_and_log_in_user(%{conn: conn}) do
+    user = Estimate.AccountsFixtures.user_fixture()
+    %{conn: log_in_user(conn, user), user: user}
+  end
+
+  @doc """
+  ExUnit setup helper: registers a user with a new organization (owner)
+  and logs them in. Returns `:conn`, `:user`, and `:org`.
+  """
+  def register_and_log_in_org_owner(%{conn: conn}) do
+    %{user: user, organization: org} =
+      Estimate.AccountsFixtures.user_with_organization_fixture()
+
+    %{conn: log_in_user(conn, user), user: user, org: org}
+  end
 end
