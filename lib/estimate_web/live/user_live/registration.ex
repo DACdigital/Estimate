@@ -8,9 +8,7 @@ defmodule EstimateWeb.UserLive.Registration do
   def render(assigns) do
     ~H"""
     <div class="w-full">
-      <h1 class="text-3xl font-bold text-center text-base-content mb-8">
-        Create your account
-      </h1>
+      <.auth_header title="Create your account" />
 
       <form
         id="registration_form"
@@ -81,20 +79,10 @@ defmodule EstimateWeb.UserLive.Registration do
           </div>
         <% end %>
 
-        <button
-          type="submit"
-          phx-disable-with="Creating account..."
-          class="w-full py-3 px-4 bg-neutral text-neutral-content font-medium rounded-lg hover:bg-neutral/90 transition-colors mt-6"
-        >
-          Create Account
-        </button>
+        <.auth_submit loading="Creating account...">Create Account</.auth_submit>
       </form>
 
-      <.or_divider />
-
-      <div class="space-y-3">
-        <.google_button href={~p"/auth/google"} />
-      </div>
+      <.oauth_section href={~p"/auth/google"} />
 
       <p class="mt-8 text-center text-base-content/70">
         Already have an account?

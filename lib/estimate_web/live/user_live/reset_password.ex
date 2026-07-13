@@ -6,9 +6,7 @@ defmodule EstimateWeb.UserLive.ResetPassword do
   def render(assigns) do
     ~H"""
     <div class="w-full">
-      <h1 class="text-3xl font-bold text-center text-base-content mb-8">
-        Reset Password
-      </h1>
+      <.auth_header title="Reset Password" />
 
       <form
         id="reset_password_form"
@@ -37,13 +35,7 @@ defmodule EstimateWeb.UserLive.ResetPassword do
           required
         />
 
-        <button
-          type="submit"
-          phx-disable-with="Resetting..."
-          class="w-full py-3 px-4 bg-neutral text-neutral-content font-medium rounded-lg hover:bg-neutral/90 transition-colors"
-        >
-          Reset Password
-        </button>
+        <.auth_submit loading="Resetting...">Reset Password</.auth_submit>
       </form>
 
       <p class="mt-8 text-center text-base-content/70">

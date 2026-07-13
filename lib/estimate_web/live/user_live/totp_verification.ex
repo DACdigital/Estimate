@@ -5,12 +5,9 @@ defmodule EstimateWeb.UserLive.TotpVerification do
   def render(assigns) do
     ~H"""
     <div class="w-full">
-      <h1 class="text-3xl font-bold text-center text-base-content mb-2">
-        Two-Factor Authentication
-      </h1>
-      <p class="text-center text-base-content/60 mb-8">
-        Enter the code from your authenticator app
-      </p>
+      <.auth_header title="Two-Factor Authentication">
+        <:subtitle>Enter the code from your authenticator app</:subtitle>
+      </.auth_header>
 
       <form
         action={~p"/users/two-factor/verify"}
@@ -43,12 +40,7 @@ defmodule EstimateWeb.UserLive.TotpVerification do
           />
         <% end %>
 
-        <button
-          type="submit"
-          class="w-full py-3 px-4 bg-neutral text-neutral-content font-medium rounded-lg hover:bg-neutral/90 transition-colors"
-        >
-          Verify
-        </button>
+        <.auth_submit>Verify</.auth_submit>
       </form>
 
       <div class="mt-6 text-center">

@@ -4,9 +4,7 @@ defmodule EstimateWeb.UserLive.Login do
   def render(assigns) do
     ~H"""
     <div class="w-full">
-      <h1 class="text-3xl font-bold text-center text-base-content mb-8">
-        Log in to EstiMate
-      </h1>
+      <.auth_header title="Log in to EstiMate" />
 
       <form
         action={~p"/users/log_in"}
@@ -32,21 +30,12 @@ defmodule EstimateWeb.UserLive.Login do
           </.link>
         </div>
 
-        <button
-          type="submit"
-          class="w-full py-3 px-4 bg-neutral text-neutral-content font-medium rounded-lg hover:bg-neutral/90 transition-colors"
-        >
-          Continue with Email
-        </button>
+        <.auth_submit>Continue with Email</.auth_submit>
       </form>
 
-      <.or_divider />
-
-      <div class="space-y-3">
-        <.google_button href={
-          if @return_to, do: ~p"/auth/google?#{%{return_to: @return_to}}", else: ~p"/auth/google"
-        } />
-      </div>
+      <.oauth_section href={
+        if @return_to, do: ~p"/auth/google?#{%{return_to: @return_to}}", else: ~p"/auth/google"
+      } />
 
       <p class="mt-8 text-center text-base-content/70">
         Don't have an account?
