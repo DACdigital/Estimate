@@ -129,8 +129,11 @@ defmodule EstimateWeb.UserLive.Registration do
 
       invite ->
         case Accounts.register_user_and_accept_invite(user_params, invite) do
-          {:ok, _user} ->
-            {:noreply, assign(socket, trigger_submit: true)}
+          {:ok, user} ->
+            {:noreply,
+             socket
+             |> assign(trigger_submit: true)
+             |> assign_form(Accounts.change_user_registration(user))}
 
           {:error, %Ecto.Changeset{} = changeset} ->
             {:noreply, socket |> assign(check_errors: true) |> assign_form(changeset)}
