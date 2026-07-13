@@ -314,50 +314,58 @@ defmodule Estimate.Organizations do
     if invite && Invite.valid?(invite), do: invite
   end
 
-  def accept_invite(%Invite{} = invite, %{id: user_id, email: user_email}) do
-    cond do
-      not Invite.valid?(invite) ->
+  @doc "Composable Ecto.Multi steps for accepting an invite; user resolved via `user_getter`."
+  def invite_acceptance_multi(%Invite{} = invite, user_getter) when is_function(user_getter, 1) do
+    Ecto.Multi.new()
+    |> Ecto.Multi.run(:check_invite, fn _repo, changes ->
+      user = user_getter.(changes)
+
+      cond do
+        not Invite.valid?(invite) -> {:error, :expired}
+        invite.email != nil and invite.email != user.email -> {:error, :email_mismatch}
+        true -> {:ok, user}
+      end
+    end)
+    |> Ecto.Multi.run(:verify_still_valid, fn _repo, _ ->
+      fresh =
+        from(i in Invite,
+          where:
+            i.id == ^invite.id and is_nil(i.accepted_at) and i.expires_at > ^DateTime.utc_now()
+        )
+        |> Repo.one()
+
+      if fresh, do: {:ok, fresh}, else: {:error, :expired}
+    end)
+    |> Ecto.Multi.update(:invite, fn %{verify_still_valid: fresh} ->
+      Invite.accept_changeset(fresh)
+    end)
+    |> Ecto.Multi.insert(:membership, fn %{check_invite: user} ->
+      Membership.changeset(%Membership{}, %{
+        user_id: user.id,
+        organization_id: invite.organization_id,
+        role: invite.role
+      })
+    end)
+  end
+
+  def accept_invite(%Invite{} = invite, %{id: _, email: _} = user) do
+    invite
+    |> invite_acceptance_multi(fn _ -> user end)
+    |> Repo.transaction()
+    |> case do
+      {:ok, result} ->
+        org = get_organization!(invite.organization_id)
+        set_2fa_deadline_if_needed(result.membership, org)
+        {:ok, result}
+
+      {:error, :check_invite, reason, _} ->
+        {:error, reason}
+
+      {:error, :verify_still_valid, :expired, _} ->
         {:error, :expired}
 
-      invite.email != nil and invite.email != user_email ->
-        {:error, :email_mismatch}
-
-      true ->
-        Ecto.Multi.new()
-        |> Ecto.Multi.run(:verify_still_valid, fn _repo, _ ->
-          fresh =
-            from(i in Invite,
-              where:
-                i.id == ^invite.id and is_nil(i.accepted_at) and
-                  i.expires_at > ^DateTime.utc_now()
-            )
-            |> Repo.one()
-
-          if fresh, do: {:ok, fresh}, else: {:error, :expired}
-        end)
-        |> Ecto.Multi.update(:invite, fn %{verify_still_valid: fresh} ->
-          Invite.accept_changeset(fresh)
-        end)
-        |> Ecto.Multi.insert(:membership, fn _ ->
-          Membership.changeset(%Membership{}, %{
-            user_id: user_id,
-            organization_id: invite.organization_id,
-            role: invite.role
-          })
-        end)
-        |> Repo.transaction()
-        |> case do
-          {:ok, result} ->
-            org = get_organization!(invite.organization_id)
-            set_2fa_deadline_if_needed(result.membership, org)
-            {:ok, result}
-
-          {:error, :verify_still_valid, :expired, _} ->
-            {:error, :expired}
-
-          {:error, _op, changeset, _} ->
-            {:error, changeset}
-        end
+      {:error, _op, changeset, _} ->
+        {:error, changeset}
     end
   end
 
@@ -404,6 +412,11 @@ defmodule Estimate.Organizations do
     %JoinRequest{}
     |> JoinRequest.changeset(%{user_id: user_id, organization_id: org_id})
     |> Repo.insert()
+  end
+
+  @doc "Builds an unsaved JoinRequest changeset (for composing into a Multi)."
+  def build_join_request(user_id, org_id) do
+    JoinRequest.changeset(%JoinRequest{}, %{user_id: user_id, organization_id: org_id})
   end
 
   def approve_join_request(%JoinRequest{} = request, reviewer_id) do
