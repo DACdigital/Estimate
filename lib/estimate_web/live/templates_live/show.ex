@@ -4,7 +4,6 @@ defmodule EstimateWeb.TemplatesLive.Show do
   alias Estimate.Templates
 
   import EstimateWeb.EstimatorLive.Helpers, only: [priority_label: 1, priority_class: 1]
-  import EstimateWeb.LiveHelpers
 
   @impl true
   def render(assigns) do
