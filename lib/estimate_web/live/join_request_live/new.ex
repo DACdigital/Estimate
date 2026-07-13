@@ -134,33 +134,26 @@ defmodule EstimateWeb.JoinRequestLive.New do
     {:noreply, assign_form(socket, changeset)}
   end
 
+  @impl true
   def handle_event("register_and_request_join", %{"user" => user_params}, socket) do
     org = socket.assigns.organization
 
-    case Accounts.register_user(user_params) do
-      {:ok, user} ->
-        case Organizations.create_join_request(user.id, org.id) do
-          {:ok, _request} ->
-            {:noreply,
-             socket
-             |> put_flash(
-               :info,
-               "Account created! Your join request for #{org.name} is pending approval."
-             )
-             |> redirect(to: ~p"/users/log_in")}
+    case Accounts.register_user_and_request_join(user_params, org.id) do
+      {:ok, _user} ->
+        {:noreply,
+         socket
+         |> put_flash(
+           :info,
+           "Account created! Your join request for #{org.name} is pending approval."
+         )
+         |> redirect(to: ~p"/users/log_in")}
 
-          {:error, _} ->
-            {:noreply,
-             socket
-             |> put_flash(:error, "Account created but could not submit join request.")
-             |> redirect(to: ~p"/users/log_in")}
-        end
-
-      {:error, changeset} ->
+      {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign_form(socket, changeset)}
     end
   end
 
+  @impl true
   def handle_event("request_join", _params, socket) do
     user = socket.assigns.current_user
     org = socket.assigns.organization

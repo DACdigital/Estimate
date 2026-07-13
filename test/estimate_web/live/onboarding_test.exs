@@ -61,8 +61,8 @@ defmodule EstimateWeb.OnboardingTest do
     end
   end
 
-  describe "registration invite-code path (non-atomic)" do
-    test "bogus invite code still persists the user row", %{conn: conn} do
+  describe "registration invite-code path (atomic)" do
+    test "bogus invite code persists NO user (rolled back / never inserted)", %{conn: conn} do
       {:ok, lv, _html} = live(conn, ~p"/users/register")
 
       # The invite_code field only renders after the "I have an invite code"
@@ -79,7 +79,31 @@ defmodule EstimateWeb.OnboardingTest do
         |> render_submit()
 
       assert html =~ "Invalid or expired invite code"
-      assert Estimate.Accounts.get_user_by_email("reg-user@example.com")
+      refute Estimate.Accounts.get_user_by_email("reg-user@example.com")
+    end
+  end
+
+  describe "join-request registration" do
+    test "register-and-request-join creates the user + a pending request", %{conn: conn} do
+      %{organization: org} = user_with_organization_fixture()
+
+      {:ok, lv, _html} = live(conn, ~p"/organizations/#{org.id}/join")
+
+      # JoinRequestLive.New redirects with a plain `redirect/2` (not
+      # push_navigate) on both success and failure, same as InviteLive.Accept
+      # above — so follow_redirect is needed to decode the signed flash
+      # cookie on the /users/log_in response, rather than pattern-matching
+      # the raw {:error, {:redirect, %{flash: ...}}} tuple directly.
+      {:ok, conn} =
+        lv
+        |> form(~s(form[phx-submit="register_and_request_join"]),
+          user: %{name: "Joiner", email: "joiner@example.com", password: "a_valid_password!"}
+        )
+        |> render_submit()
+        |> follow_redirect(conn, ~p"/users/log_in")
+
+      assert html_response(conn, 200) =~ "pending approval"
+      assert Estimate.Accounts.get_user_by_email("joiner@example.com")
     end
   end
 end

@@ -104,6 +104,7 @@ defmodule EstimateWeb.InviteLive.Accept do
     {:noreply, assign_form(socket, changeset)}
   end
 
+  @impl true
   def handle_event("register_and_accept", %{"user" => user_params}, socket) do
     invite = socket.assigns.invite
 
@@ -112,27 +113,25 @@ defmodule EstimateWeb.InviteLive.Accept do
         do: Map.put(user_params, "email", invite.email),
         else: user_params
 
-    case Accounts.register_user(user_params) do
-      {:ok, user} ->
-        case Organizations.accept_invite(invite, user) do
-          {:ok, _} ->
-            {:noreply,
-             socket
-             |> put_flash(:info, "Account created and joined #{invite.organization.name}!")
-             |> redirect(to: ~p"/users/log_in")}
+    case Accounts.register_user_and_accept_invite(user_params, invite) do
+      {:ok, _user} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Account created and joined #{invite.organization.name}!")
+         |> redirect(to: ~p"/users/log_in")}
 
-          {:error, _} ->
-            {:noreply,
-             socket
-             |> put_flash(:error, "Could not accept invitation")
-             |> redirect(to: ~p"/")}
-        end
-
-      {:error, changeset} ->
+      {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign_form(socket, changeset)}
+
+      {:error, _reason} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "Could not accept invitation")
+         |> redirect(to: ~p"/")}
     end
   end
 
+  @impl true
   def handle_event("accept_invite", _params, socket) do
     invite = socket.assigns.invite
     user = socket.assigns.current_user

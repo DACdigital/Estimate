@@ -5,6 +5,7 @@ defmodule EstimateWeb.UserLive.Registration do
   alias Estimate.Accounts.User
   alias Estimate.Organizations
 
+  @impl true
   def render(assigns) do
     ~H"""
     <div class="w-full">
@@ -94,6 +95,7 @@ defmodule EstimateWeb.UserLive.Registration do
     """
   end
 
+  @impl true
   def mount(_params, _session, socket) do
     changeset = Accounts.change_user_registration(%User{})
     org_changeset = Organizations.change_organization(%Accounts.Organization{})
@@ -108,6 +110,7 @@ defmodule EstimateWeb.UserLive.Registration do
     {:ok, socket, temporary_assigns: [form: nil]}
   end
 
+  @impl true
   def handle_event("toggle_invite_code", _params, socket) do
     {:noreply,
      socket
@@ -115,37 +118,33 @@ defmodule EstimateWeb.UserLive.Registration do
      |> assign(:invite_code_error, nil)}
   end
 
+  @impl true
   def handle_event("save", %{"user" => user_params, "invite_code" => code}, socket) do
-    case Accounts.register_user(user_params) do
-      {:ok, user} ->
-        case Organizations.get_valid_invite_by_code(code) do
-          nil ->
+    case Organizations.get_valid_invite_by_code(code) do
+      nil ->
+        {:noreply,
+         socket
+         |> assign(invite_code: code, invite_code_error: "Invalid or expired invite code")
+         |> assign(check_errors: true)}
+
+      invite ->
+        case Accounts.register_user_and_accept_invite(user_params, invite) do
+          {:ok, _user} ->
+            {:noreply, assign(socket, trigger_submit: true)}
+
+          {:error, %Ecto.Changeset{} = changeset} ->
+            {:noreply, socket |> assign(check_errors: true) |> assign_form(changeset)}
+
+          {:error, _reason} ->
             {:noreply,
              socket
-             |> assign(invite_code: code, invite_code_error: "Invalid or expired invite code")
-             |> assign(check_errors: true)
-             |> assign_form(Accounts.change_user_registration(user))}
-
-          invite ->
-            case Organizations.accept_invite(invite, user) do
-              {:ok, _} ->
-                changeset = Accounts.change_user_registration(user)
-                {:noreply, socket |> assign(trigger_submit: true) |> assign_form(changeset)}
-
-              {:error, _} ->
-                {:noreply,
-                 socket
-                 |> assign(invite_code: code, invite_code_error: "Could not join organization")
-                 |> assign(check_errors: true)
-                 |> assign_form(Accounts.change_user_registration(user))}
-            end
+             |> assign(invite_code: code, invite_code_error: "Could not join organization")
+             |> assign(check_errors: true)}
         end
-
-      {:error, changeset} ->
-        {:noreply, socket |> assign(check_errors: true) |> assign_form(changeset)}
     end
   end
 
+  @impl true
   def handle_event("save", %{"user" => user_params, "organization" => org_params}, socket) do
     case Accounts.register_user_with_organization(user_params, org_params) do
       {:ok, %{user: user}} ->
@@ -163,6 +162,7 @@ defmodule EstimateWeb.UserLive.Registration do
     end
   end
 
+  @impl true
   def handle_event("validate", params, socket) do
     user_params = Map.get(params, "user", %{})
     changeset = Accounts.change_user_registration(%User{}, user_params)
