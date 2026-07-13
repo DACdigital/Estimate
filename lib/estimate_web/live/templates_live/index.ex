@@ -4,7 +4,6 @@ defmodule EstimateWeb.TemplatesLive.Index do
   alias Estimate.Templates
   import EstimateWeb.Components.JsonImportComponent
   import EstimateWeb.JsonImportHelpers
-  import EstimateWeb.LiveHelpers
 
   @impl true
   def render(assigns) do

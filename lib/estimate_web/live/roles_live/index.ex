@@ -3,7 +3,6 @@ defmodule EstimateWeb.RolesLive.Index do
 
   alias Estimate.Accounts
   alias Estimate.Organizations.Currencies
-  import EstimateWeb.LiveHelpers
   import EstimateWeb.EstimatorLive.Helpers, only: [format_percent: 1]
 
   @overhead_fields ~w(pm_overhead qa_overhead risk_buffer)

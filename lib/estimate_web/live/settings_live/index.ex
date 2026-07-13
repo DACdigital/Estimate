@@ -2,7 +2,6 @@ defmodule EstimateWeb.SettingsLive.Index do
   use EstimateWeb, :live_view
 
   alias Estimate.Organizations
-  import EstimateWeb.LiveHelpers
 
   @impl true
   def render(assigns) do

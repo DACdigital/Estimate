@@ -4,7 +4,6 @@ defmodule EstimateWeb.CustomerLive.Index do
   alias Estimate.CRM
   alias Estimate.CRM.Customer
   alias Estimate.Organizations.Currencies
-  import EstimateWeb.LiveHelpers
 
   @impl true
   def render(assigns) do

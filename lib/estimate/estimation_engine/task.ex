@@ -25,10 +25,4 @@ defmodule Estimate.EstimationEngine.Task do
   end
 
   def priorities, do: @priorities
-
-  def priority_label("must"), do: "Must"
-  def priority_label("should"), do: "Should"
-  def priority_label("could"), do: "Could"
-  def priority_label("wont"), do: "Won't"
-  def priority_label(_), do: "Must"
 end
