@@ -22,29 +22,25 @@ defmodule EstimateWeb.UserLive.TotpVerification do
         <input type="hidden" name="_csrf_token" value={Plug.CSRFProtection.get_csrf_token()} />
 
         <%= if @use_backup do %>
-          <div>
-            <input
-              type="text"
-              name="code"
-              placeholder="Backup code"
-              autocomplete="one-time-code"
-              autofocus
-              class="w-full px-4 py-3 border border-base-content/20 rounded-lg text-base-content placeholder-base-content/60 font-mono"
-            />
-          </div>
+          <.auth_input
+            name="code"
+            type="text"
+            placeholder="Backup code"
+            class="font-mono"
+            autocomplete="one-time-code"
+            autofocus
+          />
         <% else %>
-          <div>
-            <input
-              type="text"
-              name="code"
-              placeholder="000000"
-              maxlength="6"
-              autocomplete="one-time-code"
-              inputmode="numeric"
-              autofocus
-              class="w-full px-4 py-3 border border-base-content/20 rounded-lg text-base-content placeholder-base-content/60 text-center font-mono text-lg tracking-[0.5em]"
-            />
-          </div>
+          <.auth_input
+            name="code"
+            type="text"
+            placeholder="000000"
+            class="text-center font-mono text-lg tracking-[0.5em]"
+            maxlength="6"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            autofocus
+          />
         <% end %>
 
         <button

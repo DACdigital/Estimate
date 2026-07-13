@@ -41,47 +41,23 @@ defmodule EstimateWeb.InviteLive.Accept do
             phx-change="validate"
             class="space-y-4"
           >
-            <div>
-              <input
-                type="text"
-                name="user[name]"
-                value={@form[:name].value}
-                placeholder="Full Name"
-                required
-                class={"w-full px-4 py-3 border rounded-lg text-base-content placeholder-base-content/60 #{if @form[:name].errors != [], do: "border-error", else: "border-base-content/20"}"}
-              />
-              <p :for={error <- @form[:name].errors} class="mt-1 text-sm text-error">
-                {translate_error(error)}
-              </p>
-            </div>
+            <.auth_input field={@form[:name]} type="text" placeholder="Full Name" required />
 
-            <div>
-              <input
-                type="email"
-                name="user[email]"
-                value={@form[:email].value || @invite.email}
-                placeholder="Email Address"
-                required
-                readonly={@invite.email != nil}
-                class={"w-full px-4 py-3 border rounded-lg text-base-content placeholder-base-content/60 #{if @invite.email, do: "bg-base-200 text-base-content/60"} #{if @form[:email].errors != [], do: "border-error", else: "border-base-content/20"}"}
-              />
-              <p :for={error <- @form[:email].errors} class="mt-1 text-sm text-error">
-                {translate_error(error)}
-              </p>
-            </div>
+            <.auth_input
+              field={@form[:email]}
+              type="email"
+              placeholder="Email Address"
+              required
+              readonly={@invite.email != nil}
+              class={if @invite.email, do: "bg-base-200 text-base-content/60"}
+            />
 
-            <div>
-              <input
-                type="password"
-                name="user[password]"
-                placeholder="Password"
-                required
-                class={"w-full px-4 py-3 border rounded-lg text-base-content placeholder-base-content/60 #{if @form[:password].errors != [], do: "border-error", else: "border-base-content/20"}"}
-              />
-              <p :for={error <- @form[:password].errors} class="mt-1 text-sm text-error">
-                {translate_error(error)}
-              </p>
-            </div>
+            <.auth_input
+              field={@form[:password]}
+              type="password"
+              placeholder="Password"
+              required
+            />
 
             <button
               type="submit"
@@ -123,7 +99,11 @@ defmodule EstimateWeb.InviteLive.Accept do
   @impl true
   def mount(%{"token" => token}, _session, socket) do
     invite = Organizations.get_valid_invite_by_token(token)
-    changeset = Accounts.change_user_registration(%User{})
+    # Pre-seed the email so the readonly `<.auth_input field={@form[:email]}>` shows
+    # the invite's email: auth_input's field-clause always renders `field.value`, so
+    # a `value=` fallback attr at the call site would be silently discarded.
+    initial_attrs = if invite && invite.email, do: %{"email" => invite.email}, else: %{}
+    changeset = Accounts.change_user_registration(%User{}, initial_attrs)
     return_to = ~p"/invites/#{token}"
 
     {:ok,

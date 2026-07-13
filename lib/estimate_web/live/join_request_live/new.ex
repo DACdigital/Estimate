@@ -51,46 +51,16 @@ defmodule EstimateWeb.JoinRequestLive.New do
             phx-change="validate"
             class="space-y-4"
           >
-            <div>
-              <input
-                type="text"
-                name="user[name]"
-                value={@form[:name].value}
-                placeholder="Full Name"
-                required
-                class={"w-full px-4 py-3 border rounded-lg text-base-content placeholder-base-content/60 #{if @form[:name].errors != [], do: "border-error", else: "border-base-content/20"}"}
-              />
-              <p :for={error <- @form[:name].errors} class="mt-1 text-sm text-error">
-                {translate_error(error)}
-              </p>
-            </div>
+            <.auth_input field={@form[:name]} type="text" placeholder="Full Name" required />
 
-            <div>
-              <input
-                type="email"
-                name="user[email]"
-                value={@form[:email].value}
-                placeholder="Email Address"
-                required
-                class={"w-full px-4 py-3 border rounded-lg text-base-content placeholder-base-content/60 #{if @form[:email].errors != [], do: "border-error", else: "border-base-content/20"}"}
-              />
-              <p :for={error <- @form[:email].errors} class="mt-1 text-sm text-error">
-                {translate_error(error)}
-              </p>
-            </div>
+            <.auth_input field={@form[:email]} type="email" placeholder="Email Address" required />
 
-            <div>
-              <input
-                type="password"
-                name="user[password]"
-                placeholder="Password"
-                required
-                class={"w-full px-4 py-3 border rounded-lg text-base-content placeholder-base-content/60 #{if @form[:password].errors != [], do: "border-error", else: "border-base-content/20"}"}
-              />
-              <p :for={error <- @form[:password].errors} class="mt-1 text-sm text-error">
-                {translate_error(error)}
-              </p>
-            </div>
+            <.auth_input
+              field={@form[:password]}
+              type="password"
+              placeholder="Password"
+              required
+            />
 
             <button
               type="submit"

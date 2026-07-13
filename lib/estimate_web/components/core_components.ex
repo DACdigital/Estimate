@@ -403,6 +403,69 @@ defmodule EstimateWeb.CoreComponents do
   end
 
   @doc """
+  Auth-card text/email/password input: placeholder-driven (no visible label),
+  the shared auth styling, and inline error text.
+
+  Accepts either a `field` (Phoenix.HTML.FormField) — errors are read and
+  translated from it — or a raw `name`/`value` plus an explicit `error` string
+  (for inputs not backed by a changeset, e.g. TOTP codes, invite codes).
+
+  ## Examples
+
+      <.auth_input field={@form[:email]} type="email" placeholder="Email Address" required />
+      <.auth_input name="code" value={@code} error={@error} placeholder="000000"
+        class="font-mono tracking-[0.5em] text-center" maxlength="6" inputmode="numeric" />
+  """
+  attr :field, Phoenix.HTML.FormField, default: nil
+  attr :type, :string, default: "text"
+  attr :name, :string, default: nil, doc: "required unless `field` is given"
+  attr :value, :any, default: nil
+  attr :placeholder, :string, default: nil
+  attr :error, :string, default: nil, doc: "explicit error for non-form-backed inputs"
+
+  attr :field_errors, :list,
+    default: [],
+    doc: "internal: translated errors derived from `field`, not meant to be passed directly"
+
+  attr :class, :string, default: nil, doc: "extra input classes appended to the base"
+
+  attr :rest, :global,
+    include:
+      ~w(required readonly disabled maxlength minlength inputmode autocomplete autofocus pattern)
+
+  def auth_input(%{field: %Phoenix.HTML.FormField{} = field} = assigns) do
+    errors = if Phoenix.Component.used_input?(field), do: field.errors, else: []
+
+    assigns
+    |> assign(:field, nil)
+    |> assign(:name, field.name)
+    |> assign(:value, field.value)
+    |> assign(:field_errors, Enum.map(errors, &translate_error/1))
+    |> auth_input()
+  end
+
+  def auth_input(assigns) do
+    ~H"""
+    <div>
+      <input
+        type={@type}
+        name={@name}
+        value={@value}
+        placeholder={@placeholder}
+        class={[
+          "w-full px-4 py-3 border rounded-lg text-base-content placeholder-base-content/60",
+          @class,
+          if(@error || @field_errors != [], do: "border-error", else: "border-base-content/20")
+        ]}
+        {@rest}
+      />
+      <p :if={@error} class="mt-1 text-sm text-error">{@error}</p>
+      <p :for={msg <- @field_errors} class="mt-1 text-sm text-error">{msg}</p>
+    </div>
+    """
+  end
+
+  @doc """
   Renders a table with generic styling.
 
   ## Examples

@@ -18,26 +18,9 @@ defmodule EstimateWeb.UserLive.Login do
         <input type="hidden" name="_csrf_token" value={Plug.CSRFProtection.get_csrf_token()} />
         <input :if={@return_to} type="hidden" name="return_to" value={@return_to} />
 
-        <div>
-          <input
-            type="email"
-            name="user[email]"
-            value={@form[:email].value}
-            placeholder="Email Address"
-            required
-            class="w-full px-4 py-3 border border-base-content/20 rounded-lg text-base-content placeholder-base-content/60"
-          />
-        </div>
+        <.auth_input field={@form[:email]} type="email" placeholder="Email Address" required />
 
-        <div>
-          <input
-            type="password"
-            name="user[password]"
-            placeholder="Password"
-            required
-            class="w-full px-4 py-3 border border-base-content/20 rounded-lg text-base-content placeholder-base-content/60"
-          />
-        </div>
+        <.auth_input type="password" name="user[password]" placeholder="Password" required />
 
         <div class="flex items-center justify-between text-sm">
           <label class="flex items-center gap-2 cursor-pointer">
