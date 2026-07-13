@@ -11,17 +11,13 @@ defmodule EstimateWeb.JoinRequestLive.New do
     <div class="w-full">
       <%= if @organization do %>
         <%= if @current_user do %>
-          <h1 class="text-3xl font-bold text-center text-base-content mb-8">
-            Join {@organization.name}
-          </h1>
+          <.auth_header title={"Join #{@organization.name}"} />
 
           <div class="text-center">
             <%= if @already_member do %>
               <p class="text-base-content/70 mb-6">You're already a member of this organization.</p>
               <.link navigate={~p"/org/#{@organization.id}"}>
-                <button class="w-full py-3 px-4 bg-neutral text-neutral-content font-medium rounded-lg hover:bg-neutral/90 transition-colors">
-                  Go to Organization
-                </button>
+                <.auth_submit>Go to Organization</.auth_submit>
               </.link>
             <% else %>
               <%= if @pending_request do %>
@@ -30,20 +26,14 @@ defmodule EstimateWeb.JoinRequestLive.New do
                 <p class="text-base-content/70 mb-6">
                   An admin will review your request to join this organization.
                 </p>
-                <button
-                  phx-click="request_join"
-                  class="w-full py-3 px-4 bg-neutral text-neutral-content font-medium rounded-lg hover:bg-neutral/90 transition-colors"
-                >
-                  Request to Join
-                </button>
+                <.auth_submit phx-click="request_join">Request to Join</.auth_submit>
               <% end %>
             <% end %>
           </div>
         <% else %>
-          <h1 class="text-3xl font-bold text-center text-base-content mb-2">
-            Join {@organization.name}
-          </h1>
-          <p class="text-center text-base-content/70 mb-8">Create an account to request access</p>
+          <.auth_header title={"Join #{@organization.name}"}>
+            <:subtitle>Create an account to request access</:subtitle>
+          </.auth_header>
 
           <form
             id="registration_form"
@@ -62,20 +52,12 @@ defmodule EstimateWeb.JoinRequestLive.New do
               required
             />
 
-            <button
-              type="submit"
-              phx-disable-with="Creating account..."
-              class="w-full py-3 px-4 bg-neutral text-neutral-content font-medium rounded-lg hover:bg-neutral/90 transition-colors mt-2"
-            >
+            <.auth_submit loading="Creating account...">
               Create Account & Request to Join
-            </button>
+            </.auth_submit>
           </form>
 
-          <.or_divider />
-
-          <div class="space-y-3">
-            <.google_button href={~p"/auth/google?#{%{return_to: @return_to}}"} />
-          </div>
+          <.oauth_section href={~p"/auth/google?#{%{return_to: @return_to}}"} />
 
           <p class="mt-8 text-center text-base-content/70">
             Already have an account?
@@ -88,10 +70,9 @@ defmodule EstimateWeb.JoinRequestLive.New do
           </p>
         <% end %>
       <% else %>
-        <h1 class="text-3xl font-bold text-center text-base-content mb-4">
-          Organization Not Found
-        </h1>
-        <p class="text-center text-base-content/70">This organization doesn't exist.</p>
+        <.auth_header title="Organization Not Found">
+          <:subtitle>This organization doesn't exist.</:subtitle>
+        </.auth_header>
       <% end %>
     </div>
     """

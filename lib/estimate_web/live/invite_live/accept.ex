@@ -11,29 +11,22 @@ defmodule EstimateWeb.InviteLive.Accept do
     <div class="w-full">
       <%= if @invite do %>
         <%= if @current_user do %>
-          <h1 class="text-3xl font-bold text-center text-base-content mb-2">
-            Join {@invite.organization.name}
-          </h1>
-          <p class="text-center text-base-content/70 mb-8">
-            You've been invited to join this organization
-          </p>
+          <.auth_header title={"Join #{@invite.organization.name}"}>
+            <:subtitle>You've been invited to join this organization</:subtitle>
+          </.auth_header>
 
           <div class="text-center">
             <p class="text-base-content/70 mb-6">
               You're signed in as <strong>{@current_user.email}</strong>
             </p>
-            <button
-              phx-click="accept_invite"
-              class="w-full py-3 px-4 bg-neutral text-neutral-content font-medium rounded-lg hover:bg-neutral/90 transition-colors"
-            >
+            <.auth_submit phx-click="accept_invite">
               Accept Invitation
-            </button>
+            </.auth_submit>
           </div>
         <% else %>
-          <h1 class="text-3xl font-bold text-center text-base-content mb-2">
-            Join {@invite.organization.name}
-          </h1>
-          <p class="text-center text-base-content/70 mb-8">Create an account to join</p>
+          <.auth_header title={"Join #{@invite.organization.name}"}>
+            <:subtitle>Create an account to join</:subtitle>
+          </.auth_header>
 
           <form
             id="registration_form"
@@ -59,20 +52,10 @@ defmodule EstimateWeb.InviteLive.Accept do
               required
             />
 
-            <button
-              type="submit"
-              phx-disable-with="Creating account..."
-              class="w-full py-3 px-4 bg-neutral text-neutral-content font-medium rounded-lg hover:bg-neutral/90 transition-colors"
-            >
-              Create Account & Join
-            </button>
+            <.auth_submit loading="Creating account...">Create Account & Join</.auth_submit>
           </form>
 
-          <.or_divider />
-
-          <div class="space-y-3">
-            <.google_button href={~p"/auth/google?#{%{return_to: @return_to}}"} />
-          </div>
+          <.oauth_section href={~p"/auth/google?#{%{return_to: @return_to}}"} />
 
           <p class="mt-8 text-center text-base-content/70">
             Already have an account?
@@ -85,12 +68,9 @@ defmodule EstimateWeb.InviteLive.Accept do
           </p>
         <% end %>
       <% else %>
-        <h1 class="text-3xl font-bold text-center text-base-content mb-2">
-          Invalid Invitation
-        </h1>
-        <p class="text-center text-base-content/70">
-          This invitation link is invalid or has expired.
-        </p>
+        <.auth_header title="Invalid Invitation">
+          <:subtitle>This invitation link is invalid or has expired.</:subtitle>
+        </.auth_header>
       <% end %>
     </div>
     """
