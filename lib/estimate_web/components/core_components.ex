@@ -466,6 +466,79 @@ defmodule EstimateWeb.CoreComponents do
   end
 
   @doc """
+  Centered auth-card heading with an optional subtitle.
+
+  ## Examples
+
+      <.auth_header title="Create your account" />
+      <.auth_header title="Forgot your password?">
+        <:subtitle>We'll send a reset link to your inbox</:subtitle>
+      </.auth_header>
+  """
+  attr :title, :string, required: true
+  slot :subtitle
+
+  def auth_header(assigns) do
+    ~H"""
+    <h1 class={[
+      "text-3xl font-bold text-center text-base-content",
+      if(@subtitle != [], do: "mb-2", else: "mb-8")
+    ]}>
+      {@title}
+    </h1>
+    <p :if={@subtitle != []} class="text-center text-base-content/60 mb-8">
+      {render_slot(@subtitle)}
+    </p>
+    """
+  end
+
+  @doc """
+  Full-width primary submit button for auth-card forms.
+
+  ## Examples
+
+      <.auth_submit loading="Creating account...">Create Account</.auth_submit>
+      <.auth_submit>Continue with Email</.auth_submit>
+  """
+  attr :loading, :string,
+    default: nil,
+    doc: "phx-disable-with text; omit for controller-post forms"
+
+  attr :rest, :global
+  slot :inner_block, required: true
+
+  def auth_submit(assigns) do
+    ~H"""
+    <button
+      type="submit"
+      phx-disable-with={@loading}
+      class="w-full py-3 px-4 bg-neutral text-neutral-content font-medium rounded-lg hover:bg-neutral/90 transition-colors"
+      {@rest}
+    >
+      {render_slot(@inner_block)}
+    </button>
+    """
+  end
+
+  @doc """
+  OAuth divider + Google button for auth-card screens.
+
+  ## Examples
+
+      <.oauth_section href={~p"/auth/google"} />
+  """
+  attr :href, :string, required: true
+
+  def oauth_section(assigns) do
+    ~H"""
+    <.or_divider />
+    <div class="space-y-3">
+      <.google_button href={@href} />
+    </div>
+    """
+  end
+
+  @doc """
   Renders a table with generic styling.
 
   ## Examples
