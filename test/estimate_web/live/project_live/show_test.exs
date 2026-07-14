@@ -4,8 +4,10 @@ defmodule EstimateWeb.ProjectLive.ShowTest do
   import Phoenix.LiveViewTest
   import Estimate.AccountsFixtures
   import Estimate.PortfolioFixtures
+  import Estimate.EstimationEngineFixtures
 
   alias Estimate.Portfolio
+  alias Estimate.Organizations.Currencies
 
   defp assigns(lv), do: :sys.get_state(lv.pid).socket.assigns
 
@@ -417,6 +419,322 @@ defmodule EstimateWeb.ProjectLive.ShowTest do
       # decomposition to fix (guard should map strings → atoms explicitly, not
       # to_existing_atom), not stable behavior to assert. :by_role is safe: show.ex's mount
       # sets `dashboard_tab: :by_role`, so that atom always exists once the LiveView loads.
+    end
+  end
+
+  describe "new estimation modal state machine" do
+    # Pins the STATE MACHINE only (open/close, source selection, modal-role list editing)
+    # -- NOT the actual creation (create_estimation/dispatch_create, that's a separate
+    # characterization slice). None of these events check can_edit_project or any other
+    # permission -- only create_estimation gates on can_edit_project -- so a single owner
+    # is sufficient here; there is nothing authz-related to discriminate.
+    setup :setup_project
+
+    # Pin the project to the org's main currency (seeded org has USD/EUR/GBP/PLN, USD
+    # main) so `modal_currency_id == project.currency_id` is a concrete, non-nil id, and
+    # so the seeded role templates' hourly rates (seeded ONLY for the org's main
+    # currency -- see Accounts.seed_default_role_templates/1) are non-zero right after
+    # open. That non-zero baseline is what makes the currency-switch test below
+    # (switching to a currency with no template rate at all) discriminating: it proves
+    # maybe_update_modal_role_rates/3 actually recomputes rates rather than leaving them.
+    setup %{org: org, project: project} do
+      currencies = Currencies.list_currencies(org.id)
+      main_currency = Enum.find(currencies, & &1.is_main)
+      other_currency = Enum.find(currencies, &(&1.id != main_currency.id))
+
+      {:ok, project} = Portfolio.update_project(project, %{"currency_id" => main_currency.id})
+
+      %{project: project, other_currency: other_currency}
+    end
+
+    test "open_estimation_modal: fresh source, roles rebuilt from templates, currency locked to project, no source estimation when none exist",
+         %{conn: conn, org: org, owner: owner, project: project} do
+      {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
+      templates = assigns(lv).role_templates
+
+      render_click(lv, "open_estimation_modal", %{})
+      a = assigns(lv)
+
+      assert a.show_new_estimation_modal == true
+      assert a.estimation_source == "fresh"
+      assert a.modal_currency_id == project.currency_id
+      assert a.source_estimation_id == nil
+
+      # modal_roles is a 1:1, order-preserving rebuild from role_templates -- not just
+      # "some roles", the exact template name/abbreviation/template_id sequence.
+      assert length(a.modal_roles) == length(templates)
+      assert Enum.map(a.modal_roles, & &1.name) == Enum.map(templates, & &1.name)
+      assert Enum.map(a.modal_roles, & &1.abbreviation) == Enum.map(templates, & &1.abbreviation)
+      assert Enum.map(a.modal_roles, & &1.template_id) == Enum.map(templates, & &1.id)
+      assert Enum.all?(a.modal_roles, &is_integer(&1.temp_id))
+
+      temp_ids = Enum.map(a.modal_roles, & &1.temp_id)
+      assert Enum.uniq(temp_ids) == temp_ids
+    end
+
+    test "open_estimation_modal: source_estimation_id defaults to the project's existing estimation",
+         %{conn: conn, org: org, owner: owner, project: project} do
+      # estimations is loaded once at mount, so the fixture must exist BEFORE `live/2`.
+      estimation = estimation_fixture(project)
+
+      {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
+      render_click(lv, "open_estimation_modal", %{})
+
+      assert assigns(lv).source_estimation_id == estimation.id
+    end
+
+    test "close_estimation_modal only flips the visibility flag", %{
+      conn: conn,
+      org: org,
+      owner: owner,
+      project: project
+    } do
+      {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
+      render_click(lv, "open_estimation_modal", %{})
+      assert assigns(lv).show_new_estimation_modal == true
+
+      render_click(lv, "close_estimation_modal", %{})
+
+      a = assigns(lv)
+      refute a.show_new_estimation_modal
+      # a single assign in the source -- source/roles from the open are left untouched
+      assert a.estimation_source == "fresh"
+    end
+
+    test "set_estimation_source(copy) prefills name/source/currency from the estimation; switching away resets them",
+         %{conn: conn, org: org, owner: owner, project: project, other_currency: other_currency} do
+      estimation =
+        estimation_fixture(project, %{"name" => "Alpha", "currency_id" => other_currency.id})
+
+      {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
+      render_click(lv, "open_estimation_modal", %{})
+
+      render_click(lv, "set_estimation_source", %{"source" => "copy"})
+      a = assigns(lv)
+      assert a.estimation_source == "copy"
+      assert a.source_estimation_id == estimation.id
+      assert a.estimation_form.params["name"] == "Copy of Alpha"
+      # currency gets LOCKED to the source estimation's currency, overriding the
+      # project's currency that open_estimation_modal had set.
+      assert a.modal_currency_id == other_currency.id
+      assert a.modal_currency.id == other_currency.id
+
+      render_click(lv, "set_estimation_source", %{"source" => "template"})
+      a = assigns(lv)
+      assert a.estimation_source == "template"
+      assert a.source_estimation_id == nil
+      assert a.estimation_form.params["name"] == ""
+
+      render_click(lv, "set_estimation_source", %{"source" => "fresh"})
+      assert assigns(lv).estimation_source == "fresh"
+    end
+
+    test "set_estimation_source(copy) with no estimations to copy behaves like any other source",
+         %{conn: conn, org: org, owner: owner, project: project} do
+      {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
+      render_click(lv, "open_estimation_modal", %{})
+
+      render_click(lv, "set_estimation_source", %{"source" => "copy"})
+
+      a = assigns(lv)
+      assert a.estimation_source == "copy"
+      assert a.source_estimation_id == nil
+      assert a.estimation_form.params["name"] == ""
+    end
+
+    test "set_estimation_source unconditionally clears any parsed/errored JSON state", %{
+      conn: conn,
+      org: org,
+      owner: owner,
+      project: project
+    } do
+      {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
+      render_click(lv, "open_estimation_modal", %{})
+
+      render_change(lv, "validate_estimation", %{"json_input" => "{not valid json"})
+      assert assigns(lv).json_error != nil
+
+      # clear_json() runs unconditionally in set_estimation_source, regardless of which
+      # source is being switched to (even re-selecting "json" wipes the parse state).
+      render_click(lv, "set_estimation_source", %{"source" => "json"})
+
+      a = assigns(lv)
+      assert a.estimation_source == "json"
+      assert a.json_error == nil
+      assert a.json_parsed == nil
+    end
+
+    test "validate_estimation (general): edits a single modal role by temp_id, leaves the rest untouched",
+         %{conn: conn, org: org, owner: owner, project: project} do
+      {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
+      render_click(lv, "open_estimation_modal", %{})
+
+      [role | rest] = assigns(lv).modal_roles
+
+      render_change(lv, "validate_estimation", %{
+        "roles" => %{
+          to_string(role.temp_id) => %{
+            "name" => "Renamed",
+            "abbreviation" => "RN",
+            "hourly_rate" => "42.5"
+          }
+        }
+      })
+
+      [updated | rest_after] = assigns(lv).modal_roles
+      assert updated.name == "Renamed"
+      assert updated.abbreviation == "RN"
+      assert Decimal.equal?(updated.hourly_rate, Decimal.new("42.5"))
+      assert rest_after == rest
+    end
+
+    test "validate_estimation (general): a currency change recomputes template-linked role rates",
+         %{conn: conn, org: org, owner: owner, project: project, other_currency: other_currency} do
+      {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
+      render_click(lv, "open_estimation_modal", %{})
+
+      # baseline: every seeded template has a rate for the org's main currency (== project's)
+      assert Enum.all?(
+               assigns(lv).modal_roles,
+               &(Decimal.compare(&1.hourly_rate, Decimal.new(0)) != :eq)
+             )
+
+      render_change(lv, "validate_estimation", %{"currency_id" => other_currency.id})
+
+      a = assigns(lv)
+      assert a.modal_currency_id == other_currency.id
+      assert a.modal_currency.id == other_currency.id
+      # no template has a rate for `other_currency` -> maybe_update_modal_role_rates/3
+      # falls back to 0 for every role
+      assert Enum.all?(a.modal_roles, &Decimal.equal?(&1.hourly_rate, Decimal.new(0)))
+    end
+
+    test "validate_estimation (json branch): valid JSON parses, prefills form, clears error", %{
+      conn: conn,
+      org: org,
+      owner: owner,
+      project: project
+    } do
+      {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
+      render_click(lv, "open_estimation_modal", %{})
+
+      json =
+        Jason.encode!(%{
+          "estimation" => "Imported Plan",
+          "description" => "from json",
+          "epics" => [%{"name" => "Epic 1", "tasks" => [%{"name" => "Task 1"}]}]
+        })
+
+      render_change(lv, "validate_estimation", %{"json_input" => json})
+
+      a = assigns(lv)
+      assert a.json_error == nil
+      assert a.json_parsed.estimation == "Imported Plan"
+      assert a.estimation_form.params["name"] == "Imported Plan"
+      assert a.estimation_form.params["description"] == "from json"
+    end
+
+    test "validate_estimation (json branch): invalid JSON sets json_error, leaves json_parsed nil",
+         %{conn: conn, org: org, owner: owner, project: project} do
+      {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
+      render_click(lv, "open_estimation_modal", %{})
+
+      render_change(lv, "validate_estimation", %{"json_input" => "{not valid json"})
+
+      a = assigns(lv)
+      assert a.json_parsed == nil
+      assert is_binary(a.json_error)
+    end
+
+    test "add_modal_role appends one blank role with a fresh temp_id", %{
+      conn: conn,
+      org: org,
+      owner: owner,
+      project: project
+    } do
+      {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
+      render_click(lv, "open_estimation_modal", %{})
+
+      before_roles = assigns(lv).modal_roles
+      render_click(lv, "add_modal_role", %{})
+      after_roles = assigns(lv).modal_roles
+
+      assert length(after_roles) == length(before_roles) + 1
+      assert Enum.take(after_roles, length(before_roles)) == before_roles
+
+      new_role = List.last(after_roles)
+      assert new_role.name == ""
+      assert new_role.abbreviation == ""
+      assert Decimal.equal?(new_role.hourly_rate, Decimal.new(0))
+      assert new_role.template_id == nil
+      refute new_role.temp_id in Enum.map(before_roles, & &1.temp_id)
+    end
+
+    test "remove_modal_role drops exactly the role matching the given temp_id", %{
+      conn: conn,
+      org: org,
+      owner: owner,
+      project: project
+    } do
+      {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
+      render_click(lv, "open_estimation_modal", %{})
+
+      before_roles = assigns(lv).modal_roles
+      target = hd(before_roles)
+
+      render_click(lv, "remove_modal_role", %{"temp-id" => to_string(target.temp_id)})
+
+      after_roles = assigns(lv).modal_roles
+      assert length(after_roles) == length(before_roles) - 1
+      refute target.temp_id in Enum.map(after_roles, & &1.temp_id)
+      assert after_roles == Enum.reject(before_roles, &(&1.temp_id == target.temp_id))
+    end
+
+    test "reorder_modal_roles reorders modal_roles to match the given temp-id sequence", %{
+      conn: conn,
+      org: org,
+      owner: owner,
+      project: project
+    } do
+      {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
+      render_click(lv, "open_estimation_modal", %{})
+
+      before_roles = assigns(lv).modal_roles
+      reversed_ids = before_roles |> Enum.map(& &1.temp_id) |> Enum.reverse()
+
+      render_click(lv, "reorder_modal_roles", %{"ids" => Enum.map(reversed_ids, &to_string/1)})
+
+      after_roles = assigns(lv).modal_roles
+      assert Enum.map(after_roles, & &1.temp_id) == reversed_ids
+      assert after_roles == Enum.reverse(before_roles)
+    end
+
+    test "reset_modal_roles discards edits and added roles, rebuilding fresh from templates", %{
+      conn: conn,
+      org: org,
+      owner: owner,
+      project: project
+    } do
+      {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
+      render_click(lv, "open_estimation_modal", %{})
+      templates = assigns(lv).role_templates
+
+      [first_role | _] = assigns(lv).modal_roles
+
+      render_change(lv, "validate_estimation", %{
+        "roles" => %{to_string(first_role.temp_id) => %{"name" => "Mutated"}}
+      })
+
+      render_click(lv, "add_modal_role", %{})
+      assert length(assigns(lv).modal_roles) == length(templates) + 1
+      assert hd(assigns(lv).modal_roles).name == "Mutated"
+
+      render_click(lv, "reset_modal_roles", %{})
+
+      a = assigns(lv)
+      assert length(a.modal_roles) == length(templates)
+      assert Enum.map(a.modal_roles, & &1.name) == Enum.map(templates, & &1.name)
+      assert Enum.map(a.modal_roles, & &1.template_id) == Enum.map(templates, & &1.id)
     end
   end
 end
