@@ -493,12 +493,18 @@ defmodule EstimateWeb.ProjectLive.ShowTest do
       render_click(lv, "open_estimation_modal", %{})
       assert assigns(lv).show_new_estimation_modal == true
 
+      # Move off the post-open default ("fresh") first: if close_estimation_modal is a
+      # single assign in the source (as read), the non-default value must survive the
+      # close untouched. Asserting against "fresh" here would be tautological -- it's
+      # already "fresh" post-open, so it couldn't distinguish "left alone" from "reset".
+      render_click(lv, "set_estimation_source", %{"source" => "template"})
+      assert assigns(lv).estimation_source == "template"
+
       render_click(lv, "close_estimation_modal", %{})
 
       a = assigns(lv)
       refute a.show_new_estimation_modal
-      # a single assign in the source -- source/roles from the open are left untouched
-      assert a.estimation_source == "fresh"
+      assert a.estimation_source == "template"
     end
 
     test "set_estimation_source(copy) prefills name/source/currency from the estimation; switching away resets them",
