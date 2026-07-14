@@ -152,4 +152,132 @@ defmodule EstimateWeb.SettingsLive.MembersTest do
       refute render_click(lv, "cancel_remove_member", %{}) =~ "Not authorized"
     end
   end
+
+  describe "send_invite" do
+    setup :setup_org
+
+    test "creates an email invite (non-smtp org) and resets the form",
+         %{conn: conn, org: org, owner: owner} do
+      {:ok, lv, _html} = live(log_in_user(conn, owner), path_for(org.id))
+
+      html =
+        lv
+        |> form(~s(form[phx-submit="send_invite"]), %{
+          "invite" => %{"email" => "newbie@example.com", "role" => "member"}
+        })
+        |> render_submit()
+
+      assert html =~ "Invite created — copy link to share"
+      emails = Enum.map(Organizations.list_organization_invites(org.id), & &1.email)
+      assert "newbie@example.com" in emails
+      assert assigns(lv).invite_form.params["email"] == ""
+    end
+
+    test "rejects an invalid role before hitting the context",
+         %{conn: conn, org: org, owner: owner} do
+      {:ok, lv, _html} = live(log_in_user(conn, owner), path_for(org.id))
+
+      html =
+        render_click(lv, "send_invite", %{"invite" => %{"email" => "a@b.co", "role" => "owner"}})
+
+      assert html =~ "Invalid role"
+      assert Organizations.list_organization_invites(org.id) == []
+    end
+
+    test "flashes an error on a malformed email", %{conn: conn, org: org, owner: owner} do
+      {:ok, lv, _html} = live(log_in_user(conn, owner), path_for(org.id))
+
+      html =
+        render_click(lv, "send_invite", %{"invite" => %{"email" => "nope", "role" => "member"}})
+
+      assert html =~ "Could not create invitation"
+      assert Organizations.list_organization_invites(org.id) == []
+    end
+  end
+
+  describe "invite codes" do
+    setup :setup_org
+
+    test "generate_invite_code stores a code and lists it", %{conn: conn, org: org, owner: owner} do
+      {:ok, lv, _html} = live(log_in_user(conn, owner), path_for(org.id))
+
+      render_click(lv, "generate_invite_code", %{"role" => "member"})
+      code = assigns(lv).generated_code
+      assert is_binary(code) and String.length(code) == 8
+
+      codes = Enum.map(Organizations.list_organization_invites(org.id), & &1.code)
+      assert code in codes
+
+      render_click(lv, "dismiss_generated_code", %{})
+      assert assigns(lv).generated_code == nil
+    end
+
+    test "generate_invite_code rejects an invalid role", %{conn: conn, org: org, owner: owner} do
+      {:ok, lv, _html} = live(log_in_user(conn, owner), path_for(org.id))
+      html = render_click(lv, "generate_invite_code", %{"role" => "owner"})
+      assert html =~ "Invalid role"
+      assert assigns(lv).generated_code == nil
+    end
+
+    test "copy_invite_code pushes to clipboard with a flash", %{
+      conn: conn,
+      org: org,
+      owner: owner
+    } do
+      {:ok, lv, _html} = live(log_in_user(conn, owner), path_for(org.id))
+      html = render_click(lv, "copy_invite_code", %{"code" => "ZZZ12345"})
+      assert_push_event(lv, "copy_to_clipboard", %{text: "ZZZ12345"})
+      assert html =~ "Code copied to clipboard!"
+    end
+  end
+
+  describe "copy join & invite links" do
+    setup :setup_org
+
+    test "copy_join_link pushes the org join url", %{conn: conn, org: org, owner: owner} do
+      {:ok, lv, _html} = live(log_in_user(conn, owner), path_for(org.id))
+      html = render_click(lv, "copy_join_link", %{})
+      assert_push_event(lv, "copy_to_clipboard", %{text: text})
+      assert text =~ "/organizations/#{org.id}/join"
+      assert html =~ "Join link copied to clipboard!"
+    end
+
+    test "copy_invite_link pushes the invite url for a token",
+         %{conn: conn, org: org, owner: owner} do
+      {:ok, lv, _html} = live(log_in_user(conn, owner), path_for(org.id))
+      html = render_click(lv, "copy_invite_link", %{"token" => "tok-abc"})
+      assert_push_event(lv, "copy_to_clipboard", %{text: text})
+      assert text =~ "/invites/tok-abc"
+      assert html =~ "Link copied to clipboard!"
+    end
+  end
+
+  describe "cancel invite" do
+    setup :setup_org
+
+    test "confirm → cancel deletes the invite; dismiss clears the modal state",
+         %{conn: conn, org: org, owner: owner} do
+      {:ok, invite} =
+        Organizations.create_invite(
+          org.id,
+          %{email: "gone@example.com", role: "member"},
+          owner.id
+        )
+
+      {:ok, lv, _html} = live(log_in_user(conn, owner), path_for(org.id))
+
+      render_click(lv, "confirm_cancel_invite", %{"id" => invite.id})
+      assert assigns(lv).canceling_invite.id == invite.id
+
+      render_click(lv, "dismiss_cancel_invite", %{})
+      assert assigns(lv).canceling_invite == nil
+
+      # re-open and actually cancel
+      render_click(lv, "confirm_cancel_invite", %{"id" => invite.id})
+      html = render_click(lv, "cancel_invite", %{})
+      assert html =~ "Invitation cancelled"
+      assert assigns(lv).canceling_invite == nil
+      refute invite.id in Enum.map(Organizations.list_organization_invites(org.id), & &1.id)
+    end
+  end
 end
