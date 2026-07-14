@@ -1,4 +1,4 @@
-defmodule EstimateWeb.CoreComponents.CoreComponentsTest do
+defmodule EstimateWeb.CoreComponentsTest do
   use EstimateWeb.ConnCase, async: true
 
   import Phoenix.LiveViewTest, only: [render_component: 2]
