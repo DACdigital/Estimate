@@ -310,6 +310,7 @@ defmodule EstimateWeb.SettingsLive.MembersTest do
 
       html = render_click(lv, "change_member_role", %{"id" => am.id, "role" => "member"})
       assert html =~ "Not authorized"
+      assert Organizations.get_user_membership(admin.id, org.id).role == "admin"
     end
 
     test "flashes Member not found for an unknown id", %{conn: conn, org: org, owner: owner} do
@@ -371,6 +372,7 @@ defmodule EstimateWeb.SettingsLive.MembersTest do
       {:ok, lv, _html} = live(log_in_user(conn, admin), path_for(org.id))
 
       assert render_click(lv, "confirm_remove_member", %{"id" => owner_m.id}) =~ "Not authorized"
+      render_click(lv, "lv:clear-flash", %{"key" => "error"})
       assert render_click(lv, "confirm_remove_member", %{"id" => am.id}) =~ "Not authorized"
       assert assigns(lv).removing_member == nil
     end

@@ -147,7 +147,15 @@ defmodule EstimateWeb.SettingsLive.MembersReassignmentTest do
     end
 
     test "remove_member with complete reassignments removes the member",
-         %{lv: lv, org: org, leaver: leaver, leaver_m: leaver_m, alice: alice} do
+         %{
+           lv: lv,
+           org: org,
+           leaver: leaver,
+           leaver_m: leaver_m,
+           alice: alice,
+           proj_a: proj_a,
+           proj_b: proj_b
+         } do
       render_click(lv, "confirm_remove_member", %{"id" => leaver_m.id})
       render_click(lv, "reassign_all", %{"user_id" => alice.id})
 
@@ -155,6 +163,11 @@ defmodule EstimateWeb.SettingsLive.MembersReassignmentTest do
       assert html =~ "Member removed"
       refute leaver.id in Enum.map(Organizations.list_organization_members(org.id), & &1.user_id)
       assert assigns(lv).removing_member == nil
+
+      # Ownership actually transferred: alice is the sole remaining collaborator
+      # on each of the leaver's previously sole-owned projects.
+      assert Enum.map(Portfolio.list_collaborators(proj_a.id), & &1.user_id) == [alice.id]
+      assert Enum.map(Portfolio.list_collaborators(proj_b.id), & &1.user_id) == [alice.id]
     end
 
     test "CHARACTERIZATION: remove_member with EMPTY reassignments (button bypass)",
