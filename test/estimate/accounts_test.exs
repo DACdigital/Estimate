@@ -305,6 +305,20 @@ defmodule Estimate.AccountsTest do
     end
   end
 
+  describe "manageable_member?/2" do
+    test "false for an owner, false for self, true for another member" do
+      %{user: owner, organization: org} = user_with_organization_fixture()
+      owner_m = Organizations.get_user_membership(owner.id, org.id)
+      member = user_fixture()
+      member_m = membership_fixture(member, org, "member")
+
+      refute Organizations.manageable_member?(owner_m, owner.id)
+      refute Organizations.manageable_member?(member_m, member.id)
+      assert Organizations.manageable_member?(member_m, owner.id)
+      refute Organizations.manageable_member?(nil, owner.id)
+    end
+  end
+
   describe "list_sole_owned_projects/2" do
     setup do
       %{user: owner, organization: org} = user_with_organization_fixture()

@@ -202,6 +202,15 @@ defmodule Estimate.Organizations do
   end
 
   @doc """
+  Whether `actor_user_id` may change/remove the given membership:
+  not an owner, and not the actor themselves. False for a nil/non-membership.
+  """
+  def manageable_member?(%Membership{} = membership, actor_user_id),
+    do: membership.role != "owner" and membership.user_id != actor_user_id
+
+  def manageable_member?(_membership, _actor_user_id), do: false
+
+  @doc """
   Deletes membership with optional ownership reassignment.
   `reassignments` is a map of `%{project_id => new_owner_user_id}`.
   Validates all project_ids belong to the org and all new owners are org members.

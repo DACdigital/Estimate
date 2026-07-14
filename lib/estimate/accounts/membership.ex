@@ -24,4 +24,5 @@ defmodule Estimate.Accounts.Membership do
 
   def roles, do: @roles
   def admin_roles, do: ~w(owner admin)
+  def assignable_roles, do: ~w(admin member)
 end

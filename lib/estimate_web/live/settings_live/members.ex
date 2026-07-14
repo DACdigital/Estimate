@@ -2,12 +2,12 @@ defmodule EstimateWeb.SettingsLive.Members do
   use EstimateWeb, :live_view
 
   alias Estimate.{Organizations, Portfolio}
+  alias Estimate.Accounts.Membership
   import EstimateWeb.SettingsLive.Components.MemberComponents
   import EstimateWeb.SettingsLive.Components.ReassignmentModal
 
   @valid_tabs ~w(members invites requests)
   @valid_reassign_tabs ~w(all per_customer per_project)
-  @assignable_roles ~w(member admin)
 
   @impl true
   def render(assigns) do
@@ -165,36 +165,39 @@ defmodule EstimateWeb.SettingsLive.Members do
       user = socket.assigns.current_user
       org_id = socket.assigns.org_id
 
-      if params["role"] not in @assignable_roles do
+      if params["role"] not in Membership.assignable_roles() do
         {:noreply, put_flash(socket, :error, "Invalid role")}
       else
         case Organizations.create_invite(org_id, atomize_keys(params), user.id) do
-        {:ok, invite} ->
-          invites = Organizations.list_organization_invites(org_id)
-          org = socket.assigns.current_organization
+          {:ok, invite} ->
+            invites = Organizations.list_organization_invites(org_id)
+            org = socket.assigns.current_organization
 
-          flash =
-            if Organizations.smtp_configured?(org) do
-              email =
-                Estimate.Emails.InviteEmail.invite_email(org, invite, user.name || user.email)
+            flash =
+              if Organizations.smtp_configured?(org) do
+                email =
+                  Estimate.Emails.InviteEmail.invite_email(org, invite, user.name || user.email)
 
-              case Estimate.Mailer.deliver_with_org_smtp(email, org) do
-                {:ok, _} -> {:info, "Invitation sent via email!"}
-                {:error, _} -> {:warning, "Invite created but email failed — copy link to share"}
+                case Estimate.Mailer.deliver_with_org_smtp(email, org) do
+                  {:ok, _} ->
+                    {:info, "Invitation sent via email!"}
+
+                  {:error, _} ->
+                    {:warning, "Invite created but email failed — copy link to share"}
+                end
+              else
+                {:info, "Invite created — copy link to share"}
               end
-            else
-              {:info, "Invite created — copy link to share"}
-            end
 
-          {:noreply,
-           socket
-           |> put_flash(elem(flash, 0), elem(flash, 1))
-           |> assign(:invites, invites)
-           |> assign(:invite_form, to_form(%{"email" => "", "role" => "member"}, as: "invite"))}
+            {:noreply,
+             socket
+             |> put_flash(elem(flash, 0), elem(flash, 1))
+             |> assign(:invites, invites)
+             |> assign(:invite_form, to_form(%{"email" => "", "role" => "member"}, as: "invite"))}
 
-        {:error, _changeset} ->
-          {:noreply, put_flash(socket, :error, "Could not create invitation")}
-      end
+          {:error, _changeset} ->
+            {:noreply, put_flash(socket, :error, "Could not create invitation")}
+        end
       end
     end)
   end
@@ -207,10 +210,10 @@ defmodule EstimateWeb.SettingsLive.Members do
         is_nil(membership) ->
           {:noreply, put_flash(socket, :error, "Member not found")}
 
-        membership.role == "owner" or membership.user_id == socket.assigns.current_user.id ->
+        not Organizations.manageable_member?(membership, socket.assigns.current_user.id) ->
           {:noreply, put_flash(socket, :error, "Not authorized")}
 
-        role not in @assignable_roles ->
+        role not in Membership.assignable_roles() ->
           {:noreply, put_flash(socket, :error, "Invalid role")}
 
         true ->
@@ -230,8 +233,7 @@ defmodule EstimateWeb.SettingsLive.Members do
     require_admin(socket, fn ->
       membership = Enum.find(socket.assigns.members, &(&1.id == id))
 
-      if membership && membership.role != "owner" &&
-           membership.user_id != socket.assigns.current_user.id do
+      if Organizations.manageable_member?(membership, socket.assigns.current_user.id) do
         org_id = socket.assigns.org_id
         sole_owned = Portfolio.list_sole_owned_projects(membership.user_id, org_id)
 
@@ -325,8 +327,7 @@ defmodule EstimateWeb.SettingsLive.Members do
     require_admin(socket, fn ->
       membership = socket.assigns.removing_member
 
-      if membership && membership.role != "owner" &&
-           membership.user_id != socket.assigns.current_user.id do
+      if Organizations.manageable_member?(membership, socket.assigns.current_user.id) do
         case Organizations.delete_membership(membership, socket.assigns.reassignments) do
           {:ok, _} ->
             members = Organizations.list_organization_members(socket.assigns.org_id)
@@ -389,24 +390,24 @@ defmodule EstimateWeb.SettingsLive.Members do
 
   def handle_event("generate_invite_code", %{"role" => role}, socket) do
     require_admin(socket, fn ->
-      if role not in @assignable_roles do
+      if role not in Membership.assignable_roles() do
         {:noreply, put_flash(socket, :error, "Invalid role")}
       else
         user = socket.assigns.current_user
         org_id = socket.assigns.org_id
 
         case Organizations.create_invite_code(org_id, role, user.id) do
-        {:ok, invite} ->
-          invites = Organizations.list_organization_invites(org_id)
+          {:ok, invite} ->
+            invites = Organizations.list_organization_invites(org_id)
 
-          {:noreply,
-           socket
-           |> assign(:generated_code, invite.code)
-           |> assign(:invites, invites)}
+            {:noreply,
+             socket
+             |> assign(:generated_code, invite.code)
+             |> assign(:invites, invites)}
 
-        {:error, _changeset} ->
-          {:noreply, put_flash(socket, :error, "Could not generate invite code")}
-      end
+          {:error, _changeset} ->
+            {:noreply, put_flash(socket, :error, "Could not generate invite code")}
+        end
       end
     end)
   end
