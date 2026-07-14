@@ -59,25 +59,9 @@ defmodule EstimateWeb.UserLive.Registration do
         </div>
 
         <%= if @has_invite_code do %>
-          <.auth_input
-            name="invite_code"
-            value={@invite_code}
-            error={@invite_code_error}
-            type="text"
-            placeholder="e.g. XK7F2MPA"
-            maxlength="8"
-            class="font-mono tracking-wider uppercase"
-          />
+          <.invite_code_field invite_code={@invite_code} invite_code_error={@invite_code_error} />
         <% else %>
-          <div>
-            <.auth_input
-              field={@org_form[:name]}
-              type="text"
-              placeholder="Organization Name"
-              required
-            />
-            <p class="mt-1 text-xs text-base-content/60">You can invite team members later</p>
-          </div>
+          <.org_name_field org_form={@org_form} />
         <% end %>
 
         <.auth_submit loading="Creating account...">Create Account</.auth_submit>
@@ -91,6 +75,34 @@ defmodule EstimateWeb.UserLive.Registration do
           Sign In
         </.link>
       </p>
+    </div>
+    """
+  end
+
+  attr :invite_code, :string, required: true
+  attr :invite_code_error, :string, default: nil
+
+  defp invite_code_field(assigns) do
+    ~H"""
+    <.auth_input
+      name="invite_code"
+      value={@invite_code}
+      error={@invite_code_error}
+      type="text"
+      placeholder="e.g. XK7F2MPA"
+      maxlength="8"
+      class="font-mono tracking-wider uppercase"
+    />
+    """
+  end
+
+  attr :org_form, :map, required: true
+
+  defp org_name_field(assigns) do
+    ~H"""
+    <div>
+      <.auth_input field={@org_form[:name]} type="text" placeholder="Organization Name" required />
+      <p class="mt-1 text-xs text-base-content/60">You can invite team members later</p>
     </div>
     """
   end

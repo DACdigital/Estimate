@@ -14,182 +14,210 @@ defmodule EstimateWeb.UserLive.AccountSettings do
       </div>
 
       <div class="space-y-6">
-        <%!-- Profile card --%>
-        <.form for={@name_form} phx-change="validate_name" phx-submit="save_name">
-          <div class="bg-base-100 border border-base-300 rounded-xl overflow-hidden">
-            <div class="p-6">
-              <div class="flex items-start justify-between">
-                <div>
-                  <h2 class="text-xl font-semibold text-base-content">Profile</h2>
-                  <p class="mt-1 text-sm text-base-content/60">Your personal information</p>
-                </div>
-                <span class={[
-                  "inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full",
-                  if(@is_oauth, do: "bg-info/10 text-info", else: "bg-base-200 text-base-content/60")
-                ]}>
-                  {if @is_oauth, do: "Signed in with Google", else: "Email & password"}
-                </span>
-              </div>
-              <div class="mt-4 max-w-md space-y-4">
-                <.input field={@name_form[:name]} label="Name" />
-                <div class="fieldset mb-2">
-                  <label>
-                    <span class="label mb-1">Email</span>
-                    <input
-                      type="email"
-                      value={@current_user.email}
-                      disabled
-                      class="w-full px-3 py-2 border border-base-content/20 rounded-lg text-sm bg-base-200 text-base-content/60"
-                    />
-                  </label>
-                </div>
-              </div>
+        <.profile_card name_form={@name_form} is_oauth={@is_oauth} current_user={@current_user} />
+        <.password_card password_form={@password_form} is_oauth={@is_oauth} />
+        <.two_factor_card
+          totp_enabled={@totp_enabled}
+          show_disable_form={@show_disable_form}
+          current_user={@current_user}
+        />
+      </div>
+    </div>
+    """
+  end
+
+  attr :name_form, :map, required: true
+  attr :is_oauth, :boolean, required: true
+  attr :current_user, :map, required: true
+
+  defp profile_card(assigns) do
+    ~H"""
+    <.form for={@name_form} phx-change="validate_name" phx-submit="save_name">
+      <div class="bg-base-100 border border-base-300 rounded-xl overflow-hidden">
+        <div class="p-6">
+          <div class="flex items-start justify-between">
+            <div>
+              <h2 class="text-xl font-semibold text-base-content">Profile</h2>
+              <p class="mt-1 text-sm text-base-content/60">Your personal information</p>
             </div>
-            <div class="px-6 py-3 border-t border-base-300 flex items-center justify-between">
-              <p class="text-sm text-base-content/60">Email change coming soon.</p>
-              <button
-                type="submit"
-                phx-disable-with="Saving..."
-                class="px-4 py-1.5 bg-neutral text-neutral-content text-sm rounded-md hover:bg-neutral/90 transition-colors font-medium"
-              >
-                Save
-              </button>
+            <span class={[
+              "inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full",
+              if(@is_oauth, do: "bg-info/10 text-info", else: "bg-base-200 text-base-content/60")
+            ]}>
+              {if @is_oauth, do: "Signed in with Google", else: "Email & password"}
+            </span>
+          </div>
+          <div class="mt-4 max-w-md space-y-4">
+            <.input field={@name_form[:name]} label="Name" />
+            <div class="fieldset mb-2">
+              <label>
+                <span class="label mb-1">Email</span>
+                <input
+                  type="email"
+                  value={@current_user.email}
+                  disabled
+                  class="w-full px-3 py-2 border border-base-content/20 rounded-lg text-sm bg-base-200 text-base-content/60"
+                />
+              </label>
             </div>
           </div>
-        </.form>
+        </div>
+        <div class="px-6 py-3 border-t border-base-300 flex items-center justify-between">
+          <p class="text-sm text-base-content/60">Email change coming soon.</p>
+          <button
+            type="submit"
+            phx-disable-with="Saving..."
+            class="px-4 py-1.5 bg-neutral text-neutral-content text-sm rounded-md hover:bg-neutral/90 transition-colors font-medium"
+          >
+            Save
+          </button>
+        </div>
+      </div>
+    </.form>
+    """
+  end
 
-        <%!-- Password card --%>
-        <.form for={@password_form} phx-change="validate_password" phx-submit="save_password">
-          <div class="bg-base-100 border border-base-300 rounded-xl overflow-hidden">
-            <div class="p-6">
-              <h2 class="text-xl font-semibold text-base-content">
-                {if @is_oauth, do: "Set Password", else: "Change Password"}
-              </h2>
-              <p class="mt-1 text-sm text-base-content/60">
-                {if @is_oauth,
-                  do: "Set a password to also sign in with email and password",
-                  else: "Update your account password"}
-              </p>
-              <div class="mt-4 max-w-md space-y-4">
-                <.input
-                  :if={!@is_oauth}
-                  field={@password_form[:current_password]}
-                  type="password"
-                  label="Current password"
-                  autocomplete="current-password"
-                />
-                <.input
-                  field={@password_form[:password]}
-                  type="password"
-                  label="New password"
-                  autocomplete="new-password"
-                />
-                <.input
-                  field={@password_form[:password_confirmation]}
-                  type="password"
-                  label="Confirm new password"
-                  autocomplete="new-password"
-                />
-              </div>
+  attr :password_form, :map, required: true
+  attr :is_oauth, :boolean, required: true
+
+  defp password_card(assigns) do
+    ~H"""
+    <.form for={@password_form} phx-change="validate_password" phx-submit="save_password">
+      <div class="bg-base-100 border border-base-300 rounded-xl overflow-hidden">
+        <div class="p-6">
+          <h2 class="text-xl font-semibold text-base-content">
+            {if @is_oauth, do: "Set Password", else: "Change Password"}
+          </h2>
+          <p class="mt-1 text-sm text-base-content/60">
+            {if @is_oauth,
+              do: "Set a password to also sign in with email and password",
+              else: "Update your account password"}
+          </p>
+          <div class="mt-4 max-w-md space-y-4">
+            <.input
+              :if={!@is_oauth}
+              field={@password_form[:current_password]}
+              type="password"
+              label="Current password"
+              autocomplete="current-password"
+            />
+            <.input
+              field={@password_form[:password]}
+              type="password"
+              label="New password"
+              autocomplete="new-password"
+            />
+            <.input
+              field={@password_form[:password_confirmation]}
+              type="password"
+              label="Confirm new password"
+              autocomplete="new-password"
+            />
+          </div>
+        </div>
+        <div class="px-6 py-3 border-t border-base-300 flex items-center justify-between">
+          <p class="text-sm text-base-content/60">Minimum 8 characters.</p>
+          <button
+            type="submit"
+            phx-disable-with="Saving..."
+            class="px-4 py-1.5 bg-neutral text-neutral-content text-sm rounded-md hover:bg-neutral/90 transition-colors font-medium"
+          >
+            Save
+          </button>
+        </div>
+      </div>
+    </.form>
+    """
+  end
+
+  attr :totp_enabled, :boolean, required: true
+  attr :show_disable_form, :boolean, required: true
+  attr :current_user, :map, required: true
+
+  defp two_factor_card(assigns) do
+    ~H"""
+    <div class="bg-base-100 border border-base-300 rounded-xl overflow-hidden">
+      <div class="p-6">
+        <h2 class="text-xl font-semibold text-base-content">Two-Factor Authentication</h2>
+        <p class="mt-1 text-sm text-base-content/60">
+          Add an extra layer of security using a TOTP authenticator app.
+        </p>
+
+        <div class="mt-4">
+          <%= if @totp_enabled do %>
+            <div class="flex items-center gap-3 mb-6">
+              <span class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-success/10 text-success rounded-full">
+                <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 8 8">
+                  <circle cx="4" cy="4" r="4" />
+                </svg>
+                Enabled
+              </span>
+              <span class="text-sm text-base-content/60">
+                since {Calendar.strftime(@current_user.totp_enabled_at, "%b %d, %Y")}
+              </span>
             </div>
-            <div class="px-6 py-3 border-t border-base-300 flex items-center justify-between">
-              <p class="text-sm text-base-content/60">Minimum 8 characters.</p>
-              <button
-                type="submit"
-                phx-disable-with="Saving..."
-                class="px-4 py-1.5 bg-neutral text-neutral-content text-sm rounded-md hover:bg-neutral/90 transition-colors font-medium"
+
+            <div class="flex gap-3">
+              <.link
+                navigate={~p"/account/two-factor/setup"}
+                class="px-4 py-1.5 text-sm font-medium text-base-content/70 border border-base-300 rounded-md hover:bg-base-200 transition-colors"
               >
-                Save
+                Regenerate backup codes
+              </.link>
+              <button
+                phx-click="show_disable_form"
+                class="px-4 py-1.5 text-sm font-medium text-error border border-error/30 rounded-md hover:bg-error/10 transition-colors"
+              >
+                Disable 2FA
               </button>
             </div>
-          </div>
-        </.form>
 
-        <%!-- 2FA card --%>
-        <div class="bg-base-100 border border-base-300 rounded-xl overflow-hidden">
-          <div class="p-6">
-            <h2 class="text-xl font-semibold text-base-content">Two-Factor Authentication</h2>
-            <p class="mt-1 text-sm text-base-content/60">
-              Add an extra layer of security using a TOTP authenticator app.
-            </p>
-
-            <div class="mt-4">
-              <%= if @totp_enabled do %>
-                <div class="flex items-center gap-3 mb-6">
-                  <span class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-success/10 text-success rounded-full">
-                    <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 8 8">
-                      <circle cx="4" cy="4" r="4" />
-                    </svg>
-                    Enabled
-                  </span>
-                  <span class="text-sm text-base-content/60">
-                    since {Calendar.strftime(@current_user.totp_enabled_at, "%b %d, %Y")}
-                  </span>
-                </div>
-
-                <div class="flex gap-3">
-                  <.link
-                    navigate={~p"/account/two-factor/setup"}
-                    class="px-4 py-1.5 text-sm font-medium text-base-content/70 border border-base-300 rounded-md hover:bg-base-200 transition-colors"
-                  >
-                    Regenerate backup codes
-                  </.link>
+            <%= if @show_disable_form do %>
+              <div class="mt-6 p-4 border border-error/20 rounded-lg bg-error/5">
+                <p class="text-sm text-base-content/70 mb-3">
+                  Enter your 6-digit code to confirm disabling 2FA:
+                </p>
+                <form phx-submit="disable_totp" class="flex gap-3">
+                  <input
+                    type="text"
+                    name="code"
+                    placeholder="000000"
+                    maxlength="8"
+                    autocomplete="one-time-code"
+                    inputmode="numeric"
+                    class="w-40 px-3 py-2 border border-base-content/20 rounded-lg text-sm font-mono tracking-widest text-center"
+                  />
                   <button
-                    phx-click="show_disable_form"
-                    class="px-4 py-1.5 text-sm font-medium text-error border border-error/30 rounded-md hover:bg-error/10 transition-colors"
+                    type="submit"
+                    phx-disable-with="Verifying..."
+                    class="px-4 py-1.5 bg-error text-error-content text-sm rounded-md hover:bg-error/90 transition-colors font-medium"
                   >
-                    Disable 2FA
+                    Confirm Disable
                   </button>
-                </div>
-
-                <%= if @show_disable_form do %>
-                  <div class="mt-6 p-4 border border-error/20 rounded-lg bg-error/5">
-                    <p class="text-sm text-base-content/70 mb-3">
-                      Enter your 6-digit code to confirm disabling 2FA:
-                    </p>
-                    <form phx-submit="disable_totp" class="flex gap-3">
-                      <input
-                        type="text"
-                        name="code"
-                        placeholder="000000"
-                        maxlength="8"
-                        autocomplete="one-time-code"
-                        inputmode="numeric"
-                        class="w-40 px-3 py-2 border border-base-content/20 rounded-lg text-sm font-mono tracking-widest text-center"
-                      />
-                      <button
-                        type="submit"
-                        phx-disable-with="Verifying..."
-                        class="px-4 py-1.5 bg-error text-error-content text-sm rounded-md hover:bg-error/90 transition-colors font-medium"
-                      >
-                        Confirm Disable
-                      </button>
-                      <button
-                        type="button"
-                        phx-click="hide_disable_form"
-                        class="px-4 py-1.5 text-sm text-base-content/60 hover:text-base-content transition-colors"
-                      >
-                        Cancel
-                      </button>
-                    </form>
-                  </div>
-                <% end %>
-              <% else %>
-                <div class="flex items-center gap-3 mb-6">
-                  <span class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-base-200 text-base-content/60 rounded-full">
-                    Not enabled
-                  </span>
-                </div>
-
-                <.link
-                  navigate={~p"/account/two-factor/setup"}
-                  class="inline-flex px-4 py-1.5 bg-neutral text-neutral-content text-sm rounded-md hover:bg-neutral/90 transition-colors font-medium"
-                >
-                  Enable two-factor authentication
-                </.link>
-              <% end %>
+                  <button
+                    type="button"
+                    phx-click="hide_disable_form"
+                    class="px-4 py-1.5 text-sm text-base-content/60 hover:text-base-content transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </form>
+              </div>
+            <% end %>
+          <% else %>
+            <div class="flex items-center gap-3 mb-6">
+              <span class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-base-200 text-base-content/60 rounded-full">
+                Not enabled
+              </span>
             </div>
-          </div>
+
+            <.link
+              navigate={~p"/account/two-factor/setup"}
+              class="inline-flex px-4 py-1.5 bg-neutral text-neutral-content text-sm rounded-md hover:bg-neutral/90 transition-colors font-medium"
+            >
+              Enable two-factor authentication
+            </.link>
+          <% end %>
         </div>
       </div>
     </div>
