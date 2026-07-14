@@ -66,6 +66,19 @@ defmodule EstimateWeb do
     end
   end
 
+  @doc """
+  Shared setup for per-feature LiveView event-handler modules
+  (functions of `(socket, params) -> {:noreply, socket}`, no rendering).
+  """
+  def live_handlers do
+    quote do
+      import Phoenix.LiveView
+      import Phoenix.Component
+      import EstimateWeb.AuthHelpers
+      unquote(verified_routes())
+    end
+  end
+
   def html do
     quote do
       use Phoenix.Component

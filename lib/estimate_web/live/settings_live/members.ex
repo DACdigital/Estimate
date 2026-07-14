@@ -3,6 +3,7 @@ defmodule EstimateWeb.SettingsLive.Members do
 
   alias Estimate.{Organizations, Portfolio}
   alias Estimate.Accounts.Membership
+  alias EstimateWeb.SettingsLive.Members.{Invites, JoinRequests, TwoFactor}
   import EstimateWeb.SettingsLive.Components.MemberComponents
   import EstimateWeb.SettingsLive.Components.ReassignmentModal
 
@@ -160,47 +161,7 @@ defmodule EstimateWeb.SettingsLive.Members do
     {:noreply, assign(socket, :current_tab, String.to_existing_atom(tab))}
   end
 
-  def handle_event("send_invite", %{"invite" => params}, socket) do
-    require_admin(socket, fn ->
-      user = socket.assigns.current_user
-      org_id = socket.assigns.org_id
-
-      if params["role"] not in Membership.assignable_roles() do
-        {:noreply, put_flash(socket, :error, "Invalid role")}
-      else
-        case Organizations.create_invite(org_id, atomize_keys(params), user.id) do
-          {:ok, invite} ->
-            invites = Organizations.list_organization_invites(org_id)
-            org = socket.assigns.current_organization
-
-            flash =
-              if Organizations.smtp_configured?(org) do
-                email =
-                  Estimate.Emails.InviteEmail.invite_email(org, invite, user.name || user.email)
-
-                case Estimate.Mailer.deliver_with_org_smtp(email, org) do
-                  {:ok, _} ->
-                    {:info, "Invitation sent via email!"}
-
-                  {:error, _} ->
-                    {:warning, "Invite created but email failed — copy link to share"}
-                end
-              else
-                {:info, "Invite created — copy link to share"}
-              end
-
-            {:noreply,
-             socket
-             |> put_flash(elem(flash, 0), elem(flash, 1))
-             |> assign(:invites, invites)
-             |> assign(:invite_form, to_form(%{"email" => "", "role" => "member"}, as: "invite"))}
-
-          {:error, _changeset} ->
-            {:noreply, put_flash(socket, :error, "Could not create invitation")}
-        end
-      end
-    end)
-  end
+  def handle_event("send_invite", params, socket), do: Invites.send_invite(socket, params)
 
   def handle_event("change_member_role", %{"id" => id, "role" => role}, socket) do
     require_admin(socket, fn ->
@@ -360,174 +321,42 @@ defmodule EstimateWeb.SettingsLive.Members do
     end)
   end
 
-  def handle_event("confirm_cancel_invite", %{"id" => id}, socket) do
-    invite = Enum.find(socket.assigns.invites, &(&1.id == id))
-    {:noreply, assign(socket, :canceling_invite, invite)}
-  end
+  def handle_event("confirm_cancel_invite", params, socket),
+    do: Invites.confirm_cancel_invite(socket, params)
 
-  def handle_event("dismiss_cancel_invite", _params, socket) do
-    {:noreply, assign(socket, :canceling_invite, nil)}
-  end
+  def handle_event("dismiss_cancel_invite", params, socket),
+    do: Invites.dismiss_cancel_invite(socket, params)
 
-  def handle_event("cancel_invite", _params, socket) do
-    require_admin(socket, fn ->
-      invite = socket.assigns.canceling_invite
+  def handle_event("cancel_invite", params, socket), do: Invites.cancel_invite(socket, params)
 
-      if invite do
-        Organizations.delete_invite(invite)
-        invites = Organizations.list_organization_invites(socket.assigns.org_id)
+  def handle_event("generate_invite_code", params, socket),
+    do: Invites.generate_invite_code(socket, params)
 
-        {:noreply,
-         socket
-         |> put_flash(:info, "Invitation cancelled")
-         |> assign(:invites, invites)
-         |> assign(:canceling_invite, nil)}
-      else
-        {:noreply, assign(socket, :canceling_invite, nil)}
-      end
-    end)
-  end
+  def handle_event("confirm_disable_2fa", params, socket),
+    do: TwoFactor.confirm_disable_2fa(socket, params)
 
-  def handle_event("generate_invite_code", %{"role" => role}, socket) do
-    require_admin(socket, fn ->
-      if role not in Membership.assignable_roles() do
-        {:noreply, put_flash(socket, :error, "Invalid role")}
-      else
-        user = socket.assigns.current_user
-        org_id = socket.assigns.org_id
+  def handle_event("cancel_disable_2fa", params, socket),
+    do: TwoFactor.cancel_disable_2fa(socket, params)
 
-        case Organizations.create_invite_code(org_id, role, user.id) do
-          {:ok, invite} ->
-            invites = Organizations.list_organization_invites(org_id)
+  def handle_event("disable_user_2fa", params, socket),
+    do: TwoFactor.disable_user_2fa(socket, params)
 
-            {:noreply,
-             socket
-             |> assign(:generated_code, invite.code)
-             |> assign(:invites, invites)}
+  def handle_event("copy_invite_code", params, socket),
+    do: Invites.copy_invite_code(socket, params)
 
-          {:error, _changeset} ->
-            {:noreply, put_flash(socket, :error, "Could not generate invite code")}
-        end
-      end
-    end)
-  end
+  def handle_event("dismiss_generated_code", params, socket),
+    do: Invites.dismiss_generated_code(socket, params)
 
-  def handle_event("confirm_disable_2fa", %{"id" => user_id}, socket) do
-    require_admin(socket, fn ->
-      if Organizations.get_user_membership(user_id, socket.assigns.org_id) do
-        user = Estimate.Accounts.get_user!(user_id)
-        {:noreply, assign(socket, :disabling_2fa_user, user)}
-      else
-        {:noreply, put_flash(socket, :error, "Not authorized")}
-      end
-    end)
-  end
+  def handle_event("copy_join_link", params, socket), do: Invites.copy_join_link(socket, params)
 
-  def handle_event("cancel_disable_2fa", _params, socket) do
-    {:noreply, assign(socket, :disabling_2fa_user, nil)}
-  end
+  def handle_event("copy_invite_link", params, socket),
+    do: Invites.copy_invite_link(socket, params)
 
-  def handle_event("disable_user_2fa", _params, socket) do
-    require_admin(socket, fn ->
-      user = socket.assigns.disabling_2fa_user
+  def handle_event("approve_request", params, socket),
+    do: JoinRequests.approve_request(socket, params)
 
-      if user do
-        case Estimate.Accounts.Totp.disable_totp(user) do
-          {:ok, _} ->
-            members = Organizations.list_organization_members(socket.assigns.org_id)
-
-            {:noreply,
-             socket
-             |> put_flash(:info, "2FA disabled for #{user.name || user.email}")
-             |> assign(:members, members)
-             |> assign(:disabling_2fa_user, nil)}
-
-          {:error, _} ->
-            {:noreply,
-             socket
-             |> put_flash(:error, "Could not disable 2FA")
-             |> assign(:disabling_2fa_user, nil)}
-        end
-      else
-        {:noreply, assign(socket, :disabling_2fa_user, nil)}
-      end
-    end)
-  end
-
-  def handle_event("copy_invite_code", %{"code" => code}, socket) do
-    require_admin(socket, fn ->
-      {:noreply,
-       socket
-       |> push_event("copy_to_clipboard", %{text: code})
-       |> put_flash(:info, "Code copied to clipboard!")}
-    end)
-  end
-
-  def handle_event("dismiss_generated_code", _params, socket) do
-    {:noreply, assign(socket, :generated_code, nil)}
-  end
-
-  def handle_event("copy_join_link", _params, socket) do
-    require_admin(socket, fn ->
-      {:noreply,
-       socket
-       |> push_event("copy_to_clipboard", %{text: socket.assigns.join_url})
-       |> put_flash(:info, "Join link copied to clipboard!")}
-    end)
-  end
-
-  def handle_event("copy_invite_link", %{"token" => token}, socket) do
-    require_admin(socket, fn ->
-      url = url(~p"/invites/#{token}")
-
-      {:noreply,
-       socket
-       |> push_event("copy_to_clipboard", %{text: url})
-       |> put_flash(:info, "Link copied to clipboard!")}
-    end)
-  end
-
-  def handle_event("approve_request", %{"id" => id}, socket) do
-    require_admin(socket, fn ->
-      org_id = socket.assigns.org_id
-      request = Organizations.get_join_request!(id, org_id)
-
-      case Organizations.approve_join_request(request, socket.assigns.current_user.id) do
-        {:ok, _} ->
-          members = Organizations.list_organization_members(org_id)
-          join_requests = Organizations.list_pending_join_requests(org_id)
-
-          {:noreply,
-           socket
-           |> put_flash(:info, "Request approved!")
-           |> assign(:members, members)
-           |> assign(:join_requests, join_requests)}
-
-        {:error, _} ->
-          {:noreply, put_flash(socket, :error, "Could not approve request")}
-      end
-    end)
-  end
-
-  def handle_event("reject_request", %{"id" => id}, socket) do
-    require_admin(socket, fn ->
-      org_id = socket.assigns.org_id
-      request = Organizations.get_join_request!(id, org_id)
-
-      case Organizations.reject_join_request(request, socket.assigns.current_user.id) do
-        {:ok, _} ->
-          join_requests = Organizations.list_pending_join_requests(org_id)
-
-          {:noreply,
-           socket
-           |> put_flash(:info, "Request rejected")
-           |> assign(:join_requests, join_requests)}
-
-        {:error, _} ->
-          {:noreply, put_flash(socket, :error, "Could not reject request")}
-      end
-    end)
-  end
+  def handle_event("reject_request", params, socket),
+    do: JoinRequests.reject_request(socket, params)
 
   # Catch-all for invalid tab values
   def handle_event("switch_tab", _params, socket), do: {:noreply, socket}
@@ -557,9 +386,5 @@ defmodule EstimateWeb.SettingsLive.Members do
     socket.assigns.sole_owned_projects
     |> Enum.filter(fn {p, _} -> p.customer_id == customer_id end)
     |> Enum.map(fn {p, _} -> p.id end)
-  end
-
-  defp atomize_keys(map) do
-    Map.new(map, fn {k, v} -> {String.to_existing_atom(k), v} end)
   end
 end
