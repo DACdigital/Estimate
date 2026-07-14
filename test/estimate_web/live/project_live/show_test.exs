@@ -447,21 +447,40 @@ defmodule EstimateWeb.ProjectLive.ShowTest do
       %{project: project, other_currency: other_currency}
     end
 
-    test "open_estimation_modal: fresh source, roles rebuilt from templates, currency locked to project, no source estimation when none exist",
-         %{conn: conn, org: org, owner: owner, project: project} do
+    test "open_estimation_modal RE-sets source/currency/roles after they've diverged (not just mount defaults)",
+         %{conn: conn, org: org, owner: owner, project: project, other_currency: other_currency} do
       {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
       templates = assigns(lv).role_templates
 
+      # mount's init_modal_assigns/4 (show.ex:658-664) ALREADY sets estimation_source
+      # "fresh", modal_currency_id project.currency_id, and modal_roles from the same
+      # build_modal_roles_from_templates call -- so asserting those straight after a first
+      # open proves nothing about the handler (they'd hold even if open_estimation_modal
+      # dropped those assign lines). The handler's real job is RE-setting them on re-open
+      # once they've diverged; that's what this pins.
+      render_click(lv, "open_estimation_modal", %{})
+      assert assigns(lv).show_new_estimation_modal == true
+
+      # diverge every field open_estimation_modal is supposed to reset:
+      render_click(lv, "set_estimation_source", %{"source" => "template"})
+      render_change(lv, "validate_estimation", %{"currency_id" => other_currency.id})
+      render_click(lv, "add_modal_role", %{})
+
+      diverged = assigns(lv)
+      assert diverged.estimation_source == "template"
+      assert diverged.modal_currency_id == other_currency.id
+      assert length(diverged.modal_roles) == length(templates) + 1
+
+      # RE-open: every diverged field snaps back to the fresh baseline.
       render_click(lv, "open_estimation_modal", %{})
       a = assigns(lv)
 
       assert a.show_new_estimation_modal == true
       assert a.estimation_source == "fresh"
       assert a.modal_currency_id == project.currency_id
-      assert a.source_estimation_id == nil
 
-      # modal_roles is a 1:1, order-preserving rebuild from role_templates -- not just
-      # "some roles", the exact template name/abbreviation/template_id sequence.
+      # modal_roles rebuilt 1:1 from role_templates (the added blank role is gone) -- exact
+      # name/abbreviation/template_id sequence, fresh unique integer temp_ids.
       assert length(a.modal_roles) == length(templates)
       assert Enum.map(a.modal_roles, & &1.name) == Enum.map(templates, & &1.name)
       assert Enum.map(a.modal_roles, & &1.abbreviation) == Enum.map(templates, & &1.abbreviation)
@@ -515,13 +534,21 @@ defmodule EstimateWeb.ProjectLive.ShowTest do
       {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
       render_click(lv, "open_estimation_modal", %{})
 
+      # Diverge source_estimation_id to nil FIRST: open_estimation_modal already sets it to
+      # hd(estimations).id (== estimation.id) when an estimation exists (show.ex:824-825,838),
+      # so asserting estimation.id straight after open would hold even if the copy branch
+      # never touched it. Switching to "template" nulls it, making the copy transition real.
+      render_click(lv, "set_estimation_source", %{"source" => "template"})
+      assert assigns(lv).source_estimation_id == nil
+
       render_click(lv, "set_estimation_source", %{"source" => "copy"})
       a = assigns(lv)
       assert a.estimation_source == "copy"
+      # nil -> estimation.id is now a transition genuinely driven by the copy branch.
       assert a.source_estimation_id == estimation.id
       assert a.estimation_form.params["name"] == "Copy of Alpha"
-      # currency gets LOCKED to the source estimation's currency, overriding the
-      # project's currency that open_estimation_modal had set.
+      # currency gets LOCKED to the source estimation's currency (other_currency),
+      # overriding project.currency_id (main) that was in effect through open/template.
       assert a.modal_currency_id == other_currency.id
       assert a.modal_currency.id == other_currency.id
 
@@ -539,6 +566,19 @@ defmodule EstimateWeb.ProjectLive.ShowTest do
          %{conn: conn, org: org, owner: owner, project: project} do
       {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
       render_click(lv, "open_estimation_modal", %{})
+
+      # Diverge the form name off "" first (a valid JSON parse prefills it), so the
+      # name == "" assertion below proves the copy-else branch RESET the form -- not that it
+      # was merely never populated. With no estimations the `&& Enum.any?(estimations)` guard
+      # is false, so copy must fall through to the else branch like any non-copy source.
+      json =
+        Jason.encode!(%{
+          "estimation" => "Prefilled",
+          "epics" => [%{"name" => "E", "tasks" => [%{"name" => "T"}]}]
+        })
+
+      render_change(lv, "validate_estimation", %{"json_input" => json})
+      assert assigns(lv).estimation_form.params["name"] == "Prefilled"
 
       render_click(lv, "set_estimation_source", %{"source" => "copy"})
 
