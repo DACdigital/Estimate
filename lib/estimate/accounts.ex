@@ -59,6 +59,53 @@ defmodule Estimate.Accounts do
   end
 
   @doc """
+  Atomically registers a user and accepts a pending invite (user rolled back if invite step fails).
+  """
+  def register_user_and_accept_invite(user_attrs, %Estimate.Accounts.Invite{} = invite) do
+    Ecto.Multi.new()
+    |> Ecto.Multi.insert(:user, User.registration_changeset(%User{}, user_attrs))
+    |> Ecto.Multi.merge(fn %{user: user} ->
+      Estimate.Organizations.invite_acceptance_multi(invite, fn _ -> user end)
+    end)
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{user: user, membership: membership}} ->
+        org = Estimate.Organizations.get_organization!(invite.organization_id)
+        Estimate.Organizations.set_2fa_deadline_if_needed(membership, org)
+        {:ok, user}
+
+      {:error, :user, changeset, _} ->
+        {:error, changeset}
+
+      {:error, :check_invite, reason, _} ->
+        {:error, reason}
+
+      {:error, :verify_still_valid, :expired, _} ->
+        {:error, :expired}
+
+      {:error, _op, changeset, _} ->
+        {:error, changeset}
+    end
+  end
+
+  @doc """
+  Atomically registers a user and creates a pending join request for an organization.
+  """
+  def register_user_and_request_join(user_attrs, org_id) do
+    Ecto.Multi.new()
+    |> Ecto.Multi.insert(:user, User.registration_changeset(%User{}, user_attrs))
+    |> Ecto.Multi.insert(:join_request, fn %{user: user} ->
+      Estimate.Organizations.build_join_request(user.id, org_id)
+    end)
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{user: user}} -> {:ok, user}
+      {:error, :user, changeset, _} -> {:error, changeset}
+      {:error, :join_request, changeset, _} -> {:error, changeset}
+    end
+  end
+
+  @doc """
   Creates an organization with the given user as owner.
   Also seeds default currencies and role templates.
   """

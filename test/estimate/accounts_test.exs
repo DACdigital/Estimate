@@ -42,6 +42,71 @@ defmodule Estimate.AccountsTest do
     end
   end
 
+  describe "register_user_and_accept_invite/2 (atomic)" do
+    setup do
+      %{user: inviter, organization: org} = user_with_organization_fixture()
+      invite = invite_fixture(org, inviter, %{email: "invitee@example.com", role: "member"})
+      %{org: org, invite: invite}
+    end
+
+    test "valid invite: creates user + membership atomically", %{invite: invite} do
+      attrs = %{email: "invitee@example.com", name: "Invitee", password: "a_valid_password!"}
+      assert {:ok, user} = Accounts.register_user_and_accept_invite(attrs, invite)
+      assert user.email == "invitee@example.com"
+      assert Organizations.get_user_membership(user.id, invite.organization_id)
+    end
+
+    test "email mismatch: no user persisted (rolled back)", %{invite: invite} do
+      attrs = %{email: "someone-else@example.com", name: "X", password: "a_valid_password!"}
+      assert {:error, :email_mismatch} = Accounts.register_user_and_accept_invite(attrs, invite)
+      refute Accounts.get_user_by_email("someone-else@example.com")
+    end
+
+    test "invalid user attrs: nothing persisted", %{invite: invite} do
+      assert {:error, %Ecto.Changeset{}} =
+               Accounts.register_user_and_accept_invite(
+                 %{email: "bad", name: "", password: "x"},
+                 invite
+               )
+
+      refute Accounts.get_user_by_email("bad")
+    end
+  end
+
+  describe "register_user_and_request_join/2 (atomic)" do
+    test "creates user + join request atomically" do
+      %{organization: org} = user_with_organization_fixture()
+      attrs = %{email: "joiner@example.com", name: "Joiner", password: "a_valid_password!"}
+      assert {:ok, user} = Accounts.register_user_and_request_join(attrs, org.id)
+
+      assert Enum.any?(
+               Organizations.list_pending_join_requests(org.id),
+               &(&1.user_id == user.id)
+             )
+    end
+
+    test "invalid user attrs: nothing persisted" do
+      %{organization: org} = user_with_organization_fixture()
+
+      assert {:error, %Ecto.Changeset{}} =
+               Accounts.register_user_and_request_join(
+                 %{email: "bad", name: "", password: "x"},
+                 org.id
+               )
+
+      refute Accounts.get_user_by_email("bad")
+    end
+
+    test "invalid org_id: valid user attrs still rolled back (no orphaned user)" do
+      attrs = %{email: "orphan@example.com", name: "Orphan", password: "a_valid_password!"}
+
+      assert {:error, %Ecto.Changeset{}} =
+               Accounts.register_user_and_request_join(attrs, nil)
+
+      refute Accounts.get_user_by_email("orphan@example.com")
+    end
+  end
+
   describe "get_user_by_email_and_password/2" do
     test "returns user with valid credentials" do
       user = user_fixture()
