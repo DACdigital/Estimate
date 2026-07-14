@@ -147,21 +147,35 @@ defmodule EstimateWeb.ProjectLive.ShowTest do
       %{lv: lv, project: project, org: org}
     end
 
-    # Every gated event below is checked with can_edit_project/can_delete_project/
-    # can_manage_collaborators all false (viewer) and flashes "Not authorized" as its
-    # unauthorized branch. remove_collaborator is intentionally excluded here — its gate
-    # is structured differently (see the two dedicated tests below).
+    # These 7 events are each genuinely DISCRIMINATING for a viewer in this loop: with the
+    # permission gate removed, the ungated path diverges from "Not authorized" — save →
+    # "Project updated"; create_estimation → "Estimation created"/roles-error/redirect;
+    # set_current_estimation & delete_estimation → get_estimation!/2 raises on the bogus id;
+    # restore_estimation & permanent_delete_estimation → "Estimation not found" (empty list);
+    # add_collaborator → silent no-op (no selected_member). So each assertion fails if the
+    # gate is dropped — a real regression guard, not a tautology.
+    #
+    # THREE events are deliberately pulled OUT of this uniform loop, because a naive push
+    # would flash "Not authorized" for the WRONG reason (green even without the permission
+    # check). Each gets a dedicated, discriminating test instead:
+    #   * delete_project — gate is `can_delete_project && input == project.name`; a `%{}`
+    #     push leaves the confirmation input "" ≠ name, so the `&&` fails on the name half
+    #     regardless of permission. Dedicated test below satisfies the name half first.
+    #   * change_collaborator_role — inner branch does Enum.find(collaborators, id); on the
+    #     :show tab collaborators == [] so ANY id misses → inner "Not authorized" masks the
+    #     outer gate. Dedicated test (collaborators-tab describe) uses a real target id.
+    #   * remove_collaborator — its `cond` checks is_nil(removing_collaborator) FIRST; a bare
+    #     push is a silent no-op, never reaching the gate. No-op test below + real-gate test
+    #     in the collaborators-tab describe.
     test "gated events flash Not authorized for a viewer", %{lv: lv} do
       pushes = [
         {"save", %{"project" => %{"name" => "X"}}},
-        {"delete_project", %{}},
         {"create_estimation", %{"estimation" => %{"name" => "E"}}},
         {"set_current_estimation", %{"id" => Ecto.UUID.generate()}},
         {"delete_estimation", %{"id" => Ecto.UUID.generate()}},
         {"restore_estimation", %{"id" => Ecto.UUID.generate()}},
         {"permanent_delete_estimation", %{"id" => Ecto.UUID.generate()}},
-        {"add_collaborator", %{}},
-        {"change_collaborator_role", %{"id" => Ecto.UUID.generate(), "role" => "editor"}}
+        {"add_collaborator", %{}}
       ]
 
       for {event, payload} <- pushes do
@@ -174,10 +188,22 @@ defmodule EstimateWeb.ProjectLive.ShowTest do
       end
     end
 
+    test "delete_project is gated for a viewer even with a matching confirmation name",
+         %{lv: lv, project: project} do
+      # Satisfy the NAME half of `can_delete_project && input == project.name` first, so
+      # can_delete_project (false for a viewer) is the SOLE remaining denial reason. If the
+      # permission check were dropped, the delete would proceed (Portfolio.delete_project →
+      # push_navigate / "Project deleted") and this assertion would fail — discriminating.
+      render_click(lv, "lv:clear-flash", %{"key" => "error"})
+      render_click(lv, "validate_delete_confirmation", %{"value" => project.name})
+
+      assert render_click(lv, "delete_project", %{}) =~ "Not authorized"
+    end
+
     test "remove_collaborator with no pending confirmation is a silent no-op for a viewer",
          %{lv: lv} do
       # remove_collaborator's `cond` checks `is_nil(socket.assigns.removing_collaborator)`
-      # FIRST, before the can_manage_collaborators gate — unlike the other 9 events. Since
+      # FIRST, before the can_manage_collaborators gate — unlike the 7 looped events. Since
       # removing_collaborator defaults to nil and this describe block never runs
       # confirm_remove_collaborator, pushing it directly never reaches the authorization
       # check at all: it just re-assigns removing_collaborator to nil, with no flash.
@@ -191,21 +217,43 @@ defmodule EstimateWeb.ProjectLive.ShowTest do
     end
   end
 
-  describe "authorization gating — remove_collaborator (two-step confirm/execute)" do
+  describe "authorization gating (viewer with a real target on the collaborators tab)" do
     setup :setup_project
 
-    test "viewer confirming a real target is still Not authorized on execute",
-         %{conn: conn, org: org, project: project} do
+    setup %{conn: conn, org: org, project: project} do
+      # Mount on the :collaborators live_action so socket.assigns.collaborators is populated
+      # (it's [] on :overview). This lets the gating tests use a REAL target id, so a denial
+      # is attributable to the permission check — not to Enum.find/2 missing on an empty list.
       %{user: viewer} = add_collab(project, org, "viewer")
 
-      # confirm_remove_collaborator looks the id up in socket.assigns.collaborators,
-      # which is only populated on the :collaborators tab (empty on :overview).
       {:ok, lv, _} =
         live(log_in_user(conn, viewer), ~p"/org/#{org.id}/projects/#{project.id}/collaborators")
 
       owner_collab = Enum.find(assigns(lv).collaborators, &(&1.role == "owner"))
       assert owner_collab
+      %{lv: lv, owner_collab: owner_collab}
+    end
 
+    test "change_collaborator_role is gated for a viewer with a real target",
+         %{lv: lv, owner_collab: owner_collab} do
+      # With a real collaborator id the inner Enum.find succeeds, so "Not authorized" comes
+      # from the permission layer (can_manage_collaborators false), not from a lookup miss.
+      # Contrast the loop, where a bogus id on the empty :show list would flash the same
+      # string via the inner nil-branch — passing for the wrong reason.
+      render_click(lv, "lv:clear-flash", %{"key" => "error"})
+
+      assert render_click(lv, "change_collaborator_role", %{
+               "id" => owner_collab.id,
+               "role" => "editor"
+             }) =~ "Not authorized"
+    end
+
+    test "remove_collaborator is gated for a viewer confirming a real target",
+         %{lv: lv, owner_collab: owner_collab} do
+      # Two-step: confirm_remove_collaborator sets removing_collaborator (found via the real
+      # id in the populated list), so the follow-up remove_collaborator gets PAST the is_nil
+      # short-circuit and reaches the real can_remove_collaborator?/4 gate, which denies a
+      # viewer removing the owner.
       render_click(lv, "confirm_remove_collaborator", %{"id" => owner_collab.id})
       assert assigns(lv).removing_collaborator.id == owner_collab.id
 
