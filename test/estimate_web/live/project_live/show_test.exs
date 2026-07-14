@@ -262,4 +262,161 @@ defmodule EstimateWeb.ProjectLive.ShowTest do
       assert render_click(lv, "remove_collaborator", %{}) =~ "Not authorized"
     end
   end
+
+  describe "project details" do
+    setup :setup_project
+
+    test "validate sets form action to :validate, no flash", %{
+      conn: conn,
+      org: org,
+      owner: owner,
+      project: project
+    } do
+      {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
+
+      html = render_change(lv, "validate", %{"project" => %{"name" => "Draft Name"}})
+
+      assert assigns(lv).form.source.action == :validate
+      refute html =~ "Project updated"
+    end
+
+    test "save updates the project (owner)", %{
+      conn: conn,
+      org: org,
+      owner: owner,
+      project: project
+    } do
+      {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
+
+      html =
+        lv
+        |> form(~s(form[phx-submit="save"]), %{"project" => %{"name" => "Renamed Project"}})
+        |> render_submit()
+
+      assert html =~ "Project updated"
+      assert Portfolio.get_project_with_roles!(project.id, org.id).name == "Renamed Project"
+      # form is rebuilt from the reloaded project via a fresh, action-less changeset
+      assert assigns(lv).form.source.action == nil
+    end
+
+    test "save with invalid repository_url shows a changeset error, no update", %{
+      conn: conn,
+      org: org,
+      owner: owner,
+      project: project
+    } do
+      {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
+
+      html = render_click(lv, "save", %{"project" => %{"repository_url" => "ftp://nope"}})
+
+      refute html =~ "Project updated"
+      # assert the field that was actually (attempted to be) set — a bad repository_url
+      # (fails `^https?://`) must be rejected by update_project/2, leaving the DB value at
+      # the fixture's original (nil). (The template renders bare <input>s with no inline
+      # error component, so the changeset message itself is not surfaced in the HTML — the
+      # DB rejection is the observable proof.)
+      assert Portfolio.get_project_with_roles!(project.id, org.id).repository_url ==
+               project.repository_url
+    end
+  end
+
+  describe "danger zone / delete project" do
+    setup :setup_project
+
+    test "confirm, type matching name, then delete redirects", %{
+      conn: conn,
+      org: org,
+      owner: owner,
+      project: project
+    } do
+      {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
+
+      render_click(lv, "confirm_delete_project", %{})
+      assert assigns(lv).deleting_project == true
+      # freshly-created project: no estimations/tasks, just the auto-added owner collaborator
+      assert assigns(lv).delete_impact == %{
+               estimation_count: 0,
+               task_count: 0,
+               collaborator_count: 1
+             }
+
+      assert assigns(lv).delete_confirmation_input == ""
+
+      render_click(lv, "validate_delete_confirmation", %{"value" => project.name})
+      assert assigns(lv).delete_confirmation_input == project.name
+
+      render_click(lv, "delete_project", %{})
+      assert_redirect(lv, ~p"/org/#{org.id}/projects")
+
+      # Portfolio.delete_project/1 is a hard delete (cascades via on_delete: :delete_all) —
+      # prove it via a DB read, not just the flash/redirect.
+      assert_raise Ecto.NoResultsError, fn ->
+        Portfolio.get_project_with_roles!(project.id, org.id)
+      end
+    end
+
+    test "delete refused when typed name doesn't match", %{
+      conn: conn,
+      org: org,
+      owner: owner,
+      project: project
+    } do
+      {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
+
+      render_click(lv, "confirm_delete_project", %{})
+      render_click(lv, "validate_delete_confirmation", %{"value" => "wrong"})
+
+      html = render_click(lv, "delete_project", %{})
+
+      # gate is `can_delete_project && input == project.name` — owner passes the permission
+      # half but fails the name half, so it denies with the same "Not authorized" flash.
+      assert html =~ "Not authorized"
+      assert assigns(lv).deleting_project == false
+      assert Portfolio.get_project_with_roles!(project.id, org.id).name == project.name
+    end
+
+    test "cancel resets delete state", %{conn: conn, org: org, owner: owner, project: project} do
+      {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
+
+      render_click(lv, "confirm_delete_project", %{})
+      render_click(lv, "validate_delete_confirmation", %{"value" => "partial"})
+      assert assigns(lv).delete_confirmation_input == "partial"
+
+      render_click(lv, "cancel_delete_project", %{})
+      assert assigns(lv).deleting_project == false
+      assert assigns(lv).delete_confirmation_input == ""
+    end
+  end
+
+  describe "dashboard tab" do
+    setup :setup_project
+
+    test "set_dashboard_tab accepts by_role and ignores an invalid value", %{
+      conn: conn,
+      org: org,
+      owner: owner,
+      project: project
+    } do
+      {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
+
+      render_click(lv, "set_dashboard_tab", %{"tab" => "by_role"})
+      assert assigns(lv).dashboard_tab == :by_role
+
+      # fallback clause (no matching guard) → no-op
+      render_click(lv, "set_dashboard_tab", %{"tab" => "bogus"})
+      assert assigns(lv).dashboard_tab == :by_role
+
+      # NOTE: by_epic/by_priority are deliberately NOT pinned here. set_dashboard_tab does
+      # String.to_existing_atom/1 (show.ex:815) on the client-controlled "tab" string, and
+      # those two atoms exist only as literals inside EstimationDashboard
+      # (estimation_dashboard.ex) — a component show.ex renders solely `:if={@current_estimation}`.
+      # So whether they're interned is load-order-dependent across the async suite: pushing
+      # either before that component has ever rendered crashes the LiveView (ArgumentError),
+      # but once any test renders a current estimation the atoms register VM-wide and the same
+      # push succeeds. That order-dependent crash is a LATENT BUG recorded for the
+      # decomposition to fix (guard should map strings → atoms explicitly, not
+      # to_existing_atom), not stable behavior to assert. :by_role is safe: show.ex's mount
+      # sets `dashboard_tab: :by_role`, so that atom always exists once the LiveView loads.
+    end
+  end
 end
