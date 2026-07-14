@@ -4,6 +4,7 @@ defmodule EstimateWeb.SettingsLive.MembersTest do
   import Phoenix.LiveViewTest
   import Estimate.AccountsFixtures
 
+  alias Estimate.Accounts
   alias Estimate.Organizations
 
   defp path_for(org_id), do: ~p"/org/#{org_id}/settings/members"
@@ -372,6 +373,86 @@ defmodule EstimateWeb.SettingsLive.MembersTest do
       assert render_click(lv, "confirm_remove_member", %{"id" => owner_m.id}) =~ "Not authorized"
       assert render_click(lv, "confirm_remove_member", %{"id" => am.id}) =~ "Not authorized"
       assert assigns(lv).removing_member == nil
+    end
+  end
+
+  describe "join requests" do
+    setup :setup_org
+
+    test "approve makes the requester a member and clears the request",
+         %{conn: conn, org: org, owner: owner} do
+      requester = user_fixture()
+      {:ok, _req} = Organizations.create_join_request(requester.id, org.id)
+
+      {:ok, lv, _html} = live(log_in_user(conn, owner), path_for(org.id))
+      req = hd(Organizations.list_pending_join_requests(org.id))
+
+      html = render_click(lv, "approve_request", %{"id" => req.id})
+      assert html =~ "Request approved!"
+
+      assert requester.id in Enum.map(
+               Organizations.list_organization_members(org.id),
+               & &1.user_id
+             )
+
+      assert Organizations.list_pending_join_requests(org.id) == []
+    end
+
+    test "reject clears the request without adding a member",
+         %{conn: conn, org: org, owner: owner} do
+      requester = user_fixture()
+      {:ok, _req} = Organizations.create_join_request(requester.id, org.id)
+
+      {:ok, lv, _html} = live(log_in_user(conn, owner), path_for(org.id))
+      req = hd(Organizations.list_pending_join_requests(org.id))
+
+      html = render_click(lv, "reject_request", %{"id" => req.id})
+      assert html =~ "Request rejected"
+      assert Organizations.list_pending_join_requests(org.id) == []
+
+      refute requester.id in Enum.map(
+               Organizations.list_organization_members(org.id),
+               & &1.user_id
+             )
+    end
+  end
+
+  describe "disable 2FA for a member" do
+    setup :setup_org
+
+    test "confirm opens the modal for a member with TOTP", %{conn: conn, org: org, owner: owner} do
+      %{user: totp_user} = user_with_totp_fixture()
+      _ = membership_fixture(totp_user, org, "member")
+      {:ok, lv, _html} = live(log_in_user(conn, owner), path_for(org.id))
+
+      render_click(lv, "confirm_disable_2fa", %{"id" => totp_user.id})
+      assert assigns(lv).disabling_2fa_user.id == totp_user.id
+      assert has_element?(lv, "#disable-2fa-modal")
+
+      render_click(lv, "cancel_disable_2fa", %{})
+      assert assigns(lv).disabling_2fa_user == nil
+    end
+
+    test "refuses a user who is not a member of the org", %{conn: conn, org: org, owner: owner} do
+      %{user: outsider} = user_with_totp_fixture()
+      {:ok, lv, _html} = live(log_in_user(conn, owner), path_for(org.id))
+
+      html = render_click(lv, "confirm_disable_2fa", %{"id" => outsider.id})
+      assert html =~ "Not authorized"
+      assert assigns(lv).disabling_2fa_user == nil
+    end
+
+    test "disable_user_2fa turns off the member's TOTP", %{conn: conn, org: org, owner: owner} do
+      %{user: totp_user} = user_with_totp_fixture()
+      _ = membership_fixture(totp_user, org, "member")
+      {:ok, lv, _html} = live(log_in_user(conn, owner), path_for(org.id))
+
+      render_click(lv, "confirm_disable_2fa", %{"id" => totp_user.id})
+      html = render_click(lv, "disable_user_2fa", %{})
+
+      assert html =~ "2FA disabled for "
+      refute Accounts.User.totp_enabled?(Accounts.get_user!(totp_user.id))
+      assert assigns(lv).disabling_2fa_user == nil
     end
   end
 end
