@@ -280,4 +280,98 @@ defmodule EstimateWeb.SettingsLive.MembersTest do
       refute invite.id in Enum.map(Organizations.list_organization_invites(org.id), & &1.id)
     end
   end
+
+  describe "change_member_role" do
+    setup :setup_org
+
+    test "updates a plain member's role", %{conn: conn, org: org, owner: owner} do
+      %{user: member, membership: m} = add_member(org, "member")
+      {:ok, lv, _html} = live(log_in_user(conn, owner), path_for(org.id))
+
+      html = render_click(lv, "change_member_role", %{"id" => m.id, "role" => "admin"})
+      assert html =~ "Role updated"
+      assert Organizations.get_user_membership(member.id, org.id).role == "admin"
+    end
+
+    test "refuses to change an owner's role", %{conn: conn, org: org, owner: owner} do
+      owner_m = Organizations.get_user_membership(owner.id, org.id)
+      %{user: admin} = add_member(org, "admin")
+      {:ok, lv, _html} = live(log_in_user(conn, admin), path_for(org.id))
+
+      html = render_click(lv, "change_member_role", %{"id" => owner_m.id, "role" => "member"})
+      assert html =~ "Not authorized"
+      assert Organizations.get_user_membership(owner.id, org.id).role == "owner"
+    end
+
+    test "refuses to change your own role", %{conn: conn, org: org} do
+      %{user: admin, membership: am} = add_member(org, "admin")
+      {:ok, lv, _html} = live(log_in_user(conn, admin), path_for(org.id))
+
+      html = render_click(lv, "change_member_role", %{"id" => am.id, "role" => "member"})
+      assert html =~ "Not authorized"
+    end
+
+    test "flashes Member not found for an unknown id", %{conn: conn, org: org, owner: owner} do
+      {:ok, lv, _html} = live(log_in_user(conn, owner), path_for(org.id))
+
+      html =
+        render_click(lv, "change_member_role", %{"id" => Ecto.UUID.generate(), "role" => "admin"})
+
+      assert html =~ "Member not found"
+    end
+
+    test "flashes Invalid role for a non-assignable role", %{conn: conn, org: org, owner: owner} do
+      %{membership: m} = add_member(org, "member")
+      {:ok, lv, _html} = live(log_in_user(conn, owner), path_for(org.id))
+      html = render_click(lv, "change_member_role", %{"id" => m.id, "role" => "owner"})
+      assert html =~ "Invalid role"
+    end
+  end
+
+  describe "simple member removal (no sole-owned projects)" do
+    setup :setup_org
+
+    test "confirm opens the simple confirm modal", %{conn: conn, org: org, owner: owner} do
+      %{membership: m} = add_member(org, "member")
+      {:ok, lv, _html} = live(log_in_user(conn, owner), path_for(org.id))
+
+      render_click(lv, "confirm_remove_member", %{"id" => m.id})
+      assert assigns(lv).removing_member.id == m.id
+      assert assigns(lv).sole_owned_projects == []
+      assert has_element?(lv, "#remove-member-modal")
+      refute has_element?(lv, "#reassign-modal")
+    end
+
+    test "remove deletes the membership and resets state", %{conn: conn, org: org, owner: owner} do
+      %{user: member, membership: m} = add_member(org, "member")
+      {:ok, lv, _html} = live(log_in_user(conn, owner), path_for(org.id))
+
+      render_click(lv, "confirm_remove_member", %{"id" => m.id})
+      html = render_click(lv, "remove_member", %{})
+
+      assert html =~ "Member removed"
+      assert assigns(lv).removing_member == nil
+      refute member.id in Enum.map(Organizations.list_organization_members(org.id), & &1.user_id)
+    end
+
+    test "cancel resets removal state", %{conn: conn, org: org, owner: owner} do
+      %{membership: m} = add_member(org, "member")
+      {:ok, lv, _html} = live(log_in_user(conn, owner), path_for(org.id))
+
+      render_click(lv, "confirm_remove_member", %{"id" => m.id})
+      assert assigns(lv).removing_member.id == m.id
+      render_click(lv, "cancel_remove_member", %{})
+      assert assigns(lv).removing_member == nil
+    end
+
+    test "refuses to remove the owner or yourself", %{conn: conn, org: org, owner: owner} do
+      owner_m = Organizations.get_user_membership(owner.id, org.id)
+      %{user: admin, membership: am} = add_member(org, "admin")
+      {:ok, lv, _html} = live(log_in_user(conn, admin), path_for(org.id))
+
+      assert render_click(lv, "confirm_remove_member", %{"id" => owner_m.id}) =~ "Not authorized"
+      assert render_click(lv, "confirm_remove_member", %{"id" => am.id}) =~ "Not authorized"
+      assert assigns(lv).removing_member == nil
+    end
+  end
 end
