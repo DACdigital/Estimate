@@ -288,7 +288,9 @@ defmodule Estimate.AccountsTest do
 
     test "rejects reassignment with invalid project id", ctx do
       fake_id = Ecto.UUID.generate()
-      reassignments = %{fake_id => ctx.owner.id}
+      # cover the actual sole-owned project too, so this isolates the
+      # invalid-project check from the incomplete-reassignment check
+      reassignments = %{ctx.project.id => ctx.owner.id, fake_id => ctx.owner.id}
 
       assert {:error, :invalid_project} =
                Organizations.delete_membership(ctx.member_membership, reassignments)
@@ -297,11 +299,29 @@ defmodule Estimate.AccountsTest do
     test "rejects reassignment with project from another org", ctx do
       # project_fixture/0 creates its own user+org+customer
       other_project = project_fixture()
-
-      reassignments = %{other_project.id => ctx.owner.id}
+      # cover the actual sole-owned project too, so this isolates the
+      # invalid-project check from the incomplete-reassignment check
+      reassignments = %{ctx.project.id => ctx.owner.id, other_project.id => ctx.owner.id}
 
       assert {:error, :invalid_project} =
                Organizations.delete_membership(ctx.member_membership, reassignments)
+    end
+
+    test "delete_membership/2 refuses to orphan sole-owned projects" do
+      %{user: owner, organization: org} = user_with_organization_fixture()
+      leaver = user_fixture()
+      leaver_m = membership_fixture(leaver, org, "member")
+      customer = customer_fixture(org)
+      project = project_fixture(customer, leaver)
+
+      assert {:error, :incomplete_reassignment} = Organizations.delete_membership(leaver_m, %{})
+      # nothing deleted:
+      assert Organizations.get_user_membership(leaver.id, org.id)
+      assert leaver.id in Enum.map(Portfolio.list_collaborators(project.id), & &1.user_id)
+
+      # a complete map still succeeds:
+      assert {:ok, _} =
+               Organizations.delete_membership(leaver_m, %{project.id => owner.id})
     end
   end
 

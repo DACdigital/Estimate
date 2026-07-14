@@ -248,11 +248,13 @@ defmodule Estimate.Organizations do
     end)
   end
 
-  defp validate_reassignments(reassignments, _org_id, _removed_user_id)
-       when map_size(reassignments) == 0,
-       do: :ok
-
   defp validate_reassignments(reassignments, org_id, removed_user_id) do
+    sole_owned_ids =
+      Estimate.Portfolio.list_sole_owned_projects(removed_user_id, org_id)
+      |> Enum.map(fn {p, _count} -> p.id end)
+      |> MapSet.new()
+
+    mapped_ids = reassignments |> Map.keys() |> MapSet.new()
     project_ids = Map.keys(reassignments)
     new_owner_ids = reassignments |> Map.values() |> Enum.uniq()
 
@@ -270,6 +272,9 @@ defmodule Estimate.Organizations do
       |> MapSet.new()
 
     cond do
+      not MapSet.subset?(sole_owned_ids, mapped_ids) ->
+        {:error, :incomplete_reassignment}
+
       Enum.any?(project_ids, &(not MapSet.member?(org_project_ids, &1))) ->
         {:error, :invalid_project}
 

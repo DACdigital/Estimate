@@ -103,6 +103,12 @@ defmodule EstimateWeb.SettingsLive.Members.Removal do
              |> assign(:members, members)
              |> reset_removal_state()}
 
+          {:error, :incomplete_reassignment} ->
+            {:noreply,
+             socket
+             |> put_flash(:error, "Reassign all projects before removing")
+             |> reset_removal_state()}
+
           {:error, reason}
           when reason in [:invalid_project, :invalid_member, :self_reassignment] ->
             {:noreply,

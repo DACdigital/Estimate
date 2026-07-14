@@ -170,35 +170,21 @@ defmodule EstimateWeb.SettingsLive.MembersReassignmentTest do
       assert Enum.map(Portfolio.list_collaborators(proj_b.id), & &1.user_id) == [alice.id]
     end
 
-    test "CHARACTERIZATION: remove_member with EMPTY reassignments (button bypass)",
+    test "remove_member with EMPTY reassignments is rejected (no orphaning)",
          %{lv: lv, org: org, leaver: leaver, leaver_m: leaver_m, proj_a: proj_a, proj_b: proj_b} do
       render_click(lv, "confirm_remove_member", %{"id" => leaver_m.id})
       # Force an incomplete map (the disabled UI button normally prevents this,
-      # but a direct event push bypasses it). Pin whatever the code does today.
+      # but a direct event push bypasses it).
       render_click(lv, "reassign_all", %{"user_id" => ""})
       assert assigns(lv).reassignments == %{}
 
       html = render_click(lv, "remove_member", %{})
 
-      # PINNED BASELINE (observed): Organizations.delete_membership/2 treats an
-      # empty reassignments map as trivially valid (validate_reassignments/3
-      # short-circuits to :ok when map_size == 0, without checking whether the
-      # removed user has any sole-owned projects). The membership is deleted and
-      # the "Member removed" success flash is shown, exactly like the complete
-      # path above — there is no error branch for this case.
-      assert html =~ "Member removed"
-
-      # The leaver is gone from the org...
-      refute leaver.id in Enum.map(Organizations.list_organization_members(org.id), & &1.user_id)
-      assert assigns(lv).removing_member == nil
-
-      # ...but because reassignments was empty, delete_membership's
-      # Ecto.Multi.delete_all wipes ALL of the leaver's ProjectCollaborator rows
-      # (their only collaborator record on each sole-owned project) without
-      # upserting a replacement owner. Both previously sole-owned projects are
-      # left with ZERO collaborators — LATENT BUG: silent ownership orphaning.
-      assert Portfolio.list_collaborators(proj_a.id) == []
-      assert Portfolio.list_collaborators(proj_b.id) == []
+      assert html =~ "Reassign all projects before removing"
+      # member NOT removed, projects NOT orphaned (leaver still their owner):
+      assert leaver.id in Enum.map(Organizations.list_organization_members(org.id), & &1.user_id)
+      assert leaver.id in Enum.map(Portfolio.list_collaborators(proj_a.id), & &1.user_id)
+      assert leaver.id in Enum.map(Portfolio.list_collaborators(proj_b.id), & &1.user_id)
     end
   end
 end
