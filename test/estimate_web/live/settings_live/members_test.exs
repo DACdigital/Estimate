@@ -91,19 +91,24 @@ defmodule EstimateWeb.SettingsLive.MembersTest do
 
     setup %{conn: conn, org: org} do
       %{user: member} = add_member(org, "member")
-      %{user: target} = add_member(org, "member")
+      %{user: target, membership: target_m} = add_member(org, "member")
       {:ok, lv, _html} = live(log_in_user(conn, member), path_for(org.id))
-      %{lv: lv, target: target, org: org}
+      %{lv: lv, target: target, target_m: target_m, org: org}
     end
 
     # Every require_admin-wrapped event, pushed by a member, flashes
     # "Not authorized" and mutates nothing. Push by name (member DOM lacks
     # the buttons). Payloads are shaped just enough to reach require_admin.
-    test "wrapped events flash Not authorized for a member", %{lv: lv, target: target, org: org} do
+    # change_member_role/confirm_remove_member/confirm_disable_2fa/reassign_*
+    # use the real target so their UNGATED paths diverge from "Not authorized"
+    # (Role updated / open modal / set assign / no-op) — i.e. removing the gate
+    # makes the assertion fail, making this a genuine regression guard.
+    test "wrapped events flash Not authorized for a member",
+         %{lv: lv, target: target, target_m: target_m, org: org} do
       pushes = [
         {"send_invite", %{"invite" => %{"email" => "x@example.com", "role" => "member"}}},
-        {"change_member_role", %{"id" => Ecto.UUID.generate(), "role" => "admin"}},
-        {"confirm_remove_member", %{"id" => Ecto.UUID.generate()}},
+        {"change_member_role", %{"id" => target_m.id, "role" => "admin"}},
+        {"confirm_remove_member", %{"id" => target_m.id}},
         {"remove_member", %{}},
         {"reassign_all", %{"user_id" => target.id}},
         {"reassign_customer", %{"customer_id" => Ecto.UUID.generate(), "user_id" => target.id}},
@@ -120,6 +125,11 @@ defmodule EstimateWeb.SettingsLive.MembersTest do
       ]
 
       for {event, payload} <- pushes do
+        # lv:clear-flash isolates each iteration: put_flash merges by key and is
+        # NOT auto-cleared, so a prior :error would bleed through and mask an
+        # ungated event. Clearing first means the assertion reflects THIS event.
+        render_click(lv, "lv:clear-flash", %{"key" => "error"})
+
         assert render_click(lv, event, payload) =~ "Not authorized",
                "expected #{event} to be admin-gated"
       end
@@ -129,15 +139,17 @@ defmodule EstimateWeb.SettingsLive.MembersTest do
     end
 
     test "member CAN use the non-gated events", %{lv: lv} do
-      # switch_tab / switch_reassign_tab / dismiss_* / cancel_* are open.
+      # switch_tab, dismiss_generated_code and cancel_remove_member are NOT
+      # require_admin-wrapped: a member is not blocked from them.
       render_click(lv, "switch_tab", %{"tab" => "invites"})
       assert assigns(lv).current_tab == :invites
 
-      render_click(lv, "dismiss_generated_code", %{})
-      assert assigns(lv).generated_code == nil
+      # clear before each refute so a leftover :error can't cause a false failure
+      render_click(lv, "lv:clear-flash", %{"key" => "error"})
+      refute render_click(lv, "dismiss_generated_code", %{}) =~ "Not authorized"
 
-      render_click(lv, "cancel_remove_member", %{})
-      assert assigns(lv).removing_member == nil
+      render_click(lv, "lv:clear-flash", %{"key" => "error"})
+      refute render_click(lv, "cancel_remove_member", %{}) =~ "Not authorized"
     end
   end
 end
