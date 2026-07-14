@@ -108,7 +108,20 @@ defmodule EstimateWeb.FormatTest do
     end
 
     test "non-string value (e.g. a Decimal) passes through unchanged" do
-      assert Decimal.equal?(Format.parse_decimal(Decimal.new("3.3"), :fallback), Decimal.new("3.3"))
+      assert Decimal.equal?(
+               Format.parse_decimal(Decimal.new("3.3"), :fallback),
+               Decimal.new("3.3")
+             )
+    end
+  end
+
+  describe "date/1" do
+    test "formats a Date as `Mon DD, YYYY`" do
+      assert Format.date(~D[2026-07-14]) == "Jul 14, 2026"
+    end
+
+    test "nil → empty string" do
+      assert Format.date(nil) == ""
     end
   end
 

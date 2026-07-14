@@ -629,6 +629,31 @@ defmodule EstimateWeb.CoreComponents do
   end
 
   @doc """
+  A small status/label pill.
+
+      <.badge variant={:success}>Active</.badge>
+  """
+  attr :variant, :atom, default: :neutral, values: [:neutral, :muted, :success]
+  attr :class, :string, default: nil
+  slot :inner_block, required: true
+
+  def badge(assigns) do
+    ~H"""
+    <span class={[
+      "text-[10px] px-1.5 py-0.5 rounded-full font-medium",
+      badge_variant(@variant),
+      @class
+    ]}>
+      {render_slot(@inner_block)}
+    </span>
+    """
+  end
+
+  defp badge_variant(:neutral), do: "bg-base-200 text-base-content/60"
+  defp badge_variant(:muted), do: "bg-base-200 text-base-content/40"
+  defp badge_variant(:success), do: "bg-success/10 text-success"
+
+  @doc """
   Renders a [Heroicon](https://heroicons.com).
 
   Heroicons come in three styles – outline, solid, and mini.

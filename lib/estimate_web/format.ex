@@ -93,6 +93,10 @@ defmodule EstimateWeb.Format do
 
   def parse_decimal(value, _default), do: value
 
+  @doc ~S(Formats a Date/DateTime as `Jul 14, 2026`. nil → "".)
+  def date(nil), do: ""
+  def date(date), do: Calendar.strftime(date, "%b %d, %Y")
+
   @doc "Converts a Decimal to an integer when whole, otherwise a float."
   def decimal_to_number(decimal) do
     if Decimal.equal?(Decimal.rem(decimal, 1), 0) do

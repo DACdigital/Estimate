@@ -1,6 +1,8 @@
 defmodule EstimateWeb.SettingsLive.Components.MemberComponents do
   use EstimateWeb, :html
 
+  alias EstimateWeb.Format
+
   attr :invite_form, :map, required: true
 
   def invite_by_email_card(assigns) do
@@ -154,20 +156,11 @@ defmodule EstimateWeb.SettingsLive.Components.MemberComponents do
           <div>
             <div class="flex items-center gap-2">
               <h3 class="text-sm font-medium text-base-content">{membership.user.name}</h3>
-              <span
-                :if={membership.user_id == @current_user.id}
-                class="text-[10px] px-1.5 py-0.5 bg-base-200 text-base-content/60 rounded-full font-medium"
-              >
-                You
-              </span>
+              <.badge :if={membership.user_id == @current_user.id} variant={:neutral}>You</.badge>
               <%= if Estimate.Accounts.User.totp_enabled?(membership.user) do %>
-                <span class="text-[10px] px-1.5 py-0.5 bg-success/10 text-success rounded-full font-medium">
-                  2FA
-                </span>
+                <.badge variant={:success}>2FA</.badge>
               <% else %>
-                <span class="text-[10px] px-1.5 py-0.5 bg-base-200 text-base-content/40 rounded-full font-medium">
-                  No 2FA
-                </span>
+                <.badge variant={:muted}>No 2FA</.badge>
               <% end %>
             </div>
             <p class="text-sm text-base-content/60">{membership.user.email}</p>
@@ -242,7 +235,7 @@ defmodule EstimateWeb.SettingsLive.Components.MemberComponents do
                   </span>
                 </div>
                 <p class="text-sm text-base-content/60">
-                  Expires {Calendar.strftime(invite.expires_at, "%b %d, %Y")}
+                  Expires {Format.date(invite.expires_at)}
                 </p>
               </div>
             <% else %>
@@ -252,7 +245,7 @@ defmodule EstimateWeb.SettingsLive.Components.MemberComponents do
               <div>
                 <h3 class="text-sm font-medium text-base-content">{invite.email}</h3>
                 <p class="text-sm text-base-content/60">
-                  Expires {Calendar.strftime(invite.expires_at, "%b %d, %Y")}
+                  Expires {Format.date(invite.expires_at)}
                 </p>
               </div>
             <% end %>
@@ -317,7 +310,7 @@ defmodule EstimateWeb.SettingsLive.Components.MemberComponents do
               <h3 class="text-sm font-medium text-base-content">{request.user.name}</h3>
               <p class="text-sm text-base-content/60">{request.user.email}</p>
               <p class="text-xs text-base-content/40">
-                Requested {Calendar.strftime(request.inserted_at, "%b %d, %Y")}
+                Requested {Format.date(request.inserted_at)}
               </p>
             </div>
           </div>
