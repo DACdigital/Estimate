@@ -6,6 +6,7 @@ defmodule EstimateWeb.ProjectLive.Show do
   alias Estimate.EstimationEngine
   alias Estimate.Accounts
   alias Estimate.Organizations.Currencies
+  alias EstimateWeb.ProjectLive.Show.{Details, DangerZone, Dashboard}
   import EstimateWeb.ProjectLive.Show.Authz
   import EstimateWeb.JsonImportHelpers
   import EstimateWeb.ProjectLive.Components.EstimationDashboard
@@ -737,87 +738,23 @@ defmodule EstimateWeb.ProjectLive.Show do
   ## Event Handlers
 
   @impl true
-  def handle_event("validate", %{"project" => project_params}, socket) do
-    changeset =
-      socket.assigns.project
-      |> Portfolio.change_project(project_params)
-      |> Map.put(:action, :validate)
+  def handle_event("validate", params, socket), do: Details.validate(socket, params)
+  def handle_event("save", params, socket), do: Details.save(socket, params)
 
-    {:noreply, assign(socket, form: to_form(changeset))}
-  end
+  def handle_event("confirm_delete_project", params, socket),
+    do: DangerZone.confirm_delete_project(socket, params)
 
-  def handle_event("save", %{"project" => project_params}, socket) do
-    require_can_edit(socket, fn ->
-      case Portfolio.update_project(socket.assigns.project, project_params) do
-        {:ok, project} ->
-          project = Portfolio.reload_project_with_roles(project)
+  def handle_event("cancel_delete_project", params, socket),
+    do: DangerZone.cancel_delete_project(socket, params)
 
-          {:noreply,
-           socket
-           |> put_flash(:info, "Project updated")
-           |> assign(:project, project)
-           |> assign(:customer_key, if(project.customer, do: project.customer.key))
-           |> assign(:form, to_form(Portfolio.change_project(project)))}
+  def handle_event("validate_delete_confirmation", params, socket),
+    do: DangerZone.validate_delete_confirmation(socket, params)
 
-        {:error, changeset} ->
-          {:noreply, assign(socket, form: to_form(changeset))}
-      end
-    end)
-  end
+  def handle_event("delete_project", params, socket),
+    do: DangerZone.delete_project(socket, params)
 
-  def handle_event("confirm_delete_project", _params, socket) do
-    impact = Portfolio.deletion_impact(socket.assigns.project)
-
-    {:noreply,
-     socket
-     |> assign(:deleting_project, true)
-     |> assign(:delete_impact, impact)
-     |> assign(:delete_confirmation_input, "")}
-  end
-
-  def handle_event("cancel_delete_project", _params, socket) do
-    {:noreply,
-     socket
-     |> assign(:deleting_project, false)
-     |> assign(:delete_confirmation_input, "")}
-  end
-
-  def handle_event("validate_delete_confirmation", %{"value" => value}, socket) do
-    {:noreply, assign(socket, :delete_confirmation_input, value)}
-  end
-
-  def handle_event("delete_project", _params, socket) do
-    require_can_delete(socket, [deleting_project: false], fn ->
-      if socket.assigns.delete_confirmation_input == socket.assigns.project.name do
-        case Portfolio.delete_project(socket.assigns.project) do
-          {:ok, _} ->
-            {:noreply,
-             socket
-             |> put_flash(:info, "Project deleted")
-             |> push_navigate(to: ~p"/org/#{socket.assigns.org_id}/projects")}
-
-          {:error, _} ->
-            {:noreply,
-             socket
-             |> put_flash(:error, "Could not delete project")
-             |> assign(:deleting_project, false)}
-        end
-      else
-        {:noreply,
-         socket
-         |> put_flash(:error, "Not authorized")
-         |> assign(:deleting_project, false)}
-      end
-    end)
-  end
-
-  @allowed_dashboard_tabs ~w(by_role by_epic by_priority)
-  def handle_event("set_dashboard_tab", %{"tab" => tab}, socket)
-      when tab in @allowed_dashboard_tabs do
-    {:noreply, assign(socket, :dashboard_tab, String.to_existing_atom(tab))}
-  end
-
-  def handle_event("set_dashboard_tab", _params, socket), do: {:noreply, socket}
+  def handle_event("set_dashboard_tab", params, socket),
+    do: Dashboard.set_dashboard_tab(socket, params)
 
   ## Estimation Events
 
