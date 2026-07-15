@@ -12,10 +12,10 @@ defmodule EstimateWeb.ProjectLive.Show do
     DangerZone,
     Dashboard,
     EstimationModal,
-    Estimations
+    Estimations,
+    Collaborators
   }
 
-  import EstimateWeb.ProjectLive.Show.Authz
   import EstimateWeb.JsonImportHelpers
   import EstimateWeb.ProjectLive.Components.EstimationDashboard
   import EstimateWeb.ProjectLive.Components.NewEstimationModal
@@ -818,156 +818,35 @@ defmodule EstimateWeb.ProjectLive.Show do
 
   ## Collaborator Events
 
-  def handle_event("collaborator_form_change", params, socket) do
-    member_search = Map.get(params, "member_search", socket.assigns.member_search)
-    selected_role = Map.get(params, "collaborator_role", socket.assigns.selected_role)
+  def handle_event("collaborator_form_change", params, socket),
+    do: Collaborators.collaborator_form_change(socket, params)
 
-    {:noreply,
-     socket
-     |> assign(:member_search, member_search)
-     |> assign(:selected_role, selected_role)
-     |> assign(:show_member_dropdown, member_search != "" || socket.assigns.show_member_dropdown)}
-  end
+  def handle_event("open_member_dropdown", params, socket),
+    do: Collaborators.open_member_dropdown(socket, params)
 
-  def handle_event("open_member_dropdown", _params, socket) do
-    {:noreply, assign(socket, :show_member_dropdown, true)}
-  end
+  def handle_event("close_member_dropdown", params, socket),
+    do: Collaborators.close_member_dropdown(socket, params)
 
-  def handle_event("close_member_dropdown", _params, socket) do
-    {:noreply, assign(socket, :show_member_dropdown, false)}
-  end
+  def handle_event("select_member", params, socket),
+    do: Collaborators.select_member(socket, params)
 
-  def handle_event("select_member", %{"user-id" => user_id}, socket) do
-    member =
-      Enum.find(socket.assigns.available_members, fn m -> m.user.id == user_id end)
+  def handle_event("clear_selected_member", params, socket),
+    do: Collaborators.clear_selected_member(socket, params)
 
-    if member do
-      {:noreply,
-       socket
-       |> assign(:selected_member, member.user)
-       |> assign(:member_search, member.user.name || member.user.email)
-       |> assign(:show_member_dropdown, false)}
-    else
-      {:noreply, socket}
-    end
-  end
+  def handle_event("add_collaborator", params, socket),
+    do: Collaborators.add_collaborator(socket, params)
 
-  def handle_event("clear_selected_member", _params, socket) do
-    {:noreply,
-     socket
-     |> assign(:selected_member, nil)
-     |> assign(:member_search, "")}
-  end
+  def handle_event("change_collaborator_role", params, socket),
+    do: Collaborators.change_collaborator_role(socket, params)
 
-  def handle_event("add_collaborator", _params, socket) do
-    require_can_manage(socket, fn ->
-      member = socket.assigns.selected_member
+  def handle_event("confirm_remove_collaborator", params, socket),
+    do: Collaborators.confirm_remove_collaborator(socket, params)
 
-      if member do
-        project_id = socket.assigns.project.id
+  def handle_event("cancel_remove_collaborator", params, socket),
+    do: Collaborators.cancel_remove_collaborator(socket, params)
 
-        case Portfolio.add_collaborator(project_id, member.id, socket.assigns.selected_role) do
-          {:ok, _} ->
-            {:noreply, reload_collaborators(socket, "Collaborator added")}
-
-          {:error, _} ->
-            {:noreply, put_flash(socket, :error, "Could not add collaborator")}
-        end
-      else
-        {:noreply, socket}
-      end
-    end)
-  end
-
-  def handle_event("change_collaborator_role", %{"id" => id, "role" => role}, socket) do
-    require_can_manage(socket, fn ->
-      collab = Enum.find(socket.assigns.collaborators, &(&1.id == id))
-
-      if collab &&
-           can_change_role?(
-             socket.assigns.can_manage_collaborators,
-             socket.assigns.current_user,
-             collab
-           ) do
-        case Portfolio.update_collaborator_role(collab, role) do
-          {:ok, _} ->
-            {:noreply, reload_collaborators(socket, "Role updated")}
-
-          {:error, _} ->
-            {:noreply, put_flash(socket, :error, "Could not update role")}
-        end
-      else
-        {:noreply, put_flash(socket, :error, "Not authorized")}
-      end
-    end)
-  end
-
-  def handle_event("confirm_remove_collaborator", %{"id" => id}, socket) do
-    collab = Enum.find(socket.assigns.collaborators, &(&1.id == id))
-    {:noreply, assign(socket, :removing_collaborator, collab)}
-  end
-
-  def handle_event("cancel_remove_collaborator", _params, socket) do
-    {:noreply, assign(socket, :removing_collaborator, nil)}
-  end
-
-  def handle_event("remove_collaborator", _params, socket) do
-    collab = socket.assigns.removing_collaborator
-
-    cond do
-      is_nil(collab) ->
-        {:noreply, assign(socket, :removing_collaborator, nil)}
-
-      !can_remove_collaborator?(
-        socket.assigns.can_manage_collaborators,
-        socket.assigns.current_user,
-        socket.assigns.current_collaborator,
-        collab
-      ) ->
-        {:noreply,
-         socket
-         |> put_flash(:error, "Not authorized")
-         |> assign(:removing_collaborator, nil)}
-
-      collab.role == "owner" &&
-          Enum.count(socket.assigns.collaborators, &(&1.role == "owner")) <= 1 ->
-        {:noreply,
-         socket
-         |> put_flash(:error, "Cannot remove the last project owner")
-         |> assign(:removing_collaborator, nil)}
-
-      true ->
-        case Portfolio.remove_collaborator(collab) do
-          {:ok, _} ->
-            {:noreply,
-             socket
-             |> assign(:removing_collaborator, nil)
-             |> reload_collaborators("Collaborator removed")}
-
-          {:error, _} ->
-            {:noreply,
-             socket
-             |> put_flash(:error, "Could not remove collaborator")
-             |> assign(:removing_collaborator, nil)}
-        end
-    end
-  end
-
-  defp reload_collaborators(socket, flash_msg) do
-    project_id = socket.assigns.project.id
-    org_id = socket.assigns.org_id
-    collaborators = Portfolio.list_collaborators(project_id)
-    available = Portfolio.list_available_members(project_id, org_id)
-
-    socket
-    |> put_flash(:info, flash_msg)
-    |> assign(:collaborators, collaborators)
-    |> assign(:available_members, available)
-    |> assign(:selected_member, nil)
-    |> assign(:member_search, "")
-    |> assign(:selected_role, "viewer")
-    |> assign(:show_member_dropdown, false)
-  end
+  def handle_event("remove_collaborator", params, socket),
+    do: Collaborators.remove_collaborator(socket, params)
 
   ## Helpers
 
