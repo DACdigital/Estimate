@@ -5,9 +5,12 @@ defmodule EstimateWeb.ProjectLive.ShowTest do
   import Estimate.AccountsFixtures
   import Estimate.PortfolioFixtures
   import Estimate.EstimationEngineFixtures
+  import Estimate.TemplatesFixtures
 
   alias Estimate.Portfolio
   alias Estimate.Organizations.Currencies
+  alias Estimate.EstimationEngine
+  alias Estimate.EstimationEngine.JsonImport
 
   defp assigns(lv), do: :sys.get_state(lv.pid).socket.assigns
 
@@ -781,6 +784,294 @@ defmodule EstimateWeb.ProjectLive.ShowTest do
       assert length(a.modal_roles) == length(templates)
       assert Enum.map(a.modal_roles, & &1.name) == Enum.map(templates, & &1.name)
       assert Enum.map(a.modal_roles, & &1.template_id) == Enum.map(templates, & &1.id)
+    end
+  end
+
+  describe "create_estimation (fresh/copy/template/json sources)" do
+    # The OUTER `can_edit_project` gate ("Not authorized" for a non-editor) is already pinned by
+    # the "gated events" loop in "authorization gating (viewer pushing gated events)" above -- not
+    # repeated here. This block pins dispatch_create/6's 4 branches plus the roles-invalid guard,
+    # using an owner (can_edit_project true throughout) so every denial below comes from the
+    # branch under test, not the outer permission gate.
+    setup :setup_project
+
+    test "fresh: mount's seeded role-template roles are already valid, so a plain submit creates the estimation and redirects to the estimator",
+         %{conn: conn, org: org, owner: owner, project: project} do
+      # user_with_organization_fixture/0 (via setup_project) seeds default role templates
+      # (Accounts.seed_default_role_templates/1), and mount's init_modal_assigns/4 builds
+      # modal_roles from them (show.ex:662) -- so roles_valid?/1 already passes without ever
+      # opening the modal or touching modal_roles.
+      before_ids = project.id |> EstimationEngine.list_estimations() |> Enum.map(& &1.id)
+
+      {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
+
+      render_click(lv, "create_estimation", %{
+        "estimation" => %{"name" => "Fresh One"},
+        "source" => "fresh"
+      })
+
+      {path, flash} = assert_redirect(lv)
+      assert flash["info"] == "Estimation created"
+
+      # Prove REAL creation, not just the flash: the project's estimation list actually grew,
+      # and the redirect target names that concrete new estimation's id.
+      after_list = EstimationEngine.list_estimations(project.id)
+      assert length(after_list) == length(before_ids) + 1
+      new_estimation = Enum.find(after_list, &(&1.id not in before_ids))
+      assert new_estimation
+
+      assert path ==
+               ~p"/org/#{org.id}/projects/#{project.id}/estimations/#{new_estimation.id}/estimator"
+    end
+
+    test "roles invalid: a blank modal role blocks creation, no estimation created", %{
+      conn: conn,
+      org: org,
+      owner: owner,
+      project: project
+    } do
+      before_count = project.id |> EstimationEngine.list_estimations() |> length()
+
+      {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
+      # mount's modal_roles start valid (from seeded templates, see the "fresh" test above) --
+      # add_modal_role appends a genuinely blank %{name: "", abbreviation: ""} role, so
+      # roles_valid?/1 fails for a REAL reason, not a vacuous empty-list pass.
+      render_click(lv, "add_modal_role", %{})
+      assert Enum.any?(assigns(lv).modal_roles, &(&1.name == ""))
+
+      html =
+        render_click(lv, "create_estimation", %{
+          "estimation" => %{"name" => "Should Not Save"},
+          "source" => "fresh"
+        })
+
+      assert html =~ "All roles must have a name and abbreviation"
+      assert project.id |> EstimationEngine.list_estimations() |> length() == before_count
+    end
+
+    test "copy: copies an existing estimation in the SAME project, flashes Estimation copied, and redirects",
+         %{conn: conn, org: org, owner: owner, project: project} do
+      source_est = estimation_fixture(project)
+      before_ids = project.id |> EstimationEngine.list_estimations() |> Enum.map(& &1.id)
+
+      {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
+
+      render_click(lv, "create_estimation", %{
+        "estimation" => %{"name" => "Copy of Thing"},
+        "source" => "copy",
+        "source_estimation_id" => source_est.id
+      })
+
+      {path, flash} = assert_redirect(lv)
+      assert flash["info"] == "Estimation copied"
+
+      after_list = EstimationEngine.list_estimations(project.id)
+      assert length(after_list) == length(before_ids) + 1
+      new_estimation = Enum.find(after_list, &(&1.id not in before_ids))
+      assert new_estimation
+
+      assert path ==
+               ~p"/org/#{org.id}/projects/#{project.id}/estimations/#{new_estimation.id}/estimator"
+    end
+
+    test "copy: bypasses the modal roles-valid check entirely (a blank modal role does not block it)",
+         %{conn: conn, org: org, owner: owner, project: project} do
+      # create_estimation's guard is `source != "copy" && !roles_valid?(...)` (show.ex:952) --
+      # for "copy" the whole condition short-circuits to false regardless of modal_roles, since
+      # copy takes its roles from the SOURCE estimation, not the modal list.
+      source_est = estimation_fixture(project)
+      before_ids = project.id |> EstimationEngine.list_estimations() |> Enum.map(& &1.id)
+
+      {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
+      render_click(lv, "add_modal_role", %{})
+      assert Enum.any?(assigns(lv).modal_roles, &(&1.name == ""))
+
+      render_click(lv, "create_estimation", %{
+        "estimation" => %{"name" => "Copy Despite Blank Role"},
+        "source" => "copy",
+        "source_estimation_id" => source_est.id
+      })
+
+      {_path, flash} = assert_redirect(lv)
+      assert flash["info"] == "Estimation copied"
+
+      after_list = EstimationEngine.list_estimations(project.id)
+      assert length(after_list) == length(before_ids) + 1
+    end
+
+    test "copy: a same-org estimation from a DIFFERENT project is rejected and nothing is created",
+         %{conn: conn, org: org, owner: owner, project: project} do
+      # dispatch_create("copy", ...) guards `source_estimation.project_id == project.id`,
+      # returning {:error, :unauthorized} otherwise (show.ex:1403-1404) -- but create_estimation's
+      # `case result do` (show.ex:960-979) does NOT special-case that reason: EVERY {:error, _}
+      # (bad params, :no_json, :unauthorized, a changeset error...) falls into the SAME generic
+      # "Could not create estimation" flash (show.ex:977-978). There is no dedicated "Not
+      # authorized" text for this guard -- pinning the real string, not the one a cursory read of
+      # dispatch_create alone would suggest.
+      #
+      # A cross-ORGANIZATION source_estimation_id is deliberately NOT used here: dispatch_create
+      # looks the source up via EstimationEngine.get_estimation!(source_estimation_id, org_id)
+      # scoped to the CURRENT session's org_id (show.ex:1401), so a foreign-org id never resolves
+      # and raises Ecto.NoResultsError instead of returning {:error, :unauthorized} -- an uncaught
+      # crash, not a flash. That's a separate, pre-existing latent gap (see task report), and
+      # asserting a crash here would be a lookup-miss, not the project_id guard. A SAME-org
+      # sibling project is what actually reaches that guard.
+      other_project = project_fixture(nil, owner)
+      sibling_est = estimation_fixture(other_project)
+      before_count = project.id |> EstimationEngine.list_estimations() |> length()
+
+      {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
+
+      html =
+        render_click(lv, "create_estimation", %{
+          "estimation" => %{"name" => "Copy Attempt"},
+          "source" => "copy",
+          "source_estimation_id" => sibling_est.id
+        })
+
+      assert html =~ "Could not create estimation"
+      refute html =~ "Estimation copied"
+      assert project.id |> EstimationEngine.list_estimations() |> length() == before_count
+    end
+
+    test "template: creates from an estimation template, flashes Estimation created, and redirects",
+         %{conn: conn, org: org, owner: owner, project: project} do
+      template = template_fixture(org)
+      before_ids = project.id |> EstimationEngine.list_estimations() |> Enum.map(& &1.id)
+
+      {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
+
+      render_click(lv, "create_estimation", %{
+        "estimation" => %{"name" => "From Template"},
+        "source" => "template",
+        "estimation_template_id" => template.id
+      })
+
+      {path, flash} = assert_redirect(lv)
+      assert flash["info"] == "Estimation created"
+
+      after_list = EstimationEngine.list_estimations(project.id)
+      assert length(after_list) == length(before_ids) + 1
+      new_estimation = Enum.find(after_list, &(&1.id not in before_ids))
+      assert new_estimation
+
+      assert path ==
+               ~p"/org/#{org.id}/projects/#{project.id}/estimations/#{new_estimation.id}/estimator"
+    end
+
+    test "json: creates from parsed JSON once validate_estimation has set json_parsed", %{
+      conn: conn,
+      org: org,
+      owner: owner,
+      project: project
+    } do
+      before_ids = project.id |> EstimationEngine.list_estimations() |> Enum.map(& &1.id)
+
+      {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
+
+      json =
+        Jason.encode!(%{
+          "estimation" => "From JSON",
+          "epics" => [%{"name" => "E1", "tasks" => [%{"name" => "T1"}]}]
+        })
+
+      render_change(lv, "validate_estimation", %{"json_input" => json})
+      assert assigns(lv).json_parsed
+
+      render_click(lv, "create_estimation", %{
+        "estimation" => %{"name" => "From JSON"},
+        "source" => "json"
+      })
+
+      {path, flash} = assert_redirect(lv)
+      assert flash["info"] == "Estimation created"
+
+      after_list = EstimationEngine.list_estimations(project.id)
+      assert length(after_list) == length(before_ids) + 1
+      new_estimation = Enum.find(after_list, &(&1.id not in before_ids))
+      assert new_estimation
+
+      assert path ==
+               ~p"/org/#{org.id}/projects/#{project.id}/estimations/#{new_estimation.id}/estimator"
+    end
+
+    test "json: source without a parsed json (the :no_json guard) creates nothing", %{
+      conn: conn,
+      org: org,
+      owner: owner,
+      project: project
+    } do
+      # json_parsed defaults to nil at mount (init_json_assigns) and nothing here sets it, so
+      # dispatch_create("json", ...) hits its `nil -> {:error, :no_json}` clause (show.ex:1427) --
+      # which, like the copy project_id guard above, surfaces only as the generic
+      # "Could not create estimation" flash.
+      before_count = project.id |> EstimationEngine.list_estimations() |> length()
+
+      {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
+
+      html =
+        render_click(lv, "create_estimation", %{
+          "estimation" => %{"name" => "No Json"},
+          "source" => "json"
+        })
+
+      assert html =~ "Could not create estimation"
+      assert project.id |> EstimationEngine.list_estimations() |> length() == before_count
+    end
+  end
+
+  describe "json import events (upload/download/agent prompt)" do
+    setup :setup_project
+
+    test "json_file_uploaded parses the content and prefills the estimation form", %{
+      conn: conn,
+      org: org,
+      owner: owner,
+      project: project
+    } do
+      {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
+
+      json =
+        Jason.encode!(%{
+          "estimation" => "Uploaded",
+          "description" => "via upload",
+          "epics" => [%{"name" => "E1", "tasks" => [%{"name" => "T1"}]}]
+        })
+
+      render_click(lv, "json_file_uploaded", %{"content" => json})
+
+      a = assigns(lv)
+      assert a.json_error == nil
+      assert a.json_parsed.estimation == "Uploaded"
+      assert a.estimation_form.params["name"] == "Uploaded"
+      assert a.estimation_form.params["description"] == "via upload"
+    end
+
+    test "download_json_schema pushes the example schema as a download_file event", %{
+      conn: conn,
+      org: org,
+      owner: owner,
+      project: project
+    } do
+      {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
+
+      render_click(lv, "download_json_schema", %{})
+
+      assert_push_event(lv, "download_file", payload)
+      assert payload.filename == "estimation-schema.json"
+      assert payload.content_type == "application/json"
+      assert payload.content == JsonImport.example_schema()
+    end
+
+    test "copy_agent_prompt pushes the real agent prompt to the clipboard and flashes confirmation",
+         %{conn: conn, org: org, owner: owner, project: project} do
+      {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
+
+      html = render_click(lv, "copy_agent_prompt", %{})
+
+      assert_push_event(lv, "copy_to_clipboard", payload)
+      assert payload.text == JsonImport.agent_prompt()
+      assert html =~ "Agent prompt copied"
     end
   end
 end
