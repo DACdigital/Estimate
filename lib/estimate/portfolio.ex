@@ -328,10 +328,9 @@ defmodule Estimate.Portfolio do
     can_manage && collab.user_id != current_user.id
   end
 
-  def can_remove_collaborator?(can_manage, current_user, current_collaborator, collab) do
+  def can_remove_collaborator?(can_manage, current_user, _current_collaborator, collab) do
     cond do
       collab.user_id == current_user.id -> false
-      collab.role == "owner" -> current_collaborator && current_collaborator.role == "owner"
       true -> can_manage
     end
   end

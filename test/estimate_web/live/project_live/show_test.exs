@@ -451,12 +451,6 @@ defmodule EstimateWeb.ProjectLive.ShowTest do
       owner: owner,
       project: project
     } do
-      # Seed a current estimation so the overview renders EstimationDashboard, which interns
-      # :by_epic/:by_priority (literal only in that component, estimation_dashboard.ex). This
-      # lets us pin the POSITIVE branch as a real divergence from the mount default (:by_role)
-      # rather than a tautology, and safely exercises by_epic/by_priority (no atom crash once
-      # the component has rendered).
-      _ = estimation_fixture(project)
       {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
       assert assigns(lv).dashboard_tab == :by_role
 
@@ -466,18 +460,34 @@ defmodule EstimateWeb.ProjectLive.ShowTest do
       render_click(lv, "set_dashboard_tab", %{"tab" => "by_priority"})
       assert assigns(lv).dashboard_tab == :by_priority
 
-      # fallback clause (no matching guard) → no-op, leaves the (diverged) value unchanged
+      # unmapped key (no matching case clause) → no-op, leaves the (diverged) value unchanged
       render_click(lv, "set_dashboard_tab", %{"tab" => "bogus"})
       assert assigns(lv).dashboard_tab == :by_priority
 
       render_click(lv, "set_dashboard_tab", %{"tab" => "by_role"})
       assert assigns(lv).dashboard_tab == :by_role
+    end
 
-      # NOTE: pushing by_epic/by_priority BEFORE any current estimation has rendered the
-      # dashboard raises (String.to_existing_atom on an un-interned atom) — an order-dependent
-      # LATENT BUG recorded for the decomposition (map strings → atoms explicitly instead of
-      # to_existing_atom). Not pinned as a test (fragile); this test seeds the estimation so
-      # the atoms exist and the real tab transitions are pinned.
+    test "set_dashboard_tab handles by_epic with no current estimation (no atom crash)", %{
+      conn: conn,
+      org: org,
+      owner: owner,
+      project: project
+    } do
+      # bug (a) fix: set_dashboard_tab used to guard on a tab whitelist and convert via
+      # String.to_existing_atom/1, which raises ArgumentError if :by_epic/:by_priority
+      # hasn't been interned yet elsewhere (e.g. by EstimationDashboard rendering first) --
+      # an order-dependent atom crash. The fixed handler matches against a module-attribute
+      # map (@dashboard_tabs) whose values are compile-time atom literals in THIS module, so
+      # they're always interned once Dashboard itself loads. No estimation is seeded here
+      # (unlike the test above), so this proves the crash is gone independent of whether
+      # EstimationDashboard has ever rendered.
+      {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
+
+      render_click(lv, "set_dashboard_tab", %{"tab" => "by_epic"})
+
+      assert assigns(lv).dashboard_tab == :by_epic
+      assert Process.alive?(lv.pid)
     end
   end
 
@@ -1718,16 +1728,22 @@ defmodule EstimateWeb.ProjectLive.ShowTest do
       # Now the ONLY "owner" left to attempt removing IS the acting user's own row.
       # can_remove_collaborator?/4 short-circuits to `false` on the self-check BEFORE
       # remove_collaborator/1's `collab.role == "owner" && count <= 1` cond clause
-      # (show.ex:1285-1290) ever runs -- so this observably flashes "Not authorized",
-      # not "Cannot remove the last project owner".
+      # (collaborators.ex:135-140) ever runs -- so this observably flashes "Not
+      # authorized", not "Cannot remove the last project owner". That self-check is
+      # unconditional and unchanged by the Task-7 admin/owner asymmetry fix, so this
+      # specific owner-removes-self path still resolves the same way.
       #
-      # Structurally, the last-owner message looks unreachable via any real call path:
-      # that cond clause only runs once can_remove_collaborator?/4 has already allowed
-      # removing an owner-role target, which (per its own second clause) requires the
-      # ACTING user to also be a distinct "owner" collaborator -- i.e. >= 2 owner rows
-      # must exist at that moment, contradicting `count <= 1`. Recorded here as a
-      # latent/dead-code finding for the decomposition audit; not fixed (characterization
-      # only, lib/ untouched).
+      # NOTE: prior to Task 7 this was also true for every OTHER actor, making the
+      # last-owner message structurally unreachable (dead code): reaching that cond
+      # required can_remove_collaborator?/4 to already allow removing an owner-role
+      # target, which required the ACTING user to be a distinct "owner" collaborator --
+      # i.e. >= 2 owner rows, contradicting `count <= 1`. Task 7 changed
+      # can_remove_collaborator?/4 so any can_manage=true actor (not just owner
+      # collaborators) may remove a non-self owner target, which makes the message live
+      # for an org ADMIN removing the sole owner (see "collaborators tab:
+      # remove_collaborator admin/owner asymmetry fix" below). It remains unreachable
+      # for THIS test's owner-actor specifically, because the sole remaining owner is
+      # always the acting user themselves once a project has only one owner left.
       render_click(lv, "confirm_remove_collaborator", %{"id" => owner_collab.id})
       assert assigns(lv).removing_collaborator.id == owner_collab.id
 
@@ -1741,6 +1757,63 @@ defmodule EstimateWeb.ProjectLive.ShowTest do
         Enum.find(Portfolio.list_collaborators(project.id), &(&1.id == owner_collab.id))
 
       assert still_present
+    end
+  end
+
+  describe "collaborators tab: remove_collaborator admin/owner asymmetry fix" do
+    # can_remove_collaborator?/4 (portfolio.ex:331-337) used to require the ACTING user's
+    # own collaborator row to have role "owner" before it would let them remove an
+    # owner-role target. An org admin acting on a project they don't collaborate on has no
+    # collaborator row at all (current_collaborator is nil), so this always evaluated to
+    # false for admins -- an admin could manage every OTHER aspect of collaborators but
+    # could never remove an owner. Fixed: any actor with can_manage=true (admin or owner
+    # collaborator) may remove a non-self owner target; the last-owner guard in
+    # remove_collaborator/1 (collaborators.ex:135-140) is unchanged and now genuinely
+    # activates for the admin path (previously unreachable for admins, since they were
+    # denied before that cond ever ran).
+    setup :setup_project
+
+    test "an org admin (non-collaborator) can remove a non-last owner", %{
+      conn: conn,
+      org: org,
+      project: project
+    } do
+      # a 2nd owner so removal doesn't hit the last-owner guard
+      %{user: owner2} = add_collab(project, org, "owner")
+      admin = user_fixture()
+      _ = membership_fixture(admin, org, "admin")
+
+      {:ok, lv, _} =
+        live(log_in_user(conn, admin), ~p"/org/#{org.id}/projects/#{project.id}/collaborators")
+
+      collab = Enum.find(assigns(lv).collaborators, &(&1.user_id == owner2.id))
+      render_click(lv, "confirm_remove_collaborator", %{"id" => collab.id})
+
+      html = render_click(lv, "remove_collaborator", %{})
+
+      assert html =~ "Collaborator removed"
+      refute owner2.id in Enum.map(Portfolio.list_collaborators(project.id), & &1.user_id)
+    end
+
+    test "an org admin removing the SOLE owner is blocked (last-owner guard now active)", %{
+      conn: conn,
+      org: org,
+      owner: owner,
+      project: project
+    } do
+      admin = user_fixture()
+      _ = membership_fixture(admin, org, "admin")
+
+      {:ok, lv, _} =
+        live(log_in_user(conn, admin), ~p"/org/#{org.id}/projects/#{project.id}/collaborators")
+
+      owner_collab = Enum.find(assigns(lv).collaborators, &(&1.role == "owner"))
+      render_click(lv, "confirm_remove_collaborator", %{"id" => owner_collab.id})
+
+      html = render_click(lv, "remove_collaborator", %{})
+
+      assert html =~ "Cannot remove the last project owner"
+      assert owner.id in Enum.map(Portfolio.list_collaborators(project.id), & &1.user_id)
     end
   end
 

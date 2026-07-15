@@ -7,11 +7,12 @@ defmodule EstimateWeb.ProjectLive.Show.Dashboard do
   """
   use EstimateWeb, :live_handlers
 
-  @allowed_dashboard_tabs ~w(by_role by_epic by_priority)
+  @dashboard_tabs %{"by_role" => :by_role, "by_epic" => :by_epic, "by_priority" => :by_priority}
 
-  def set_dashboard_tab(socket, %{"tab" => tab}) when tab in @allowed_dashboard_tabs do
-    {:noreply, assign(socket, :dashboard_tab, String.to_existing_atom(tab))}
+  def set_dashboard_tab(socket, %{"tab" => tab}) do
+    case @dashboard_tabs do
+      %{^tab => atom} -> {:noreply, assign(socket, :dashboard_tab, atom)}
+      _ -> {:noreply, socket}
+    end
   end
-
-  def set_dashboard_tab(socket, _params), do: {:noreply, socket}
 end
