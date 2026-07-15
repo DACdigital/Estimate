@@ -1342,4 +1342,349 @@ defmodule EstimateWeb.ProjectLive.ShowTest do
       assert est_trashed.id in trashed_ids
     end
   end
+
+  describe "collaborators tab: member-picker dropdown/select state machine" do
+    setup :setup_project
+
+    setup %{conn: conn, org: org, owner: owner, project: project} do
+      # an org member NOT yet a collaborator -- shows up in available_members
+      available_user = user_fixture()
+      _ = membership_fixture(available_user, org, "member")
+
+      {:ok, lv, _} =
+        live(log_in_user(conn, owner), ~p"/org/#{org.id}/projects/#{project.id}/collaborators")
+
+      assert Enum.any?(assigns(lv).available_members, &(&1.user.id == available_user.id))
+
+      %{lv: lv, available_user: available_user}
+    end
+
+    test "open_member_dropdown sets show_member_dropdown true; close_member_dropdown clears it",
+         %{lv: lv} do
+      assert assigns(lv).show_member_dropdown == false
+
+      render_click(lv, "open_member_dropdown", %{})
+      assert assigns(lv).show_member_dropdown == true
+
+      render_click(lv, "close_member_dropdown", %{})
+      assert assigns(lv).show_member_dropdown == false
+    end
+
+    test "collaborator_form_change sets member_search/selected_role and opens the dropdown once search is non-empty",
+         %{lv: lv} do
+      assert assigns(lv).member_search == ""
+      assert assigns(lv).selected_role == "viewer"
+      assert assigns(lv).show_member_dropdown == false
+
+      render_click(lv, "collaborator_form_change", %{
+        "member_search" => "ali",
+        "collaborator_role" => "editor"
+      })
+
+      assert assigns(lv).member_search == "ali"
+      assert assigns(lv).selected_role == "editor"
+      assert assigns(lv).show_member_dropdown == true
+    end
+
+    test "collaborator_form_change does not auto-close an already-open dropdown when search is cleared back to empty",
+         %{lv: lv} do
+      render_click(lv, "collaborator_form_change", %{
+        "member_search" => "ali",
+        "collaborator_role" => "viewer"
+      })
+
+      assert assigns(lv).show_member_dropdown == true
+
+      # show.ex:1178 -- `show_member_dropdown: member_search != "" || <previous value>`.
+      # Clearing the text back to "" does NOT flip it back to false on its own; only
+      # close_member_dropdown/select_member explicitly set it false.
+      render_click(lv, "collaborator_form_change", %{
+        "member_search" => "",
+        "collaborator_role" => "viewer"
+      })
+
+      assert assigns(lv).member_search == ""
+      assert assigns(lv).show_member_dropdown == true
+    end
+
+    test "select_member sets selected_member, prefills member_search, and closes the dropdown; an unknown id is a no-op",
+         %{lv: lv, available_user: available_user} do
+      # diverge first: open the dropdown with partial text so the reset below is a real
+      # transition, not a re-assertion of the mount default.
+      render_click(lv, "collaborator_form_change", %{
+        "member_search" => "partial",
+        "collaborator_role" => "viewer"
+      })
+
+      assert assigns(lv).show_member_dropdown == true
+      assert assigns(lv).selected_member == nil
+
+      render_click(lv, "select_member", %{"user-id" => available_user.id})
+
+      assert assigns(lv).selected_member.id == available_user.id
+      assert assigns(lv).member_search == available_user.name
+      assert assigns(lv).show_member_dropdown == false
+
+      # unknown id: the real selection made above is left untouched -- proves the
+      # `else -> {:noreply, socket}` no-op branch (show.ex:1199-1201), not a reset to nil.
+      render_click(lv, "select_member", %{"user-id" => Ecto.UUID.generate()})
+
+      assert assigns(lv).selected_member.id == available_user.id
+      assert assigns(lv).member_search == available_user.name
+    end
+
+    test "clear_selected_member resets selected_member to nil and member_search to empty",
+         %{lv: lv, available_user: available_user} do
+      render_click(lv, "select_member", %{"user-id" => available_user.id})
+      assert assigns(lv).selected_member.id == available_user.id
+      assert assigns(lv).member_search != ""
+
+      render_click(lv, "clear_selected_member", %{})
+
+      assert assigns(lv).selected_member == nil
+      assert assigns(lv).member_search == ""
+    end
+  end
+
+  describe "collaborators tab: add_collaborator (owner)" do
+    setup :setup_project
+
+    setup %{conn: conn, org: org, owner: owner, project: project} do
+      available_user = user_fixture()
+      _ = membership_fixture(available_user, org, "member")
+
+      {:ok, lv, _} =
+        live(log_in_user(conn, owner), ~p"/org/#{org.id}/projects/#{project.id}/collaborators")
+
+      %{lv: lv, available_user: available_user}
+    end
+
+    test "ok: adds the collaborator with the selected role, resets the form, and flashes Collaborator added",
+         %{lv: lv, project: project, available_user: available_user} do
+      before_ids = project.id |> Portfolio.list_collaborators() |> Enum.map(& &1.user_id)
+      refute available_user.id in before_ids
+
+      # diverge selected_role/selected_member off their mount defaults FIRST, so the
+      # post-add form reset (reload_collaborators/2, show.ex:1352-1359) is a real
+      # transition, and the persisted role proves selected_role was actually read
+      # rather than a hardcoded default.
+      render_click(lv, "collaborator_form_change", %{
+        "member_search" => "",
+        "collaborator_role" => "editor"
+      })
+
+      render_click(lv, "select_member", %{"user-id" => available_user.id})
+      assert assigns(lv).selected_member.id == available_user.id
+      assert assigns(lv).selected_role == "editor"
+
+      html = render_click(lv, "add_collaborator", %{})
+
+      assert html =~ "Collaborator added"
+
+      collaborators = Portfolio.list_collaborators(project.id)
+      added = Enum.find(collaborators, &(&1.user_id == available_user.id))
+      assert added
+      assert added.role == "editor"
+
+      assert Enum.any?(assigns(lv).collaborators, &(&1.user_id == available_user.id))
+      refute Enum.any?(assigns(lv).available_members, &(&1.user.id == available_user.id))
+
+      assert assigns(lv).selected_member == nil
+      assert assigns(lv).selected_role == "viewer"
+      assert assigns(lv).member_search == ""
+      assert assigns(lv).show_member_dropdown == false
+    end
+
+    test "no selected member is a silent no-op for an authorized user (no flash, no DB change)",
+         %{lv: lv, project: project} do
+      assert assigns(lv).selected_member == nil
+      before_count = project.id |> Portfolio.list_collaborators() |> length()
+
+      html = render_click(lv, "add_collaborator", %{})
+
+      refute html =~ "Not authorized"
+      refute html =~ "Collaborator added"
+      assert project.id |> Portfolio.list_collaborators() |> length() == before_count
+      assert length(assigns(lv).collaborators) == before_count
+    end
+  end
+
+  describe "collaborators tab: change_collaborator_role (owner)" do
+    setup :setup_project
+
+    setup %{conn: conn, org: org, owner: owner, project: project} do
+      %{collaborator: editor_collab} = add_collab(project, org, "editor")
+
+      {:ok, lv, _} =
+        live(log_in_user(conn, owner), ~p"/org/#{org.id}/projects/#{project.id}/collaborators")
+
+      owner_collab = Enum.find(assigns(lv).collaborators, &(&1.user_id == owner.id))
+      assert owner_collab
+
+      %{lv: lv, editor_collab: editor_collab, owner_collab: owner_collab}
+    end
+
+    test "ok: updates another collaborator's role in the DB and flashes Role updated",
+         %{lv: lv, project: project, editor_collab: editor_collab} do
+      assert editor_collab.role == "editor"
+
+      html =
+        render_click(lv, "change_collaborator_role", %{
+          "id" => editor_collab.id,
+          "role" => "viewer"
+        })
+
+      assert html =~ "Role updated"
+
+      updated = Enum.find(Portfolio.list_collaborators(project.id), &(&1.id == editor_collab.id))
+      assert updated.role == "viewer"
+      assert Enum.find(assigns(lv).collaborators, &(&1.id == editor_collab.id)).role == "viewer"
+    end
+
+    test "changing YOUR OWN role flashes Not authorized and leaves the role unchanged",
+         %{lv: lv, project: project, owner_collab: owner_collab} do
+      assert owner_collab.role == "owner"
+
+      html =
+        render_click(lv, "change_collaborator_role", %{
+          "id" => owner_collab.id,
+          "role" => "editor"
+        })
+
+      assert html =~ "Not authorized"
+
+      unchanged = Enum.find(Portfolio.list_collaborators(project.id), &(&1.id == owner_collab.id))
+      assert unchanged.role == "owner"
+    end
+  end
+
+  describe "collaborators tab: remove_collaborator (confirm/cancel, last-owner, self-guard)" do
+    setup :setup_project
+
+    setup %{conn: conn, org: org, owner: owner, project: project} do
+      %{collaborator: editor_collab} = add_collab(project, org, "editor")
+      %{collaborator: second_owner_collab} = add_collab(project, org, "owner")
+
+      {:ok, lv, _} =
+        live(log_in_user(conn, owner), ~p"/org/#{org.id}/projects/#{project.id}/collaborators")
+
+      owner_collab = Enum.find(assigns(lv).collaborators, &(&1.user_id == owner.id))
+      assert owner_collab
+
+      %{
+        lv: lv,
+        editor_collab: editor_collab,
+        second_owner_collab: second_owner_collab,
+        owner_collab: owner_collab
+      }
+    end
+
+    test "confirm_remove_collaborator sets removing_collaborator; cancel_remove_collaborator clears it",
+         %{lv: lv, editor_collab: editor_collab} do
+      assert assigns(lv).removing_collaborator == nil
+
+      render_click(lv, "confirm_remove_collaborator", %{"id" => editor_collab.id})
+      assert assigns(lv).removing_collaborator.id == editor_collab.id
+
+      render_click(lv, "cancel_remove_collaborator", %{})
+      assert assigns(lv).removing_collaborator == nil
+    end
+
+    test "ok: removes a non-owner collaborator from the DB and flashes Collaborator removed",
+         %{lv: lv, project: project, editor_collab: editor_collab} do
+      before_ids = project.id |> Portfolio.list_collaborators() |> Enum.map(& &1.id)
+      assert editor_collab.id in before_ids
+
+      render_click(lv, "confirm_remove_collaborator", %{"id" => editor_collab.id})
+      assert assigns(lv).removing_collaborator.id == editor_collab.id
+
+      html = render_click(lv, "remove_collaborator", %{})
+
+      assert html =~ "Collaborator removed"
+      assert assigns(lv).removing_collaborator == nil
+
+      after_ids = project.id |> Portfolio.list_collaborators() |> Enum.map(& &1.id)
+      refute editor_collab.id in after_ids
+      refute Enum.any?(assigns(lv).collaborators, &(&1.id == editor_collab.id))
+    end
+
+    test "ok: removes a non-last owner (a second owner collaborator) from the DB",
+         %{lv: lv, project: project, second_owner_collab: second_owner_collab} do
+      assert project.id |> Portfolio.list_collaborators() |> Enum.count(&(&1.role == "owner")) ==
+               2
+
+      render_click(lv, "confirm_remove_collaborator", %{"id" => second_owner_collab.id})
+
+      html = render_click(lv, "remove_collaborator", %{})
+
+      assert html =~ "Collaborator removed"
+      assert assigns(lv).removing_collaborator == nil
+
+      remaining = Portfolio.list_collaborators(project.id)
+      refute Enum.any?(remaining, &(&1.id == second_owner_collab.id))
+      assert Enum.count(remaining, &(&1.role == "owner")) == 1
+    end
+
+    test "removing yourself flashes Not authorized and the collaborator stays",
+         %{lv: lv, project: project, owner_collab: owner_collab} do
+      # can_remove_collaborator?/4 (portfolio.ex:331-337) checks `collab.user_id ==
+      # current_user.id -> false` FIRST, unconditionally -- this self-guard applies even
+      # to the project owner, who otherwise passes can_manage_collaborators.
+      render_click(lv, "confirm_remove_collaborator", %{"id" => owner_collab.id})
+      assert assigns(lv).removing_collaborator.id == owner_collab.id
+
+      html = render_click(lv, "remove_collaborator", %{})
+
+      assert html =~ "Not authorized"
+      assert assigns(lv).removing_collaborator == nil
+
+      still_present =
+        Enum.find(Portfolio.list_collaborators(project.id), &(&1.id == owner_collab.id))
+
+      assert still_present
+    end
+
+    test "removing the LAST owner (yourself, once the second owner is gone) is blocked by the self-guard, not the last-owner message",
+         %{
+           lv: lv,
+           project: project,
+           second_owner_collab: second_owner_collab,
+           owner_collab: owner_collab
+         } do
+      # First remove the second owner (ok - proven in the test above), leaving the
+      # acting owner as the sole remaining "owner" collaborator.
+      render_click(lv, "confirm_remove_collaborator", %{"id" => second_owner_collab.id})
+      assert render_click(lv, "remove_collaborator", %{}) =~ "Collaborator removed"
+
+      assert project.id |> Portfolio.list_collaborators() |> Enum.count(&(&1.role == "owner")) ==
+               1
+
+      # Now the ONLY "owner" left to attempt removing IS the acting user's own row.
+      # can_remove_collaborator?/4 short-circuits to `false` on the self-check BEFORE
+      # remove_collaborator/1's `collab.role == "owner" && count <= 1` cond clause
+      # (show.ex:1285-1290) ever runs -- so this observably flashes "Not authorized",
+      # not "Cannot remove the last project owner".
+      #
+      # Structurally, the last-owner message looks unreachable via any real call path:
+      # that cond clause only runs once can_remove_collaborator?/4 has already allowed
+      # removing an owner-role target, which (per its own second clause) requires the
+      # ACTING user to also be a distinct "owner" collaborator -- i.e. >= 2 owner rows
+      # must exist at that moment, contradicting `count <= 1`. Recorded here as a
+      # latent/dead-code finding for the decomposition audit; not fixed (characterization
+      # only, lib/ untouched).
+      render_click(lv, "confirm_remove_collaborator", %{"id" => owner_collab.id})
+      assert assigns(lv).removing_collaborator.id == owner_collab.id
+
+      html = render_click(lv, "remove_collaborator", %{})
+
+      assert html =~ "Not authorized"
+      refute html =~ "Cannot remove the last project owner"
+      assert assigns(lv).removing_collaborator == nil
+
+      still_present =
+        Enum.find(Portfolio.list_collaborators(project.id), &(&1.id == owner_collab.id))
+
+      assert still_present
+    end
+  end
 end
