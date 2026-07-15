@@ -6,7 +6,15 @@ defmodule EstimateWeb.ProjectLive.Show do
   alias Estimate.EstimationEngine
   alias Estimate.Accounts
   alias Estimate.Organizations.Currencies
-  alias EstimateWeb.ProjectLive.Show.{Details, DangerZone, Dashboard, EstimationModal}
+
+  alias EstimateWeb.ProjectLive.Show.{
+    Details,
+    DangerZone,
+    Dashboard,
+    EstimationModal,
+    Estimations
+  }
+
   import EstimateWeb.ProjectLive.Show.Authz
   import EstimateWeb.JsonImportHelpers
   import EstimateWeb.ProjectLive.Components.EstimationDashboard
@@ -779,156 +787,34 @@ defmodule EstimateWeb.ProjectLive.Show do
   def handle_event("copy_agent_prompt", params, socket),
     do: EstimationModal.copy_agent_prompt(socket, params)
 
-  def handle_event("set_current_estimation", %{"id" => id}, socket) do
-    require_can_edit(socket, fn ->
-      case fetch_authorized_estimation(socket, id) do
-        {:ok, estimation} ->
-          case EstimationEngine.set_current_estimation(estimation) do
-            {:ok, _} ->
-              estimations = EstimationEngine.list_estimations(socket.assigns.project.id)
-              current = EstimationEngine.get_estimation!(estimation.id, socket.assigns.org_id)
+  def handle_event("set_current_estimation", params, socket),
+    do: Estimations.set_current_estimation(socket, params)
 
-              {:noreply,
-               socket
-               |> assign(:estimations, estimations)
-               |> assign(:current_estimation, current)}
+  def handle_event("confirm_delete_estimation", params, socket),
+    do: Estimations.confirm_delete_estimation(socket, params)
 
-            {:error, _} ->
-              {:noreply, put_flash(socket, :error, "Could not set current estimation")}
-          end
+  def handle_event("cancel_delete_estimation", params, socket),
+    do: Estimations.cancel_delete_estimation(socket, params)
 
-        {:error, _} ->
-          {:noreply, put_flash(socket, :error, "Not authorized")}
-      end
-    end)
-  end
-
-  def handle_event("confirm_delete_estimation", %{"id" => id}, socket) do
-    {:noreply, assign(socket, :deleting_estimation, id)}
-  end
-
-  def handle_event("cancel_delete_estimation", _params, socket) do
-    {:noreply, assign(socket, :deleting_estimation, nil)}
-  end
-
-  def handle_event("delete_estimation", %{"id" => id}, socket) do
-    require_can_delete(socket, [deleting_estimation: nil], fn ->
-      case fetch_authorized_estimation(socket, id) do
-        {:ok, estimation} ->
-          if estimation.is_current do
-            {:noreply,
-             socket
-             |> put_flash(:error, "Cannot delete current estimation")
-             |> assign(:deleting_estimation, nil)}
-          else
-            case EstimationEngine.soft_delete_estimation(estimation) do
-              {:ok, _} ->
-                project_id = socket.assigns.project.id
-                estimations = EstimationEngine.list_estimations(project_id)
-                deleted = EstimationEngine.list_deleted_estimations(project_id)
-
-                {:noreply,
-                 socket
-                 |> assign(:estimations, estimations)
-                 |> assign(:deleted_estimations, deleted)
-                 |> assign(:deleting_estimation, nil)
-                 |> put_flash(:info, "Estimation moved to trash")}
-
-              {:error, _} ->
-                {:noreply,
-                 socket
-                 |> put_flash(:error, "Could not delete estimation")
-                 |> assign(:deleting_estimation, nil)}
-            end
-          end
-
-        {:error, _} ->
-          {:noreply,
-           socket
-           |> put_flash(:error, "Not authorized")
-           |> assign(:deleting_estimation, nil)}
-      end
-    end)
-  end
+  def handle_event("delete_estimation", params, socket),
+    do: Estimations.delete_estimation(socket, params)
 
   ## Trash Events
 
-  def handle_event("toggle_trash", _params, socket) do
-    {:noreply, assign(socket, :show_trash, !socket.assigns.show_trash)}
-  end
+  def handle_event("toggle_trash", params, socket),
+    do: Estimations.toggle_trash(socket, params)
 
-  def handle_event("restore_estimation", %{"id" => id}, socket) do
-    require_can_delete(socket, fn ->
-      org_id = socket.assigns.org_id
-      project_id = socket.assigns.project.id
+  def handle_event("restore_estimation", params, socket),
+    do: Estimations.restore_estimation(socket, params)
 
-      case find_deleted_estimation(socket, id) do
-        {:ok, estimation} ->
-          case EstimationEngine.restore_estimation(estimation) do
-            {:ok, _} ->
-              estimations = EstimationEngine.list_estimations(project_id)
-              deleted = EstimationEngine.list_deleted_estimations(project_id)
+  def handle_event("confirm_permanent_delete", params, socket),
+    do: Estimations.confirm_permanent_delete(socket, params)
 
-              current_estimation =
-                case Enum.find(estimations, & &1.is_current) do
-                  nil -> nil
-                  est -> EstimationEngine.get_estimation!(est.id, org_id)
-                end
+  def handle_event("cancel_permanent_delete", params, socket),
+    do: Estimations.cancel_permanent_delete(socket, params)
 
-              {:noreply,
-               socket
-               |> assign(:estimations, estimations)
-               |> assign(:deleted_estimations, deleted)
-               |> assign(:current_estimation, current_estimation)
-               |> put_flash(:info, "Estimation restored")}
-
-            {:error, _} ->
-              {:noreply, put_flash(socket, :error, "Could not restore estimation")}
-          end
-
-        :error ->
-          {:noreply, put_flash(socket, :error, "Estimation not found")}
-      end
-    end)
-  end
-
-  def handle_event("confirm_permanent_delete", %{"id" => id}, socket) do
-    {:noreply, assign(socket, :permanently_deleting, id)}
-  end
-
-  def handle_event("cancel_permanent_delete", _params, socket) do
-    {:noreply, assign(socket, :permanently_deleting, nil)}
-  end
-
-  def handle_event("permanent_delete_estimation", %{"id" => id}, socket) do
-    require_can_delete(socket, [permanently_deleting: nil], fn ->
-      case find_deleted_estimation(socket, id) do
-        {:ok, estimation} ->
-          case EstimationEngine.hard_delete_estimation(estimation) do
-            {:ok, _} ->
-              deleted = EstimationEngine.list_deleted_estimations(socket.assigns.project.id)
-
-              {:noreply,
-               socket
-               |> assign(:deleted_estimations, deleted)
-               |> assign(:permanently_deleting, nil)
-               |> put_flash(:info, "Estimation permanently deleted")}
-
-            {:error, _} ->
-              {:noreply,
-               socket
-               |> put_flash(:error, "Could not delete estimation")
-               |> assign(:permanently_deleting, nil)}
-          end
-
-        :error ->
-          {:noreply,
-           socket
-           |> put_flash(:error, "Estimation not found")
-           |> assign(:permanently_deleting, nil)}
-      end
-    end)
-  end
+  def handle_event("permanent_delete_estimation", params, socket),
+    do: Estimations.permanent_delete_estimation(socket, params)
 
   ## Collaborator Events
 
