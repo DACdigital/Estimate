@@ -1074,4 +1074,267 @@ defmodule EstimateWeb.ProjectLive.ShowTest do
       assert html =~ "Agent prompt copied"
     end
   end
+
+  describe "estimation list (set current / delete)" do
+    # set_current_estimation's {:error, _} branch ("Could not set current estimation",
+    # show.ex:1016-1017) is NOT pinned below. EstimationEngine.set_current_estimation/1
+    # (estimations.ex:143-162) can only fail if Estimation.changeset/2 rejects :name or
+    # :project_id -- but the handler always re-fetches the target via get_estimation!/2
+    # first (show.ex:1001), so it's always an already-valid, persisted row with both fields
+    # non-nil; the changeset call here only casts :is_current. The multi's unset-others-then
+    # -set-target ordering also can never collide with the partial unique index on
+    # (project_id) where is_current (migration 20260319080827_fix_unique_current_...).
+    # There is no way to reach that branch through the LiveView without corrupting a
+    # persisted row outside the public API -- it is dead code under normal operation.
+    setup :setup_project
+
+    setup %{conn: conn, org: org, owner: owner, project: project} do
+      # estimation_fixture/1's FIRST estimation for a project auto-becomes is_current
+      # (Estimations.prepare_estimation_attrs/1, estimations.ex:241-245) -- the second does
+      # not, giving a genuine non-current target to delete/switch to.
+      est1 = estimation_fixture(project)
+      est2 = estimation_fixture(project)
+      assert est1.is_current
+      refute est2.is_current
+
+      {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
+      %{lv: lv, est1: est1, est2: est2}
+    end
+
+    test "set_current_estimation switches current_estimation and flips is_current in the DB, with no flash",
+         %{lv: lv, org: org, est1: est1, est2: est2} do
+      # baseline BEFORE acting: mount's own current-estimation lookup (show.ex:623-627)
+      # already reports est1 -- confirming that here first proves the transition below is
+      # driven by the handler, not just an echo of what mount already assigned.
+      assert assigns(lv).current_estimation.id == est1.id
+
+      render_click(lv, "set_current_estimation", %{"id" => est2.id})
+
+      # show.ex:1006-1014's {:ok, _} branch only assigns :estimations/:current_estimation --
+      # no put_flash call at all (confirmed by reading the source). Pin that absence via the
+      # flash assign directly, not a guessed `refute html =~ "..."`.
+      assert assigns(lv).flash == %{}
+
+      assert assigns(lv).current_estimation.id == est2.id
+
+      # DB proof, not assign-only: the multi unsets every OTHER current row for the project
+      # before setting the target -- confirm both sides actually flipped.
+      assert EstimationEngine.get_estimation!(est2.id, org.id).is_current
+      refute EstimationEngine.get_estimation!(est1.id, org.id).is_current
+
+      assert Enum.find(assigns(lv).estimations, &(&1.id == est2.id)).is_current
+    end
+
+    test "set_current_estimation: a same-org DIFFERENT-project id is Not authorized, current_estimation unchanged",
+         %{lv: lv, org: org, owner: owner, est1: est1} do
+      # same-org sibling project (NOT a cross-ORG id -- that would raise inside
+      # get_estimation!/2 before ever reaching the project_id guard, per the task's
+      # ambiguity resolution -- a crash isn't what this guard test is pinning).
+      other_project = project_fixture(nil, owner)
+      foreign_est = estimation_fixture(other_project)
+
+      html = render_click(lv, "set_current_estimation", %{"id" => foreign_est.id})
+
+      assert html =~ "Not authorized"
+      # unchanged -- meaningful because the test above already proves this same handler DOES
+      # mutate current_estimation when the guard doesn't block it.
+      assert assigns(lv).current_estimation.id == est1.id
+      assert EstimationEngine.get_estimation!(est1.id, org.id).is_current
+    end
+
+    test "confirm_delete_estimation sets deleting_estimation; cancel_delete_estimation clears it",
+         %{lv: lv, est2: est2} do
+      assert assigns(lv).deleting_estimation == nil
+
+      render_click(lv, "confirm_delete_estimation", %{"id" => est2.id})
+      assert assigns(lv).deleting_estimation == est2.id
+
+      render_click(lv, "cancel_delete_estimation", %{})
+      assert assigns(lv).deleting_estimation == nil
+    end
+
+    test "delete_estimation: blocked when targeting the CURRENT estimation, deleting_estimation still resets",
+         %{lv: lv, org: org, project: project, est1: est1} do
+      # diverge deleting_estimation off nil FIRST so the reset this branch performs
+      # (show.ex:1046-1049) is a real transition, not an unchanged default.
+      render_click(lv, "confirm_delete_estimation", %{"id" => est1.id})
+      assert assigns(lv).deleting_estimation == est1.id
+
+      html = render_click(lv, "delete_estimation", %{"id" => est1.id})
+
+      assert html =~ "Cannot delete current estimation"
+      assert assigns(lv).deleting_estimation == nil
+
+      live_ids = project.id |> EstimationEngine.list_estimations() |> Enum.map(& &1.id)
+      trashed_ids = project.id |> EstimationEngine.list_deleted_estimations() |> Enum.map(& &1.id)
+      assert est1.id in live_ids
+      refute est1.id in trashed_ids
+      assert EstimationEngine.get_estimation!(est1.id, org.id).is_current
+    end
+
+    test "delete_estimation: a same-org DIFFERENT-project id is Not authorized, nothing touched",
+         %{lv: lv, owner: owner, est1: est1} do
+      other_project = project_fixture(nil, owner)
+      foreign_est = estimation_fixture(other_project)
+
+      render_click(lv, "confirm_delete_estimation", %{"id" => est1.id})
+      assert assigns(lv).deleting_estimation == est1.id
+
+      html = render_click(lv, "delete_estimation", %{"id" => foreign_est.id})
+
+      assert html =~ "Not authorized"
+      assert assigns(lv).deleting_estimation == nil
+
+      foreign_live_ids =
+        other_project.id |> EstimationEngine.list_estimations() |> Enum.map(& &1.id)
+
+      assert foreign_est.id in foreign_live_ids
+    end
+
+    test "delete_estimation: ok moves a non-current estimation to trash", %{
+      lv: lv,
+      project: project,
+      est2: est2
+    } do
+      render_click(lv, "confirm_delete_estimation", %{"id" => est2.id})
+      assert assigns(lv).deleting_estimation == est2.id
+
+      html = render_click(lv, "delete_estimation", %{"id" => est2.id})
+
+      assert html =~ "Estimation moved to trash"
+      assert assigns(lv).deleting_estimation == nil
+
+      live_ids = project.id |> EstimationEngine.list_estimations() |> Enum.map(& &1.id)
+      trashed_ids = project.id |> EstimationEngine.list_deleted_estimations() |> Enum.map(& &1.id)
+      refute est2.id in live_ids
+      assert est2.id in trashed_ids
+
+      refute est2.id in Enum.map(assigns(lv).estimations, & &1.id)
+      assert est2.id in Enum.map(assigns(lv).deleted_estimations, & &1.id)
+    end
+  end
+
+  describe "trash (toggle / restore / permanent delete)" do
+    setup :setup_project
+
+    setup %{conn: conn, org: org, owner: owner, project: project} do
+      est_current = estimation_fixture(project)
+      est_trashed = estimation_fixture(project)
+      assert est_current.is_current
+      refute est_trashed.is_current
+
+      {:ok, _} = EstimationEngine.soft_delete_estimation(est_trashed)
+
+      # mount the :estimations live_action so apply_action/3 (show.ex:719-726) actually
+      # populates deleted_estimations -- it defaults to [] at mount (show.ex:646) and stays
+      # that way on every other tab.
+      {:ok, lv, _} =
+        live(log_in_user(conn, owner), ~p"/org/#{org.id}/projects/#{project.id}/estimations")
+
+      assert Enum.map(assigns(lv).deleted_estimations, & &1.id) == [est_trashed.id]
+
+      %{lv: lv, est_current: est_current, est_trashed: est_trashed}
+    end
+
+    test "toggle_trash flips show_trash", %{lv: lv} do
+      assert assigns(lv).show_trash == false
+
+      render_click(lv, "toggle_trash", %{})
+      assert assigns(lv).show_trash == true
+
+      render_click(lv, "toggle_trash", %{})
+      assert assigns(lv).show_trash == false
+    end
+
+    test "confirm_permanent_delete sets permanently_deleting; cancel_permanent_delete clears it",
+         %{lv: lv, est_trashed: est_trashed} do
+      assert assigns(lv).permanently_deleting == nil
+
+      render_click(lv, "confirm_permanent_delete", %{"id" => est_trashed.id})
+      assert assigns(lv).permanently_deleting == est_trashed.id
+
+      render_click(lv, "cancel_permanent_delete", %{})
+      assert assigns(lv).permanently_deleting == nil
+    end
+
+    test "restore_estimation: ok restores from trash back into the live list", %{
+      lv: lv,
+      org: org,
+      project: project,
+      est_current: est_current,
+      est_trashed: est_trashed
+    } do
+      # diverged baseline: a soft-deleted row is invisible to get_estimation!/2's
+      # is_nil(deleted_at) filter (estimations.ex:52-74) -- confirm it raises BEFORE
+      # restoring, so the successful call after restore is a genuine transition.
+      assert_raise Ecto.NoResultsError, fn ->
+        EstimationEngine.get_estimation!(est_trashed.id, org.id)
+      end
+
+      html = render_click(lv, "restore_estimation", %{"id" => est_trashed.id})
+
+      assert html =~ "Estimation restored"
+
+      live_ids = project.id |> EstimationEngine.list_estimations() |> Enum.map(& &1.id)
+      trashed_ids = project.id |> EstimationEngine.list_deleted_estimations() |> Enum.map(& &1.id)
+      assert est_trashed.id in live_ids
+      refute est_trashed.id in trashed_ids
+
+      # now visible again -- deleted_at was really cleared, not just filtered differently.
+      assert EstimationEngine.get_estimation!(est_trashed.id, org.id)
+
+      refute est_trashed.id in Enum.map(assigns(lv).deleted_estimations, & &1.id)
+      assert est_trashed.id in Enum.map(assigns(lv).estimations, & &1.id)
+
+      # est_current was already the sole non-deleted is_current row, so
+      # maybe_auto_set_current/1 (estimations.ex:254-269) leaves it alone -- current_estimation
+      # stays est_current, not nulled out or reassigned to the just-restored row.
+      assert assigns(lv).current_estimation.id == est_current.id
+    end
+
+    test "restore_estimation: an id not in deleted_estimations flashes Estimation not found",
+         %{lv: lv, est_trashed: est_trashed} do
+      html = render_click(lv, "restore_estimation", %{"id" => Ecto.UUID.generate()})
+
+      assert html =~ "Estimation not found"
+      assert Enum.map(assigns(lv).deleted_estimations, & &1.id) == [est_trashed.id]
+    end
+
+    test "permanent_delete_estimation: ok hard-deletes and removes it from the trash list", %{
+      lv: lv,
+      org: org,
+      est_trashed: est_trashed
+    } do
+      assert est_trashed.id in Enum.map(assigns(lv).deleted_estimations, & &1.id)
+
+      html = render_click(lv, "permanent_delete_estimation", %{"id" => est_trashed.id})
+
+      assert html =~ "Estimation permanently deleted"
+      assert assigns(lv).permanently_deleting == nil
+
+      refute est_trashed.id in Enum.map(assigns(lv).deleted_estimations, & &1.id)
+
+      # hard delete, not a soft one: the row itself is gone, not just filtered out.
+      assert_raise Ecto.NoResultsError, fn ->
+        EstimationEngine.get_estimation!(est_trashed.id, org.id)
+      end
+    end
+
+    test "permanent_delete_estimation: an id not in deleted_estimations flashes Estimation not found",
+         %{lv: lv, project: project, est_trashed: est_trashed} do
+      render_click(lv, "confirm_permanent_delete", %{"id" => est_trashed.id})
+      assert assigns(lv).permanently_deleting == est_trashed.id
+
+      html = render_click(lv, "permanent_delete_estimation", %{"id" => Ecto.UUID.generate()})
+
+      assert html =~ "Estimation not found"
+      assert assigns(lv).permanently_deleting == nil
+
+      # untouched -- still soft-deleted (in trash), not hard-deleted, not restored.
+      trashed_ids =
+        project.id |> EstimationEngine.list_deleted_estimations() |> Enum.map(& &1.id)
+
+      assert est_trashed.id in trashed_ids
+    end
+  end
 end
