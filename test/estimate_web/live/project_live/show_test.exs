@@ -1307,6 +1307,11 @@ defmodule EstimateWeb.ProjectLive.ShowTest do
     } do
       assert est_trashed.id in Enum.map(assigns(lv).deleted_estimations, & &1.id)
 
+      # diverge permanently_deleting off nil FIRST so its reset below is a real transition,
+      # not an unchanged default (mirrors the not-found test right below).
+      render_click(lv, "confirm_permanent_delete", %{"id" => est_trashed.id})
+      assert assigns(lv).permanently_deleting == est_trashed.id
+
       html = render_click(lv, "permanent_delete_estimation", %{"id" => est_trashed.id})
 
       assert html =~ "Estimation permanently deleted"
