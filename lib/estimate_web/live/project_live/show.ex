@@ -6,6 +6,7 @@ defmodule EstimateWeb.ProjectLive.Show do
   alias Estimate.EstimationEngine
   alias Estimate.Accounts
   alias Estimate.Organizations.Currencies
+  import EstimateWeb.ProjectLive.Show.Authz
   import EstimateWeb.JsonImportHelpers
   import EstimateWeb.ProjectLive.Components.EstimationDashboard
   import EstimateWeb.ProjectLive.Components.NewEstimationModal
@@ -564,8 +565,9 @@ defmodule EstimateWeb.ProjectLive.Show do
               <div class="flex-1 px-6 py-4">
                 <h3 class="text-sm font-medium text-base-content/50">{estimation.name}</h3>
                 <p class="text-xs text-base-content/40 mt-0.5">
-                  Deleted {Calendar.strftime(estimation.deleted_at, "%b %d, %Y")}
-                  · {length(estimation.roles)} roles
+                  Deleted {Calendar.strftime(estimation.deleted_at, "%b %d, %Y")} · {length(
+                    estimation.roles
+                  )} roles
                 </p>
               </div>
               <div :if={@can_delete_project} class="flex items-center gap-2 px-4 pr-6 shrink-0">
@@ -745,7 +747,7 @@ defmodule EstimateWeb.ProjectLive.Show do
   end
 
   def handle_event("save", %{"project" => project_params}, socket) do
-    if socket.assigns.can_edit_project do
+    require_can_edit(socket, fn ->
       case Portfolio.update_project(socket.assigns.project, project_params) do
         {:ok, project} ->
           project = Portfolio.reload_project_with_roles(project)
@@ -760,9 +762,7 @@ defmodule EstimateWeb.ProjectLive.Show do
         {:error, changeset} ->
           {:noreply, assign(socket, form: to_form(changeset))}
       end
-    else
-      {:noreply, put_flash(socket, :error, "Not authorized")}
-    end
+    end)
   end
 
   def handle_event("confirm_delete_project", _params, socket) do
@@ -787,31 +787,33 @@ defmodule EstimateWeb.ProjectLive.Show do
   end
 
   def handle_event("delete_project", _params, socket) do
-    if socket.assigns.can_delete_project &&
-         socket.assigns.delete_confirmation_input == socket.assigns.project.name do
-      case Portfolio.delete_project(socket.assigns.project) do
-        {:ok, _} ->
-          {:noreply,
-           socket
-           |> put_flash(:info, "Project deleted")
-           |> push_navigate(to: ~p"/org/#{socket.assigns.org_id}/projects")}
+    require_can_delete(socket, [deleting_project: false], fn ->
+      if socket.assigns.delete_confirmation_input == socket.assigns.project.name do
+        case Portfolio.delete_project(socket.assigns.project) do
+          {:ok, _} ->
+            {:noreply,
+             socket
+             |> put_flash(:info, "Project deleted")
+             |> push_navigate(to: ~p"/org/#{socket.assigns.org_id}/projects")}
 
-        {:error, _} ->
-          {:noreply,
-           socket
-           |> put_flash(:error, "Could not delete project")
-           |> assign(:deleting_project, false)}
+          {:error, _} ->
+            {:noreply,
+             socket
+             |> put_flash(:error, "Could not delete project")
+             |> assign(:deleting_project, false)}
+        end
+      else
+        {:noreply,
+         socket
+         |> put_flash(:error, "Not authorized")
+         |> assign(:deleting_project, false)}
       end
-    else
-      {:noreply,
-       socket
-       |> put_flash(:error, "Not authorized")
-       |> assign(:deleting_project, false)}
-    end
+    end)
   end
 
   @allowed_dashboard_tabs ~w(by_role by_epic by_priority)
-  def handle_event("set_dashboard_tab", %{"tab" => tab}, socket) when tab in @allowed_dashboard_tabs do
+  def handle_event("set_dashboard_tab", %{"tab" => tab}, socket)
+      when tab in @allowed_dashboard_tabs do
     {:noreply, assign(socket, :dashboard_tab, String.to_existing_atom(tab))}
   end
 
@@ -946,7 +948,7 @@ defmodule EstimateWeb.ProjectLive.Show do
   def handle_event("create_estimation", %{"estimation" => estimation_params} = params, socket) do
     socket = update_modal_roles_from_params(socket, params)
 
-    if socket.assigns.can_edit_project do
+    require_can_edit(socket, fn ->
       source = Map.get(params, "source", "fresh")
 
       if source != "copy" && !roles_valid?(socket.assigns.modal_roles) do
@@ -978,9 +980,7 @@ defmodule EstimateWeb.ProjectLive.Show do
             {:noreply, put_flash(socket, :error, "Could not create estimation")}
         end
       end
-    else
-      {:noreply, put_flash(socket, :error, "Not authorized")}
-    end
+    end)
   end
 
   def handle_event("json_file_uploaded", %{"content" => content}, socket) do
@@ -996,30 +996,27 @@ defmodule EstimateWeb.ProjectLive.Show do
   end
 
   def handle_event("set_current_estimation", %{"id" => id}, socket) do
-    if socket.assigns.can_edit_project do
-      org_id = socket.assigns.org_id
-      estimation = EstimationEngine.get_estimation!(id, org_id)
+    require_can_edit(socket, fn ->
+      case fetch_authorized_estimation(socket, id) do
+        {:ok, estimation} ->
+          case EstimationEngine.set_current_estimation(estimation) do
+            {:ok, _} ->
+              estimations = EstimationEngine.list_estimations(socket.assigns.project.id)
+              current = EstimationEngine.get_estimation!(estimation.id, socket.assigns.org_id)
 
-      if estimation.project_id != socket.assigns.project.id do
-        {:noreply, put_flash(socket, :error, "Not authorized")}
-      else
-        case EstimationEngine.set_current_estimation(estimation) do
-          {:ok, _} ->
-            estimations = EstimationEngine.list_estimations(socket.assigns.project.id)
-            current_estimation = EstimationEngine.get_estimation!(id, org_id)
+              {:noreply,
+               socket
+               |> assign(:estimations, estimations)
+               |> assign(:current_estimation, current)}
 
-            {:noreply,
-             socket
-             |> assign(:estimations, estimations)
-             |> assign(:current_estimation, current_estimation)}
+            {:error, _} ->
+              {:noreply, put_flash(socket, :error, "Could not set current estimation")}
+          end
 
-          {:error, _} ->
-            {:noreply, put_flash(socket, :error, "Could not set current estimation")}
-        end
+        {:error, _} ->
+          {:noreply, put_flash(socket, :error, "Not authorized")}
       end
-    else
-      {:noreply, put_flash(socket, :error, "Not authorized")}
-    end
+    end)
   end
 
   def handle_event("confirm_delete_estimation", %{"id" => id}, socket) do
@@ -1031,50 +1028,43 @@ defmodule EstimateWeb.ProjectLive.Show do
   end
 
   def handle_event("delete_estimation", %{"id" => id}, socket) do
-    if socket.assigns.can_delete_project do
-      org_id = socket.assigns.org_id
-      estimation = EstimationEngine.get_estimation!(id, org_id)
+    require_can_delete(socket, [deleting_estimation: nil], fn ->
+      case fetch_authorized_estimation(socket, id) do
+        {:ok, estimation} ->
+          if estimation.is_current do
+            {:noreply,
+             socket
+             |> put_flash(:error, "Cannot delete current estimation")
+             |> assign(:deleting_estimation, nil)}
+          else
+            case EstimationEngine.soft_delete_estimation(estimation) do
+              {:ok, _} ->
+                project_id = socket.assigns.project.id
+                estimations = EstimationEngine.list_estimations(project_id)
+                deleted = EstimationEngine.list_deleted_estimations(project_id)
 
-      cond do
-        estimation.project_id != socket.assigns.project.id ->
+                {:noreply,
+                 socket
+                 |> assign(:estimations, estimations)
+                 |> assign(:deleted_estimations, deleted)
+                 |> assign(:deleting_estimation, nil)
+                 |> put_flash(:info, "Estimation moved to trash")}
+
+              {:error, _} ->
+                {:noreply,
+                 socket
+                 |> put_flash(:error, "Could not delete estimation")
+                 |> assign(:deleting_estimation, nil)}
+            end
+          end
+
+        {:error, _} ->
           {:noreply,
            socket
            |> put_flash(:error, "Not authorized")
            |> assign(:deleting_estimation, nil)}
-
-        estimation.is_current ->
-          {:noreply,
-           socket
-           |> put_flash(:error, "Cannot delete current estimation")
-           |> assign(:deleting_estimation, nil)}
-
-        true ->
-          case EstimationEngine.soft_delete_estimation(estimation) do
-            {:ok, _} ->
-              project_id = socket.assigns.project.id
-              estimations = EstimationEngine.list_estimations(project_id)
-              deleted = EstimationEngine.list_deleted_estimations(project_id)
-
-              {:noreply,
-               socket
-               |> assign(:estimations, estimations)
-               |> assign(:deleted_estimations, deleted)
-               |> assign(:deleting_estimation, nil)
-               |> put_flash(:info, "Estimation moved to trash")}
-
-            {:error, _} ->
-              {:noreply,
-               socket
-               |> put_flash(:error, "Could not delete estimation")
-               |> assign(:deleting_estimation, nil)}
-          end
       end
-    else
-      {:noreply,
-       socket
-       |> put_flash(:error, "Not authorized")
-       |> assign(:deleting_estimation, nil)}
-    end
+    end)
   end
 
   ## Trash Events
@@ -1084,41 +1074,38 @@ defmodule EstimateWeb.ProjectLive.Show do
   end
 
   def handle_event("restore_estimation", %{"id" => id}, socket) do
-    if socket.assigns.can_delete_project do
+    require_can_delete(socket, fn ->
       org_id = socket.assigns.org_id
       project_id = socket.assigns.project.id
 
-      estimation =
-        Enum.find(socket.assigns.deleted_estimations, &(&1.id == id))
+      case find_deleted_estimation(socket, id) do
+        {:ok, estimation} ->
+          case EstimationEngine.restore_estimation(estimation) do
+            {:ok, _} ->
+              estimations = EstimationEngine.list_estimations(project_id)
+              deleted = EstimationEngine.list_deleted_estimations(project_id)
 
-      if estimation do
-        case EstimationEngine.restore_estimation(estimation) do
-          {:ok, _} ->
-            estimations = EstimationEngine.list_estimations(project_id)
-            deleted = EstimationEngine.list_deleted_estimations(project_id)
+              current_estimation =
+                case Enum.find(estimations, & &1.is_current) do
+                  nil -> nil
+                  est -> EstimationEngine.get_estimation!(est.id, org_id)
+                end
 
-            current_estimation =
-              case Enum.find(estimations, & &1.is_current) do
-                nil -> nil
-                est -> EstimationEngine.get_estimation!(est.id, org_id)
-              end
+              {:noreply,
+               socket
+               |> assign(:estimations, estimations)
+               |> assign(:deleted_estimations, deleted)
+               |> assign(:current_estimation, current_estimation)
+               |> put_flash(:info, "Estimation restored")}
 
-            {:noreply,
-             socket
-             |> assign(:estimations, estimations)
-             |> assign(:deleted_estimations, deleted)
-             |> assign(:current_estimation, current_estimation)
-             |> put_flash(:info, "Estimation restored")}
+            {:error, _} ->
+              {:noreply, put_flash(socket, :error, "Could not restore estimation")}
+          end
 
-          {:error, _} ->
-            {:noreply, put_flash(socket, :error, "Could not restore estimation")}
-        end
-      else
-        {:noreply, put_flash(socket, :error, "Estimation not found")}
+        :error ->
+          {:noreply, put_flash(socket, :error, "Estimation not found")}
       end
-    else
-      {:noreply, put_flash(socket, :error, "Not authorized")}
-    end
+    end)
   end
 
   def handle_event("confirm_permanent_delete", %{"id" => id}, socket) do
@@ -1130,39 +1117,33 @@ defmodule EstimateWeb.ProjectLive.Show do
   end
 
   def handle_event("permanent_delete_estimation", %{"id" => id}, socket) do
-    if socket.assigns.can_delete_project do
-      estimation =
-        Enum.find(socket.assigns.deleted_estimations, &(&1.id == id))
+    require_can_delete(socket, [permanently_deleting: nil], fn ->
+      case find_deleted_estimation(socket, id) do
+        {:ok, estimation} ->
+          case EstimationEngine.hard_delete_estimation(estimation) do
+            {:ok, _} ->
+              deleted = EstimationEngine.list_deleted_estimations(socket.assigns.project.id)
 
-      if estimation do
-        case EstimationEngine.hard_delete_estimation(estimation) do
-          {:ok, _} ->
-            deleted = EstimationEngine.list_deleted_estimations(socket.assigns.project.id)
+              {:noreply,
+               socket
+               |> assign(:deleted_estimations, deleted)
+               |> assign(:permanently_deleting, nil)
+               |> put_flash(:info, "Estimation permanently deleted")}
 
-            {:noreply,
-             socket
-             |> assign(:deleted_estimations, deleted)
-             |> assign(:permanently_deleting, nil)
-             |> put_flash(:info, "Estimation permanently deleted")}
+            {:error, _} ->
+              {:noreply,
+               socket
+               |> put_flash(:error, "Could not delete estimation")
+               |> assign(:permanently_deleting, nil)}
+          end
 
-          {:error, _} ->
-            {:noreply,
-             socket
-             |> put_flash(:error, "Could not delete estimation")
-             |> assign(:permanently_deleting, nil)}
-        end
-      else
-        {:noreply,
-         socket
-         |> put_flash(:error, "Estimation not found")
-         |> assign(:permanently_deleting, nil)}
+        :error ->
+          {:noreply,
+           socket
+           |> put_flash(:error, "Estimation not found")
+           |> assign(:permanently_deleting, nil)}
       end
-    else
-      {:noreply,
-       socket
-       |> put_flash(:error, "Not authorized")
-       |> assign(:permanently_deleting, nil)}
-    end
+    end)
   end
 
   ## Collaborator Events
@@ -1209,9 +1190,7 @@ defmodule EstimateWeb.ProjectLive.Show do
   end
 
   def handle_event("add_collaborator", _params, socket) do
-    unless socket.assigns.can_manage_collaborators do
-      {:noreply, put_flash(socket, :error, "Not authorized")}
-    else
+    require_can_manage(socket, fn ->
       member = socket.assigns.selected_member
 
       if member do
@@ -1227,13 +1206,11 @@ defmodule EstimateWeb.ProjectLive.Show do
       else
         {:noreply, socket}
       end
-    end
+    end)
   end
 
   def handle_event("change_collaborator_role", %{"id" => id, "role" => role}, socket) do
-    unless socket.assigns.can_manage_collaborators do
-      {:noreply, put_flash(socket, :error, "Not authorized")}
-    else
+    require_can_manage(socket, fn ->
       collab = Enum.find(socket.assigns.collaborators, &(&1.id == id))
 
       if collab &&
@@ -1252,7 +1229,7 @@ defmodule EstimateWeb.ProjectLive.Show do
       else
         {:noreply, put_flash(socket, :error, "Not authorized")}
       end
-    end
+    end)
   end
 
   def handle_event("confirm_remove_collaborator", %{"id" => id}, socket) do
@@ -1378,7 +1355,8 @@ defmodule EstimateWeb.ProjectLive.Show do
 
   defp build_modal_roles_from_templates(role_templates, currency_id) do
     Enum.map(role_templates, fn template ->
-      rate = Enum.find(template.rates, fn r -> to_string(r.currency_id) == to_string(currency_id) end)
+      rate =
+        Enum.find(template.rates, fn r -> to_string(r.currency_id) == to_string(currency_id) end)
 
       %{
         temp_id: System.unique_integer([:positive]),
@@ -1393,17 +1371,17 @@ defmodule EstimateWeb.ProjectLive.Show do
     end)
   end
 
-  defp dispatch_create("copy", estimation_params, params, _socket, project, org_id) do
+  defp dispatch_create("copy", estimation_params, params, socket, project, org_id) do
     source_estimation_id = Map.get(params, "source_estimation_id")
     name = estimation_params["name"]
 
     if source_estimation_id && name && name != "" do
-      source_estimation = EstimationEngine.get_estimation!(source_estimation_id, org_id)
+      case fetch_authorized_estimation(socket, source_estimation_id) do
+        {:ok, source_estimation} ->
+          EstimationEngine.copy_estimation(source_estimation, name, project.id, org_id)
 
-      if source_estimation.project_id != project.id do
-        {:error, :unauthorized}
-      else
-        EstimationEngine.copy_estimation(source_estimation, name, project.id, org_id)
+        {:error, _} ->
+          {:error, :unauthorized}
       end
     else
       {:error, :invalid_params}
@@ -1424,7 +1402,9 @@ defmodule EstimateWeb.ProjectLive.Show do
 
   defp dispatch_create("json", estimation_params, params, socket, project, org_id) do
     case socket.assigns.json_parsed do
-      nil -> {:error, :no_json}
+      nil ->
+        {:error, :no_json}
+
       parsed_json ->
         role_attrs = collect_role_attrs(socket.assigns.modal_roles)
         attrs = build_estimation_attrs(estimation_params, params, project, org_id)
@@ -1504,7 +1484,10 @@ defmodule EstimateWeb.ProjectLive.Show do
                 role
                 |> Map.put(:name, Map.get(fields, "name", role.name))
                 |> Map.put(:abbreviation, Map.get(fields, "abbreviation", role.abbreviation))
-                |> Map.put(:hourly_rate, parse_decimal(Map.get(fields, "hourly_rate"), role.hourly_rate))
+                |> Map.put(
+                  :hourly_rate,
+                  parse_decimal(Map.get(fields, "hourly_rate"), role.hourly_rate)
+                )
             end
           end)
 
@@ -1527,7 +1510,11 @@ defmodule EstimateWeb.ProjectLive.Show do
             role
 
           template ->
-            rate = Enum.find(template.rates, fn r -> to_string(r.currency_id) == to_string(new_currency_id) end)
+            rate =
+              Enum.find(template.rates, fn r ->
+                to_string(r.currency_id) == to_string(new_currency_id)
+              end)
+
             %{role | hourly_rate: if(rate, do: rate.hourly_rate, else: Decimal.new(0))}
         end
       end)

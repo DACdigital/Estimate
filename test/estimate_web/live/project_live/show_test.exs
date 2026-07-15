@@ -268,6 +268,55 @@ defmodule EstimateWeb.ProjectLive.ShowTest do
     end
   end
 
+  describe "authorization denial resets the pending confirm-state (behavior-identical guard)" do
+    # The delete-family handlers set a "confirming" assign via an UNGATED confirm_* event,
+    # then commit via a GATED delete event. The OLD compound outer gate reset that assign on
+    # its unauthorized else-branch; consolidating into require_can_* must preserve that reset
+    # (Show.Authz.gate/4's deny_assigns). These 3 pin it: a viewer sets the confirm-state,
+    # then the gated commit must BOTH flash "Not authorized" AND clear the assign. Without the
+    # deny_assigns the assign would stick at its confirmed value -- so each is discriminating.
+    setup :setup_project
+
+    setup %{conn: conn, org: org, project: project} do
+      %{user: viewer} = add_collab(project, org, "viewer")
+      {:ok, lv, _} = live(log_in_user(conn, viewer), project_path(org, project))
+      %{lv: lv}
+    end
+
+    test "delete_project denial resets deleting_project to false", %{lv: lv} do
+      # confirm_delete_project is ungated, so a viewer can flip deleting_project true first.
+      render_click(lv, "confirm_delete_project", %{})
+      assert assigns(lv).deleting_project == true
+
+      html = render_click(lv, "delete_project", %{})
+
+      assert html =~ "Not authorized"
+      assert assigns(lv).deleting_project == false
+    end
+
+    test "delete_estimation denial resets deleting_estimation to nil", %{lv: lv} do
+      id = Ecto.UUID.generate()
+      render_click(lv, "confirm_delete_estimation", %{"id" => id})
+      assert assigns(lv).deleting_estimation == id
+
+      html = render_click(lv, "delete_estimation", %{"id" => Ecto.UUID.generate()})
+
+      assert html =~ "Not authorized"
+      assert assigns(lv).deleting_estimation == nil
+    end
+
+    test "permanent_delete_estimation denial resets permanently_deleting to nil", %{lv: lv} do
+      id = Ecto.UUID.generate()
+      render_click(lv, "confirm_permanent_delete", %{"id" => id})
+      assert assigns(lv).permanently_deleting == id
+
+      html = render_click(lv, "permanent_delete_estimation", %{"id" => Ecto.UUID.generate()})
+
+      assert html =~ "Not authorized"
+      assert assigns(lv).permanently_deleting == nil
+    end
+  end
+
   describe "project details" do
     setup :setup_project
 
@@ -1692,6 +1741,58 @@ defmodule EstimateWeb.ProjectLive.ShowTest do
         Enum.find(Portfolio.list_collaborators(project.id), &(&1.id == owner_collab.id))
 
       assert still_present
+    end
+  end
+
+  describe "cross-org estimation ids are handled gracefully (bug b)" do
+    setup :setup_project
+
+    # fetch_authorized_estimation/2 (show/authz.ex) rescues Ecto.NoResultsError from
+    # get_estimation!/2 when the id belongs to a DIFFERENT organization entirely (as
+    # opposed to the same-org/different-project case pinned elsewhere) -- before this
+    # fix that raised, crashing the LiveView process. Both tests below prove the fix by
+    # asserting the flash AND that the process survived (Process.alive?), not just that
+    # some string appeared.
+
+    test "copy from a foreign-org estimation flashes an error, no crash", %{
+      conn: conn,
+      org: org,
+      owner: owner,
+      project: project
+    } do
+      %{user: other} = user_with_organization_fixture()
+      other_project = project_fixture(nil, other)
+      foreign = estimation_fixture(other_project)
+
+      {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
+
+      html =
+        render_click(lv, "create_estimation", %{
+          "estimation" => %{"name" => "X"},
+          "source" => "copy",
+          "source_estimation_id" => foreign.id
+        })
+
+      assert html =~ "Could not create estimation"
+      assert Process.alive?(lv.pid)
+    end
+
+    test "set_current with a foreign-org id flashes Not authorized, no crash", %{
+      conn: conn,
+      org: org,
+      owner: owner,
+      project: project
+    } do
+      %{user: other} = user_with_organization_fixture()
+      other_project = project_fixture(nil, other)
+      foreign = estimation_fixture(other_project)
+
+      {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
+
+      assert render_click(lv, "set_current_estimation", %{"id" => foreign.id}) =~
+               "Not authorized"
+
+      assert Process.alive?(lv.pid)
     end
   end
 end
