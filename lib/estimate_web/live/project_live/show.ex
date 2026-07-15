@@ -17,9 +17,12 @@ defmodule EstimateWeb.ProjectLive.Show do
   }
 
   import EstimateWeb.JsonImportHelpers
-  import EstimateWeb.ProjectLive.Components.EstimationDashboard
   import EstimateWeb.ProjectLive.Components.NewEstimationModal
   import EstimateWeb.ProjectLive.Components.CollaboratorsTab
+  import EstimateWeb.ProjectLive.Components.OverviewTab
+  import EstimateWeb.ProjectLive.Components.EstimationsTab
+  import EstimateWeb.ProjectLive.Components.DeleteProjectModal
+  import EstimateWeb.ProjectLive.Components.RemoveCollaboratorModal
 
   @impl true
   def render(assigns) do
@@ -97,7 +100,17 @@ defmodule EstimateWeb.ProjectLive.Show do
       <%!-- Tab Content --%>
       <%= case @tab do %>
         <% :overview -> %>
-          <.tab_overview {assigns} />
+          <.overview_tab
+            project={@project}
+            form={@form}
+            current_estimation={@current_estimation}
+            dashboard_tab={@dashboard_tab}
+            org_id={@org_id}
+            can_edit_project={@can_edit_project}
+            can_delete_project={@can_delete_project}
+            currencies={@currencies}
+            customer_key={@customer_key}
+          />
         <% :collaborators -> %>
           <.tab_collaborators
             collaborators={@collaborators}
@@ -112,7 +125,17 @@ defmodule EstimateWeb.ProjectLive.Show do
             filtered_members={filtered_members(@available_members, @member_search)}
           />
         <% :estimations -> %>
-          <.tab_estimations {assigns} />
+          <.estimations_tab
+            estimations={@estimations}
+            deleting_estimation={@deleting_estimation}
+            can_edit_project={@can_edit_project}
+            can_delete_project={@can_delete_project}
+            org_id={@org_id}
+            project={@project}
+            deleted_estimations={@deleted_estimations}
+            show_trash={@show_trash}
+            permanently_deleting={@permanently_deleting}
+          />
       <% end %>
 
       <.new_estimation_modal
@@ -133,474 +156,14 @@ defmodule EstimateWeb.ProjectLive.Show do
         json_parsed={@json_parsed}
       />
 
-      <%!-- Delete Project Modal --%>
-      <.modal
-        :if={@deleting_project}
-        id="delete-project-modal"
-        show
-        on_cancel={JS.push("cancel_delete_project")}
-      >
-        <div>
-          <div class="w-12 h-12 rounded-full bg-error/10 flex items-center justify-center mx-auto mb-4">
-            <.icon name="hero-exclamation-triangle" class="w-6 h-6 text-error" />
-          </div>
-          <h3 class="text-lg font-semibold text-base-content mb-2 text-center">Delete Project</h3>
-          <p class="text-sm text-base-content/60 mb-4 text-center">
-            This will permanently delete:
-          </p>
-          <ul class="text-sm text-base-content/60 mb-4 space-y-1 pl-4">
-            <li>
-              <span class="font-medium text-base-content">{@delete_impact.estimation_count}</span>
-              estimations (including trash)
-            </li>
-            <li>
-              <span class="font-medium text-base-content">{@delete_impact.task_count}</span>
-              tasks across all estimations
-            </li>
-            <li>
-              <span class="font-medium text-base-content">{@delete_impact.collaborator_count}</span>
-              collaborator assignments
-            </li>
-          </ul>
-          <p class="text-sm text-base-content/60 mb-2">
-            Type <span class="font-medium text-base-content">{@project.name}</span> to confirm:
-          </p>
-          <input
-            type="text"
-            phx-keyup="validate_delete_confirmation"
-            value={@delete_confirmation_input}
-            class="w-full px-3 py-2 border border-base-content/20 rounded-lg text-sm mb-4"
-            placeholder={@project.name}
-            autocomplete="off"
-          />
-          <div class="flex gap-3 justify-center">
-            <button
-              phx-click="cancel_delete_project"
-              class="px-4 py-2 text-sm text-base-content/70 hover:text-base-content"
-            >
-              Cancel
-            </button>
-            <button
-              phx-click="delete_project"
-              disabled={@delete_confirmation_input != @project.name}
-              class={"px-4 py-2 text-sm rounded-lg font-medium #{if @delete_confirmation_input == @project.name, do: "bg-error text-neutral-content hover:bg-error/90", else: "bg-base-300 text-base-content/30 cursor-not-allowed"}"}
-            >
-              Delete Project
-            </button>
-          </div>
-        </div>
-      </.modal>
+      <.delete_project_modal
+        deleting_project={@deleting_project}
+        delete_impact={@delete_impact}
+        delete_confirmation_input={@delete_confirmation_input}
+        project={@project}
+      />
 
-      <%!-- Remove Collaborator Modal --%>
-      <.modal
-        :if={@removing_collaborator}
-        id="remove-collaborator-modal"
-        show
-        on_cancel={JS.push("cancel_remove_collaborator")}
-      >
-        <div class="text-center">
-          <div class="w-12 h-12 rounded-full bg-error/10 flex items-center justify-center mx-auto mb-4">
-            <.icon name="hero-exclamation-triangle" class="w-6 h-6 text-error" />
-          </div>
-          <h3 class="text-lg font-semibold text-base-content mb-2">Remove Collaborator</h3>
-          <p class="text-sm text-base-content/60 mb-6">
-            Are you sure you want to remove
-            <span class="font-medium text-base-content">
-              {@removing_collaborator.user.name || @removing_collaborator.user.email}
-            </span>
-            from this project?
-          </p>
-          <div class="flex gap-3 justify-center">
-            <button
-              phx-click="cancel_remove_collaborator"
-              class="px-4 py-2 text-sm text-base-content/70 hover:text-base-content transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              phx-click="remove_collaborator"
-              class="px-4 py-2 bg-error text-neutral-content text-sm rounded-lg hover:bg-error/90 transition-colors font-medium"
-            >
-              Remove
-            </button>
-          </div>
-        </div>
-      </.modal>
-    </div>
-    """
-  end
-
-  ## Tab Components
-
-  defp tab_overview(assigns) do
-    ~H"""
-    <div class="space-y-6">
-      <%!-- Estimation Dashboard --%>
-      <%= if @current_estimation do %>
-        <.estimation_dashboard
-          estimation={@current_estimation}
-          currency={@current_estimation.currency}
-          dashboard_tab={@dashboard_tab}
-          org_id={@org_id}
-          project={@project}
-        />
-      <% else %>
-        <div class="bg-base-100 border border-base-300 rounded-xl p-8 text-center">
-          <.icon name="hero-calculator" class="w-12 h-12 text-base-content/30 mx-auto" />
-          <p class="mt-3 text-base-content/60">No estimations yet</p>
-          <.link
-            :if={@can_edit_project}
-            navigate={~p"/org/#{@org_id}/projects/#{@project.id}/estimations/new"}
-            class="mt-4 inline-block px-4 py-2 bg-neutral text-neutral-content text-sm rounded-lg hover:bg-neutral/90 transition-colors font-medium"
-          >
-            Create Estimation
-          </.link>
-        </div>
-      <% end %>
-
-      <%!-- Project Details Card --%>
-      <.form for={@form} id="project-form" phx-submit="save" phx-change="validate">
-        <div class="bg-base-100 border border-base-300 rounded-xl overflow-hidden">
-          <div class="p-6 space-y-4">
-            <h2 class="text-lg font-semibold text-base-content">Project Details</h2>
-
-            <%!-- Top row: Name, Key, Status --%>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div class="md:col-span-1">
-                <label class="block text-xs font-medium text-base-content/60 mb-1.5">
-                  Project Name *
-                </label>
-                <input
-                  type="text"
-                  name={@form[:name].name}
-                  value={@form[:name].value}
-                  placeholder="Website Redesign"
-                  required
-                  class="w-full px-3 py-2 border border-base-content/20 rounded-lg text-sm"
-                />
-              </div>
-
-              <div>
-                <label class="block text-xs font-medium text-base-content/60 mb-1.5">
-                  Project Key
-                </label>
-                <div class="flex items-center gap-1">
-                  <span class="px-3 py-2 bg-base-200 border border-base-content/20 rounded-l-lg text-sm text-base-content/60 font-mono">
-                    {@customer_key || "---"}
-                  </span>
-                  <span class="text-base-content/40">-</span>
-                  <input
-                    type="text"
-                    name={@form[:key].name}
-                    value={@form[:key].value}
-                    placeholder="PROJ"
-                    maxlength="10"
-                    class="w-full px-3 py-2 border border-base-content/20 rounded-r-lg text-sm font-mono uppercase"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label class="block text-xs font-medium text-base-content/60 mb-1.5">Status</label>
-                <select
-                  name={@form[:status].name}
-                  class="w-full px-3 py-2 border border-base-content/20 rounded-lg text-sm"
-                >
-                  <option value="active" selected={@form[:status].value == "active"}>Active</option>
-                  <option value="completed" selected={@form[:status].value == "completed"}>
-                    Completed
-                  </option>
-                  <option value="archived" selected={@form[:status].value == "archived"}>
-                    Archived
-                  </option>
-                </select>
-              </div>
-            </div>
-
-            <%!-- Default Currency --%>
-            <div>
-              <label class="block text-xs font-medium text-base-content/60 mb-1.5">
-                Default Currency
-              </label>
-              <select
-                name={@form[:currency_id].name}
-                class="w-full max-w-md px-3 py-2 border border-base-content/20 rounded-lg text-sm"
-              >
-                <option value="">None</option>
-                <%= for currency <- @currencies do %>
-                  <option
-                    value={currency.id}
-                    selected={to_string(currency.id) == to_string(@form[:currency_id].value)}
-                  >
-                    {currency.code} - {currency.name}
-                  </option>
-                <% end %>
-              </select>
-              <p class="text-xs text-base-content/40 mt-1">Used as default for new estimations</p>
-            </div>
-
-            <%!-- Short Description --%>
-            <div>
-              <label class="block text-xs font-medium text-base-content/60 mb-1.5">
-                Short Description
-              </label>
-              <input
-                type="text"
-                name={@form[:short_description].name}
-                value={@form[:short_description].value}
-                placeholder="One-liner about the project"
-                class="w-full px-3 py-2 border border-base-content/20 rounded-lg text-sm"
-              />
-            </div>
-
-            <%!-- Detailed Description --%>
-            <div>
-              <label class="block text-xs font-medium text-base-content/60 mb-1.5">
-                Detailed Description
-              </label>
-              <textarea
-                name={@form[:detailed_description].name}
-                rows="4"
-                placeholder="Comprehensive scope and details..."
-                class="w-full px-3 py-2 border border-base-content/20 rounded-lg text-sm resize-none"
-              ><%= @form[:detailed_description].value %></textarea>
-            </div>
-
-            <%!-- Repository URL --%>
-            <div>
-              <label class="block text-xs font-medium text-base-content/60 mb-1.5">
-                Repository URL
-              </label>
-              <input
-                type="url"
-                name={@form[:repository_url].name}
-                value={@form[:repository_url].value}
-                placeholder="https://github.com/org/repo"
-                class="w-full max-w-md px-3 py-2 border border-base-content/20 rounded-lg text-sm"
-              />
-            </div>
-
-            <%!-- Customer (readonly) --%>
-            <div>
-              <label class="block text-xs font-medium text-base-content/60 mb-1.5">Customer</label>
-              <%= if @project.customer do %>
-                <.link
-                  navigate={~p"/org/#{@org_id}/customers/#{@project.customer.id}"}
-                  class="inline-flex items-center gap-1 text-sm text-info hover:text-info"
-                >
-                  {@project.customer.name}
-                  <.icon name="hero-arrow-top-right-on-square" class="w-3.5 h-3.5" />
-                </.link>
-              <% else %>
-                <span class="text-sm text-base-content/40">Not set</span>
-              <% end %>
-            </div>
-          </div>
-
-          <div
-            :if={@can_edit_project}
-            class="px-6 py-3 bg-base-200 border-t border-base-300 flex justify-end"
-          >
-            <button
-              type="submit"
-              phx-disable-with="Saving..."
-              class="px-4 py-1.5 bg-neutral text-neutral-content text-sm rounded-md hover:bg-neutral/90 transition-colors font-medium"
-            >
-              Save
-            </button>
-          </div>
-        </div>
-      </.form>
-
-      <%!-- Danger Zone --%>
-      <div
-        :if={@can_delete_project}
-        class="bg-base-100 border border-error/30 rounded-xl overflow-hidden"
-      >
-        <div class="p-6">
-          <h2 class="text-lg font-semibold text-error">Danger Zone</h2>
-          <p class="text-sm text-base-content/60 mt-1">
-            Permanently delete this project and all its data.
-          </p>
-          <button
-            phx-click="confirm_delete_project"
-            class="mt-4 px-4 py-2 border border-error/30 text-error text-sm rounded-lg hover:bg-error/10 transition-colors font-medium"
-          >
-            Delete Project
-          </button>
-        </div>
-      </div>
-    </div>
-    """
-  end
-
-  defp tab_estimations(assigns) do
-    ~H"""
-    <div class="bg-base-100 border border-base-300 rounded-xl overflow-hidden">
-      <div class="px-6 py-4 border-b border-base-content/10 flex items-center justify-between">
-        <h2 class="text-lg font-semibold text-base-content">Estimations</h2>
-        <button
-          :if={@can_edit_project}
-          phx-click="open_estimation_modal"
-          class="px-3 py-1.5 bg-neutral text-neutral-content text-sm rounded-lg hover:bg-neutral/90 transition-colors font-medium"
-        >
-          New Estimation
-        </button>
-      </div>
-
-      <%= if @estimations == [] do %>
-        <div class="px-6 py-12 text-center">
-          <div class="w-12 h-12 mx-auto mb-4 rounded-full bg-base-200 flex items-center justify-center">
-            <.icon name="hero-calculator" class="w-6 h-6 text-base-content/40" />
-          </div>
-          <p class="text-sm font-medium text-base-content">No estimations yet</p>
-          <p class="text-sm text-base-content/60 mt-1">
-            Create your first estimation to get started.
-          </p>
-        </div>
-      <% else %>
-        <%= for estimation <- @estimations do %>
-          <%= if @deleting_estimation == estimation.id do %>
-            <div class="flex items-center justify-between px-6 py-4 bg-error/5 border-b border-base-content/10 last:border-b-0">
-              <span class="text-sm text-error font-medium">
-                Delete "{estimation.name}"?
-              </span>
-              <div class="flex items-center gap-2">
-                <button
-                  phx-click="cancel_delete_estimation"
-                  class="text-xs text-base-content/60 hover:text-base-content px-2 py-1"
-                >
-                  Cancel
-                </button>
-                <button
-                  phx-click="delete_estimation"
-                  phx-value-id={estimation.id}
-                  class="text-xs text-error font-medium px-2 py-1"
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          <% else %>
-            <div class="flex items-center border-b border-base-content/10 last:border-b-0">
-              <.link
-                navigate={
-                  ~p"/org/#{@org_id}/projects/#{@project.id}/estimations/#{estimation.id}/estimator"
-                }
-                class="flex-1 px-6 py-4 hover:bg-base-200 transition-colors"
-              >
-                <h3 class="text-sm font-medium text-base-content">{estimation.name}</h3>
-                <p class="text-xs text-base-content/60 mt-0.5">
-                  {length(estimation.roles)} roles · Updated {Calendar.strftime(
-                    estimation.updated_at,
-                    "%b %d, %Y"
-                  )}
-                </p>
-              </.link>
-              <div class="flex items-center justify-end gap-2 px-4 pr-6 shrink-0 self-stretch">
-                <button
-                  :if={!estimation.is_current}
-                  phx-click="set_current_estimation"
-                  phx-value-id={estimation.id}
-                  class="text-xs text-base-content/40 hover:text-base-content/70 px-2 py-1 rounded hover:bg-base-300"
-                  title="Set as current"
-                >
-                  Set current
-                </button>
-                <span
-                  :if={estimation.is_current}
-                  class="text-[10px] px-1.5 py-0.5 bg-success/10 text-success rounded font-medium"
-                >
-                  Current
-                </span>
-                <button
-                  :if={!estimation.is_current && @can_delete_project}
-                  phx-click="confirm_delete_estimation"
-                  phx-value-id={estimation.id}
-                  class="text-base-content/40 hover:text-error transition-colors"
-                  title="Delete estimation"
-                >
-                  <.icon name="hero-trash" class="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          <% end %>
-        <% end %>
-      <% end %>
-    </div>
-
-    <%!-- Trash Section --%>
-    <div :if={@deleted_estimations != []} class="mt-6">
-      <button
-        phx-click="toggle_trash"
-        class="flex items-center gap-2 text-sm text-base-content/40 hover:text-base-content/60 transition-colors mb-3"
-      >
-        <.icon name="hero-trash" class="w-4 h-4" />
-        <span>Trash ({length(@deleted_estimations)})</span>
-        <.icon
-          name={if @show_trash, do: "hero-chevron-up-mini", else: "hero-chevron-down-mini"}
-          class="w-4 h-4"
-        />
-      </button>
-
-      <div
-        :if={@show_trash}
-        class="bg-base-100 border border-base-300 rounded-xl overflow-hidden"
-      >
-        <%= for estimation <- @deleted_estimations do %>
-          <%= if @permanently_deleting == estimation.id do %>
-            <div class="flex items-center justify-between px-6 py-4 bg-error/5 border-b border-base-content/10 last:border-b-0">
-              <span class="text-sm text-error font-medium">
-                Permanently delete "{estimation.name}"?
-              </span>
-              <div class="flex items-center gap-2">
-                <button
-                  phx-click="cancel_permanent_delete"
-                  class="text-xs text-base-content/60 hover:text-base-content px-2 py-1"
-                >
-                  Cancel
-                </button>
-                <button
-                  phx-click="permanent_delete_estimation"
-                  phx-value-id={estimation.id}
-                  class="text-xs text-error font-medium px-2 py-1"
-                >
-                  Delete Forever
-                </button>
-              </div>
-            </div>
-          <% else %>
-            <div class="flex items-center border-b border-base-content/10 last:border-b-0">
-              <div class="flex-1 px-6 py-4">
-                <h3 class="text-sm font-medium text-base-content/50">{estimation.name}</h3>
-                <p class="text-xs text-base-content/40 mt-0.5">
-                  Deleted {Calendar.strftime(estimation.deleted_at, "%b %d, %Y")} · {length(
-                    estimation.roles
-                  )} roles
-                </p>
-              </div>
-              <div :if={@can_delete_project} class="flex items-center gap-2 px-4 pr-6 shrink-0">
-                <button
-                  phx-click="restore_estimation"
-                  phx-value-id={estimation.id}
-                  class="text-base-content/40 hover:text-info transition-colors"
-                  title="Restore estimation"
-                >
-                  <.icon name="hero-arrow-uturn-left" class="w-4 h-4" />
-                </button>
-                <button
-                  phx-click="confirm_permanent_delete"
-                  phx-value-id={estimation.id}
-                  class="text-base-content/40 hover:text-error transition-colors"
-                  title="Delete forever"
-                >
-                  <.icon name="hero-trash" class="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          <% end %>
-        <% end %>
-      </div>
+      <.remove_collaborator_modal removing_collaborator={@removing_collaborator} />
     </div>
     """
   end
