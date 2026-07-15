@@ -396,32 +396,39 @@ defmodule EstimateWeb.ProjectLive.ShowTest do
   describe "dashboard tab" do
     setup :setup_project
 
-    test "set_dashboard_tab accepts by_role and ignores an invalid value", %{
+    test "set_dashboard_tab switches between the whitelisted tabs and ignores invalid", %{
       conn: conn,
       org: org,
       owner: owner,
       project: project
     } do
+      # Seed a current estimation so the overview renders EstimationDashboard, which interns
+      # :by_epic/:by_priority (literal only in that component, estimation_dashboard.ex). This
+      # lets us pin the POSITIVE branch as a real divergence from the mount default (:by_role)
+      # rather than a tautology, and safely exercises by_epic/by_priority (no atom crash once
+      # the component has rendered).
+      _ = estimation_fixture(project)
       {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
+      assert assigns(lv).dashboard_tab == :by_role
+
+      render_click(lv, "set_dashboard_tab", %{"tab" => "by_epic"})
+      assert assigns(lv).dashboard_tab == :by_epic
+
+      render_click(lv, "set_dashboard_tab", %{"tab" => "by_priority"})
+      assert assigns(lv).dashboard_tab == :by_priority
+
+      # fallback clause (no matching guard) → no-op, leaves the (diverged) value unchanged
+      render_click(lv, "set_dashboard_tab", %{"tab" => "bogus"})
+      assert assigns(lv).dashboard_tab == :by_priority
 
       render_click(lv, "set_dashboard_tab", %{"tab" => "by_role"})
       assert assigns(lv).dashboard_tab == :by_role
 
-      # fallback clause (no matching guard) → no-op
-      render_click(lv, "set_dashboard_tab", %{"tab" => "bogus"})
-      assert assigns(lv).dashboard_tab == :by_role
-
-      # NOTE: by_epic/by_priority are deliberately NOT pinned here. set_dashboard_tab does
-      # String.to_existing_atom/1 (show.ex:815) on the client-controlled "tab" string, and
-      # those two atoms exist only as literals inside EstimationDashboard
-      # (estimation_dashboard.ex) — a component show.ex renders solely `:if={@current_estimation}`.
-      # So whether they're interned is load-order-dependent across the async suite: pushing
-      # either before that component has ever rendered crashes the LiveView (ArgumentError),
-      # but once any test renders a current estimation the atoms register VM-wide and the same
-      # push succeeds. That order-dependent crash is a LATENT BUG recorded for the
-      # decomposition to fix (guard should map strings → atoms explicitly, not
-      # to_existing_atom), not stable behavior to assert. :by_role is safe: show.ex's mount
-      # sets `dashboard_tab: :by_role`, so that atom always exists once the LiveView loads.
+      # NOTE: pushing by_epic/by_priority BEFORE any current estimation has rendered the
+      # dashboard raises (String.to_existing_atom on an un-interned atom) — an order-dependent
+      # LATENT BUG recorded for the decomposition (map strings → atoms explicitly instead of
+      # to_existing_atom). Not pinned as a test (fragile); this test seeds the estimation so
+      # the atoms exist and the real tab transitions are pinned.
     end
   end
 
