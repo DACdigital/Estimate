@@ -31,3 +31,6 @@ npm-debug.log
 .DS_Store
 erl_crash.dump
 vibeguard-reports/
+
+# superpowers brainstorm mockups
+.superpowers/
