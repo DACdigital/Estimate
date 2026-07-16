@@ -31,15 +31,18 @@ defmodule EstimateWeb.MCP.Tools.GetProject do
   # Mirrors the LiveView authz split: admins load by org, members only
   # via their collaborator join (raises NoResultsError otherwise, which
   # Scope.fetch maps to not_found — no existence oracle).
+  # Admins reuse preloaded roles (sorted to match list_project_roles/1 order);
+  # members fetch roles separately since get_project_for_user! doesn't preload.
   defp load_project(%{org_id: org_id, user_id: user_id, role: role}, id) do
-    project =
+    {project, roles} =
       if role in ["owner", "admin"] do
-        Estimate.Portfolio.get_project_with_roles!(id, org_id)
+        project = Estimate.Portfolio.get_project_with_roles!(id, org_id)
+        {project, project.roles |> Enum.sort_by(&{&1.position, &1.name})}
       else
-        Estimate.Portfolio.get_project_for_user!(id, user_id)
+        project = Estimate.Portfolio.get_project_for_user!(id, user_id)
+        {project, Estimate.Portfolio.list_project_roles(project.id)}
       end
 
-    roles = Estimate.Portfolio.list_project_roles(project.id)
     estimations = Estimate.EstimationEngine.list_estimations(project.id)
     {project, roles, estimations}
   end
