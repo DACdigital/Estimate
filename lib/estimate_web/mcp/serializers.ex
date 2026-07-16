@@ -116,6 +116,61 @@ defmodule EstimateWeb.MCP.Serializers do
     }
   end
 
+  def template_summary(t) do
+    %{id: t.id, name: t.name, description: t.description, updated_at: datetime(t.updated_at)}
+  end
+
+  def template_tree(t) do
+    template_summary(t)
+    |> Map.put(
+      :epics,
+      Enum.map(t.epics, fn e ->
+        %{
+          id: e.id,
+          name: e.name,
+          description: e.description,
+          position: e.position,
+          tasks:
+            Enum.map(e.tasks, fn task ->
+              %{
+                id: task.id,
+                name: task.name,
+                description: task.description,
+                position: task.position
+              }
+            end)
+        }
+      end)
+    )
+  end
+
+  def role_template(rt) do
+    %{
+      id: rt.id,
+      name: rt.name,
+      abbreviation: rt.abbreviation,
+      position: rt.position,
+      pm_overhead: decimal(rt.pm_overhead),
+      qa_overhead: decimal(rt.qa_overhead),
+      risk_buffer: decimal(rt.risk_buffer),
+      rates:
+        Enum.map(rt.rates, fn rate ->
+          %{currency: assoc_code(rate.currency), hourly_rate: decimal(rate.hourly_rate)}
+        end)
+    }
+  end
+
+  def currency(c) do
+    %{
+      code: c.code,
+      name: c.name,
+      symbol: c.symbol,
+      symbol_position: c.symbol_position,
+      exchange_rate: decimal(c.exchange_rate),
+      is_main: c.is_main
+    }
+  end
+
   def decimal(nil), do: nil
   def decimal(%Decimal{} = d), do: Decimal.to_string(d)
 

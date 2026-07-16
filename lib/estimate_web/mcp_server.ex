@@ -20,9 +20,13 @@ defmodule EstimateWeb.MCPServer do
 
   component(EstimateWeb.MCP.Tools.ListCustomers)
   component(EstimateWeb.MCP.Tools.GetCustomer)
-  component(EstimateWeb.MCP.Tools.Search)
   component(EstimateWeb.MCP.Tools.ListProjects)
   component(EstimateWeb.MCP.Tools.GetProject)
   component(EstimateWeb.MCP.Tools.ListEstimations)
   component(EstimateWeb.MCP.Tools.GetEstimation)
+  component(EstimateWeb.MCP.Tools.ListTemplates)
+  component(EstimateWeb.MCP.Tools.GetTemplate)
+  component(EstimateWeb.MCP.Tools.ListRoleTemplates)
+  component(EstimateWeb.MCP.Tools.ListCurrencies)
+  component(EstimateWeb.MCP.Tools.Search)
 end
