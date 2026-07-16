@@ -42,8 +42,8 @@ defmodule EstimateWeb.CustomerLive.IndexTest do
       {:ok, lv, _html} = live(log_in_user(conn, owner), customers_path(org))
 
       assert has_element?(lv, "span.font-mono", "BRG")
-      # only the key + count pill for this row; no stray separators
-      refute render(lv) =~ "BRG ·"
+      # Brigade is the only row on the page — any separator span would be a stray
+      refute has_element?(lv, "p span", "·")
       assert customer.country == nil
     end
 

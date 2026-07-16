@@ -28,6 +28,7 @@ defmodule EstimateWeb.FormatHelpersTest do
       assert domain(nil) == nil
       assert domain("") == nil
       assert domain("not a url") == nil
+      assert domain("https://www.") == nil
     end
   end
 end

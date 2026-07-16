@@ -16,9 +16,17 @@ defmodule EstimateWeb.FormatHelpers do
 
   def domain(url) when is_binary(url) do
     case URI.parse(url).host do
-      nil -> nil
-      "" -> nil
-      host -> String.replace_prefix(host, "www.", "")
+      nil ->
+        nil
+
+      "" ->
+        nil
+
+      host ->
+        case String.replace_prefix(host, "www.", "") do
+          "" -> nil
+          domain -> domain
+        end
     end
   end
 end
