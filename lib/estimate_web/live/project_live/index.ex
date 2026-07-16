@@ -62,7 +62,7 @@ defmodule EstimateWeb.ProjectLive.Index do
               navigate={~p"/org/#{@org_id}/projects/#{project.id}"}
               class="flex items-center gap-4 flex-1 min-w-0"
             >
-              <.avatar name={project.name} seed={project.id} size={:lg} />
+              <.avatar name={project.name} seed={project.id} type={:project} size={:lg} />
               <div class="min-w-0 flex-1">
                 <h3 class="text-sm font-medium text-base-content truncate">{project.name}</h3>
                 <p :if={project.customer} class="text-sm text-base-content/60 truncate">

@@ -50,4 +50,46 @@ defmodule EstimateWeb.CoreComponentsTest do
       assert html =~ "bg-base-200 text-base-content/60"
     end
   end
+
+  describe "avatar/1" do
+    test ":customer and :project share the entity palette deterministically" do
+      customer =
+        render_component(&CoreComponents.avatar/1, %{
+          name: "Acme Corp",
+          seed: "same-seed",
+          type: :customer
+        })
+
+      project =
+        render_component(&CoreComponents.avatar/1, %{
+          name: "Acme Corp",
+          seed: "same-seed",
+          type: :project
+        })
+
+      assert customer =~ "bg-gradient-to-br from-"
+      assert customer =~ "AC"
+      assert customer == project
+    end
+
+    test "user avatars keep their own palette" do
+      user =
+        render_component(&CoreComponents.avatar/1, %{name: "Acme Corp", seed: "same-seed"})
+
+      entity =
+        render_component(&CoreComponents.avatar/1, %{
+          name: "Acme Corp",
+          seed: "same-seed",
+          type: :customer
+        })
+
+      assert user =~ "bg-gradient-to-br from-"
+      refute user == entity
+    end
+
+    test ":pending unchanged" do
+      html = render_component(&CoreComponents.avatar/1, %{name: "X", seed: "s", type: :pending})
+      assert html =~ "bg-warning/10 text-warning"
+    end
+  end
 end

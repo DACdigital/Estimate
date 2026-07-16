@@ -53,7 +53,7 @@ defmodule EstimateWeb.ProjectLive.Show do
       <%!-- Header --%>
       <div class="flex items-start justify-between mb-6">
         <div class="flex items-center gap-4">
-          <.avatar name={@project.name} seed={@project.id} size={:xl} />
+          <.avatar name={@project.name} seed={@project.id} type={:project} size={:xl} />
           <div>
             <div class="flex items-center gap-3">
               <h1 class="text-2xl font-bold text-base-content">{@project.name}</h1>

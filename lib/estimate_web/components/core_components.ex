@@ -44,13 +44,19 @@ defmodule EstimateWeb.CoreComponents do
     "bg-gradient-to-br from-violet-600 to-indigo-500 text-white"
   ]
 
-  @customer_gradients [
+  @entity_gradients [
+    "bg-gradient-to-br from-sky-500 to-blue-600 text-white",
+    "bg-gradient-to-br from-amber-500 to-orange-600 text-white",
+    "bg-gradient-to-br from-violet-500 to-purple-600 text-white",
     "bg-gradient-to-br from-emerald-500 to-teal-600 text-white",
+    "bg-gradient-to-br from-rose-500 to-pink-600 text-white",
+    "bg-gradient-to-br from-cyan-500 to-sky-600 text-white",
+    "bg-gradient-to-br from-indigo-500 to-blue-600 text-white",
+    "bg-gradient-to-br from-orange-500 to-red-600 text-white",
     "bg-gradient-to-br from-teal-500 to-cyan-600 text-white",
-    "bg-gradient-to-br from-green-500 to-emerald-600 text-white",
-    "bg-gradient-to-br from-cyan-500 to-teal-500 text-white",
-    "bg-gradient-to-br from-emerald-600 to-green-500 text-white",
-    "bg-gradient-to-br from-teal-600 to-emerald-500 text-white"
+    "bg-gradient-to-br from-fuchsia-500 to-pink-600 text-white",
+    "bg-gradient-to-br from-lime-500 to-green-600 text-white",
+    "bg-gradient-to-br from-blue-500 to-indigo-600 text-white"
   ]
 
   @size_classes %{
@@ -68,6 +74,7 @@ defmodule EstimateWeb.CoreComponents do
 
       <.avatar name="Krzysztof Radecki" seed="user-uuid" />
       <.avatar name="Acme Corp" seed="customer-uuid" type={:customer} size={:xl} />
+      <.avatar name="Website Relaunch" seed="project-uuid" type={:project} size={:lg} />
   """
   attr :name, :string, default: nil
   attr :seed, :string, default: nil
@@ -84,8 +91,8 @@ defmodule EstimateWeb.CoreComponents do
         :pending ->
           "bg-warning/10 text-warning"
 
-        :customer ->
-          Enum.at(@customer_gradients, :erlang.phash2(seed, length(@customer_gradients)))
+        type when type in [:customer, :project] ->
+          Enum.at(@entity_gradients, :erlang.phash2(seed, length(@entity_gradients)))
 
         _ ->
           Enum.at(@user_gradients, :erlang.phash2(seed, length(@user_gradients)))
