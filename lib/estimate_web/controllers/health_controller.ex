@@ -4,7 +4,7 @@ defmodule EstimateWeb.HealthController do
   def liveness(conn, _params) do
     conn
     |> put_status(200)
-    |> json(%{status: "ok"})
+    |> json(%{status: "ok", revision: Estimate.BuildInfo.git_sha() || "unknown"})
   end
 
   def readiness(conn, _params) do

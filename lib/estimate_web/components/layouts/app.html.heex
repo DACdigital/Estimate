@@ -133,6 +133,16 @@
         </.link>
       </div>
     </div>
+
+    <%!-- Deployed revision --%>
+    <div :if={Estimate.BuildInfo.git_sha()} class="px-4 pb-2 -mt-1">
+      <p
+        class="text-[10px] font-mono text-base-content/25 hover:text-base-content/50 transition-colors text-center truncate"
+        title="Deployed revision"
+      >
+        {Estimate.BuildInfo.git_sha()}
+      </p>
+    </div>
   </aside>
   
 <!-- Main content -->

@@ -40,6 +40,11 @@ COPY priv priv
 COPY assets assets
 
 COPY lib lib
+
+# Baked into Estimate.BuildInfo at compile time; late ARG keeps deps layers cacheable.
+# Pass from CI: --build-arg GIT_SHA=$CI_COMMIT_SHORT_SHA
+ARG GIT_SHA=""
+ENV GIT_SHA=${GIT_SHA}
 RUN mix compile
 
 RUN mix assets.deploy
