@@ -18,6 +18,7 @@ defmodule EstimateWeb.MCPServer do
       validator: {Estimate.MCP.KeyValidator, []}
     ]
 
-  # Tool components are registered in Tasks 4-7:
-  # component EstimateWeb.MCP.Tools.ListCustomers
+  component(EstimateWeb.MCP.Tools.ListCustomers)
+  component(EstimateWeb.MCP.Tools.GetCustomer)
+  component(EstimateWeb.MCP.Tools.Search)
 end
