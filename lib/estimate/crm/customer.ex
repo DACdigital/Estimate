@@ -8,6 +8,7 @@ defmodule Estimate.CRM.Customer do
     field :country, :string
     field :website_url, :string
     field :description, :string
+    field :project_count, :integer, virtual: true
 
     belongs_to :organization, Estimate.Accounts.Organization
     belongs_to :default_currency, Estimate.Accounts.Currency

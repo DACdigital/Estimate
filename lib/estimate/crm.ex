@@ -8,22 +8,16 @@ defmodule Estimate.CRM do
   alias Estimate.CRM.Customer
   alias Estimate.Search
 
-  def list_customers(org_id) do
-    Repo.ensure_org_context(fn ->
-      from(c in Customer,
-        where: c.organization_id == ^org_id,
-        order_by: [asc: c.name],
-        preload: [:default_currency]
-      )
-      |> Repo.all()
-    end)
-  end
+  def list_customers(org_id), do: list_customers(org_id, [])
 
   def list_customers(org_id, opts) when is_list(opts) do
     Repo.ensure_org_context(fn ->
       from(c in Customer,
         where: c.organization_id == ^org_id,
+        left_join: p in assoc(c, :projects),
+        group_by: c.id,
         order_by: [asc: c.name],
+        select_merge: %{project_count: count(p.id)},
         preload: [:default_currency]
       )
       |> maybe_filter_watchtower(Keyword.get(opts, :watchtower))
