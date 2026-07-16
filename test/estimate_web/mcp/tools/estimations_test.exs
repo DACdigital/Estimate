@@ -36,6 +36,26 @@ defmodule EstimateWeb.MCP.Tools.EstimationsTest do
     assert %{"estimations" => [%{"name" => "MVP v1"}]} = json_content(response)
   end
 
+  test "list_estimations returns empty for member without collaborator access", %{
+    org: org,
+    project: project
+  } do
+    member = user_fixture()
+    membership_fixture(member, org, "member")
+    frame = mcp_frame(member, org, "member")
+
+    assert {:reply, response, _} = ListEstimations.execute(%{project_id: project.id}, frame)
+    assert %{"estimations" => []} = json_content(response)
+  end
+
+  test "list_estimations returns empty for foreign org project_id", %{project: project} do
+    %{user: outsider, organization: other_org} = user_with_organization_fixture()
+    frame = mcp_frame(outsider, other_org, "owner")
+
+    assert {:reply, response, _} = ListEstimations.execute(%{project_id: project.id}, frame)
+    assert %{"estimations" => []} = json_content(response)
+  end
+
   test "get_estimation returns full tree with totals", %{estimation: estimation, frame: frame} do
     assert {:reply, response, _} = GetEstimation.execute(%{id: estimation.id}, frame)
     refute response.isError
@@ -47,6 +67,18 @@ defmodule EstimateWeb.MCP.Tools.EstimationsTest do
              body["epics"]
 
     assert %{"total_hours" => _, "grand_total_with_overhead" => _} = body["totals"]
+  end
+
+  test "get_estimation → not found for member without collaborator access", %{
+    org: org,
+    estimation: estimation
+  } do
+    member = user_fixture()
+    membership_fixture(member, org, "member")
+    frame = mcp_frame(member, org, "member")
+
+    assert {:reply, %Response{isError: true}, _} =
+             GetEstimation.execute(%{id: estimation.id}, frame)
   end
 
   test "foreign org estimation → not found", %{estimation: estimation} do
