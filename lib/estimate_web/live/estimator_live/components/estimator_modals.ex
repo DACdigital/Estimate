@@ -289,7 +289,6 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimatorModals do
                 </tbody>
               </table>
             </div>
-
           </div>
         </div>
       </.form>
@@ -423,7 +422,12 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimatorModals do
   attr :max, :string, default: nil
 
   defp role_number_input(assigns) do
-    assigns = assign(assigns, :value, format_number(Map.get(assigns.role, String.to_existing_atom(assigns.field))))
+    assigns =
+      assign(
+        assigns,
+        :value,
+        format_number(Map.get(assigns.role, String.to_existing_atom(assigns.field)))
+      )
 
     ~H"""
     <td class="px-3 py-2">

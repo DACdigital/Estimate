@@ -54,7 +54,7 @@ defmodule EstimateWeb.DashboardLive.Index do
           </div>
         </div>
       </div>
-
+      
     <!-- Quality Watchtower (admin only) -->
       <div :if={@is_admin} class="mt-8">
         <div class="mb-6">
@@ -89,7 +89,7 @@ defmodule EstimateWeb.DashboardLive.Index do
           />
         </div>
       </div>
-
+      
     <!-- Quick Links -->
       <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
         <div class="bg-base-100 border border-base-300 rounded-xl p-6">

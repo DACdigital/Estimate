@@ -25,7 +25,8 @@ defmodule EstimateWeb.RolesLive.Index do
         </p>
       </div>
 
-      <% grid_cols = "#{if @is_admin, do: "2rem ", else: ""}minmax(12rem,1fr) #{Enum.map_join(@currencies, " ", fn _ -> "6rem" end)} 5rem 5rem 5rem" %>
+      <% grid_cols =
+        "#{if @is_admin, do: "2rem ", else: ""}minmax(12rem,1fr) #{Enum.map_join(@currencies, " ", fn _ -> "6rem" end)} 5rem 5rem 5rem" %>
 
       <%!-- Hourly Rates Grid --%>
       <div class="bg-base-100 border border-base-300 rounded-xl overflow-hidden">
@@ -61,7 +62,10 @@ defmodule EstimateWeb.RolesLive.Index do
                 class="grid items-center group hover:bg-base-200/50 transition-colors"
                 style={"grid-template-columns: #{grid_cols}"}
               >
-                <div :if={@is_admin} class="drag-handle cursor-grab text-base-content/30 hover:text-base-content/60 flex justify-center">
+                <div
+                  :if={@is_admin}
+                  class="drag-handle cursor-grab text-base-content/30 hover:text-base-content/60 flex justify-center"
+                >
                   <.icon name="hero-bars-3" class="w-4 h-4" />
                 </div>
                 <div class="px-6 py-4">

@@ -73,7 +73,9 @@ defmodule Estimate.EstimationEngine.Helpers do
 
       multi =
         case Keyword.get(opts, :epics_fn) do
-          nil -> multi
+          nil ->
+            multi
+
           epics_fn ->
             Ecto.Multi.run(multi, :epics_tasks, fn _repo, %{estimation: estimation} ->
               epics_fn.(estimation)

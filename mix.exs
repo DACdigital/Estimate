@@ -73,7 +73,8 @@ defmodule Estimate.MixProject do
       {:assent, "~> 0.3"},
       # jose is resolved transitively via assent
       {:nimble_totp, "~> 1.0"},
-      {:eqrcode, "~> 0.2"}
+      {:eqrcode, "~> 0.2"},
+      {:anubis_mcp, "~> 1.8"}
     ]
   end
 

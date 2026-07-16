@@ -51,8 +51,13 @@ defmodule EstimateWeb.SettingsLive.Trash do
                 <div class="flex-1 px-6 py-4">
                   <h3 class="text-sm font-medium text-base-content/50">{estimation.name}</h3>
                   <p class="text-xs text-base-content/40 mt-0.5">
-                    {if(estimation.project.customer, do: estimation.project.customer.name <> " › ", else: "")}{estimation.project.name}
-                    · Deleted {Calendar.strftime(estimation.deleted_at, "%b %d, %Y")}
+                    {if(estimation.project.customer,
+                      do: estimation.project.customer.name <> " › ",
+                      else: ""
+                    )}{estimation.project.name} · Deleted {Calendar.strftime(
+                      estimation.deleted_at,
+                      "%b %d, %Y"
+                    )}
                   </p>
                 </div>
                 <div class="flex items-center gap-2 px-4 pr-6 shrink-0">

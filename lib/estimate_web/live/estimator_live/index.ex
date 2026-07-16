@@ -180,6 +180,7 @@ defmodule EstimateWeb.EstimatorLive.Index do
       unless estimation.project_id == project_id do
         raise Ecto.NoResultsError, queryable: Estimate.EstimationEngine.Estimation
       end
+
       currencies = Currencies.list_currencies(org_id)
       can_edit = can_edit?(collaborator, socket.assigns.current_membership)
 
@@ -422,7 +423,12 @@ defmodule EstimateWeb.EstimatorLive.Index do
            belongs_to_estimation?(estimation, :role, role_id) do
         hours = parse_decimal(value)
 
-        case EstimationEngine.upsert_task_estimate(task_id, role_id, %{hours: hours}, estimation.id) do
+        case EstimationEngine.upsert_task_estimate(
+               task_id,
+               role_id,
+               %{hours: hours},
+               estimation.id
+             ) do
           {:ok, updated_estimate} ->
             {:noreply,
              socket

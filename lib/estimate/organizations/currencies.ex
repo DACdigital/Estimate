@@ -120,12 +120,12 @@ defmodule Estimate.Organizations.Currencies do
 
             multi =
               Enum.reduce(updates, Ecto.Multi.new(), fn {id, rate}, multi ->
-                Ecto.Multi.update_all(multi, {:rate, id},
-                  from(c in Currency, where: c.id == ^id),
+                Ecto.Multi.update_all(multi, {:rate, id}, from(c in Currency, where: c.id == ^id),
                   set: [exchange_rate: rate]
                 )
               end)
-              |> Ecto.Multi.update_all(:fetched_at,
+              |> Ecto.Multi.update_all(
+                :fetched_at,
                 from(o in Organization, where: o.id == ^org_id),
                 set: [rates_fetched_at: now]
               )

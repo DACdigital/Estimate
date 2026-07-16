@@ -65,6 +65,14 @@ defmodule Estimate.Organizations do
   def mask_api_key(%Organization{} = org),
     do: org |> get_decrypted_api_key() |> mask_secret()
 
+  ## MCP Settings
+
+  def update_mcp_settings(%Organization{} = org, attrs) do
+    org
+    |> Organization.mcp_settings_changeset(attrs)
+    |> Repo.update()
+  end
+
   ## SMTP Settings
 
   def update_smtp_settings(%Organization{} = org, attrs) do

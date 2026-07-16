@@ -8,9 +8,9 @@ defmodule Estimate.Repo.Migrations.AddMissingIndices do
 
     # currencies: unique partial — enforces one main per org + fast lookup
     create unique_index(:currencies, [:organization_id],
-      name: :currencies_org_main_index,
-      where: "is_main = true"
-    )
+             name: :currencies_org_main_index,
+             where: "is_main = true"
+           )
 
     # users_tokens: composite replaces single-column user_id index
     create index(:users_tokens, [:user_id, :context])

@@ -24,7 +24,14 @@ defmodule EstimateWeb.SettingsLive.Ai do
                     class="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-base-content/10 text-base-content/60 rounded-full"
                   >
                     <svg class="w-2.5 h-2.5 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                      <circle
+                        class="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        stroke-width="4"
+                      />
                       <path
                         class="opacity-75"
                         fill="currentColor"
