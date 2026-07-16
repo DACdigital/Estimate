@@ -13,7 +13,8 @@ defmodule Estimate.Application do
       {DNSCluster, query: Application.get_env(:estimate, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Estimate.PubSub},
       {Task.Supervisor, name: Estimate.TaskSupervisor},
-      EstimateWeb.Endpoint
+      EstimateWeb.Endpoint,
+      {EstimateWeb.MCPServer, transport: :streamable_http}
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

@@ -25,6 +25,10 @@ defmodule EstimateWeb.Router do
     get "/readyz", HealthController, :readiness
   end
 
+  # MCP server (Streamable HTTP). Auth handled inside the plug via
+  # bearer API keys — no session, no CSRF.
+  forward "/mcp", Anubis.Server.Transport.StreamableHTTP.Plug, server: EstimateWeb.MCPServer
+
   # Auth routes - redirect if authenticated
   scope "/", EstimateWeb do
     pipe_through [:browser, :redirect_if_user_is_authenticated]
