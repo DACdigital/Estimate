@@ -20,14 +20,15 @@ defmodule EstimateWeb.ProjectLive.IndexTest do
       customer = customer_fixture(org, %{"key" => "CHA", "name" => "Charite Berlin"})
       project_fixture(customer, owner, %{"key" => "WEB", "name" => "Website Relaunch"})
 
-      {:ok, lv, html} = live(log_in_user(conn, owner), projects_path(org))
+      {:ok, lv, _html} = live(log_in_user(conn, owner), projects_path(org))
 
       assert has_element?(lv, "span.font-mono", "CHA-WEB")
-      assert html =~ "Charite Berlin"
+      assert has_element?(lv, "p", "Charite Berlin")
     end
 
     test "old standalone key column is gone", %{conn: conn, org: org, owner: owner} do
-      project_fixture(nil, owner)
+      customer = customer_fixture(org, %{"key" => "KCOL"})
+      project_fixture(customer, owner, %{"key" => "GONE"})
       {:ok, lv, _html} = live(log_in_user(conn, owner), projects_path(org))
       refute has_element?(lv, "span.w-20")
     end
