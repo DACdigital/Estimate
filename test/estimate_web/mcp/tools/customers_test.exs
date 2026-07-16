@@ -28,6 +28,17 @@ defmodule EstimateWeb.MCP.Tools.CustomersTest do
       assert %{"customers" => [%{"name" => "Acme Corp"}]} = json_content(response)
     end
 
+    test "limit truncates the result list", %{org: org, frame: frame} do
+      customer_fixture(org, %{"name" => "Alpha"})
+      customer_fixture(org, %{"name" => "Beta"})
+      customer_fixture(org, %{"name" => "Gamma"})
+
+      assert {:reply, response, _} = ListCustomers.execute(%{limit: 2}, frame)
+
+      assert %{"customers" => customers} = json_content(response)
+      assert length(customers) == 2
+    end
+
     test "cross-org: other org's customers are invisible", %{frame: frame} do
       %{organization: other_org} = user_with_organization_fixture()
       customer_fixture(other_org, %{"name" => "Foreign Inc"})
