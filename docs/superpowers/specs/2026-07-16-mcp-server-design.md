@@ -94,7 +94,7 @@ Sidebar entry "MCP" beside AI/Email.
 - Bad/missing/revoked key or disabled org → 401 (anubis shapes the response from validator error).
 - Unknown or foreign-org id → MCP tool error "not found". RLS makes cross-org and nonexistent indistinguishable — no existence oracle.
 - Unexpected exceptions → anubis internal error handling; logged.
-- Telemetry event + Logger metadata (`user_id`, `org_id`, tool name) per tool call.
+- Telemetry event + Logger metadata (`user_id`, `org_id`, role) per tool call; tool name comes from anubis' own request handling/telemetry.
 - `last_used_at` updated at most every 5 minutes per key (no hot writes).
 
 ## Testing
