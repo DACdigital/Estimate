@@ -5,6 +5,8 @@ defmodule EstimateWeb.CustomerLive.Index do
   alias Estimate.CRM.Customer
   alias Estimate.Organizations.Currencies
 
+  import EstimateWeb.FormatHelpers, only: [domain: 1]
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -60,22 +62,32 @@ defmodule EstimateWeb.CustomerLive.Index do
               class="flex items-center gap-4 flex-1 min-w-0"
             >
               <.avatar name={customer.name} seed={customer.id} type={:customer} size={:lg} />
-              <span class="text-xs font-mono text-base-content/40 w-12 flex-shrink-0">
-                {customer.key}
-              </span>
-              <div class="min-w-0">
+              <div class="min-w-0 flex-1">
                 <h3 class="text-sm font-medium text-base-content truncate">{customer.name}</h3>
                 <p :if={customer.description} class="text-sm text-base-content/60 truncate">
                   {customer.description}
                 </p>
+                <p :if={!customer.description} class="text-xs text-base-content/50 truncate">
+                  <span class="font-mono text-base-content/40">{customer.key}</span>
+                  <span :if={customer.country} class="font-mono text-base-content/40">
+                    · {customer.country}
+                  </span>
+                  <span :if={domain(customer.website_url)}>· {domain(customer.website_url)}</span>
+                </p>
               </div>
             </.link>
             <div class="flex items-center gap-3 flex-shrink-0">
-              <span :if={customer.country} class="text-xs text-base-content/40">
-                {customer.country}
-              </span>
               <span :if={customer.default_currency} class="text-xs text-base-content/40 font-mono">
                 {customer.default_currency.code}
+              </span>
+              <span class={[
+                "text-xs px-2 py-0.5 rounded-full bg-base-200",
+                if(customer.project_count == 0,
+                  do: "text-base-content/40",
+                  else: "text-base-content/60"
+                )
+              ]}>
+                {project_count_label(customer.project_count)}
               </span>
               <.link
                 :if={@is_admin}
@@ -309,4 +321,7 @@ defmodule EstimateWeb.CustomerLive.Index do
         {:noreply, assign(socket, form: to_form(changeset))}
     end
   end
+
+  defp project_count_label(1), do: "1 project"
+  defp project_count_label(n), do: "#{n} projects"
 end
