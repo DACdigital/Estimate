@@ -45,19 +45,23 @@ defmodule EstimateWeb.CoreComponents do
   ]
 
   @entity_gradients [
-    "bg-gradient-to-br from-sky-500 to-blue-600 text-white",
+    "bg-gradient-to-br from-sky-600 to-cyan-500 text-white",
     "bg-gradient-to-br from-amber-500 to-orange-600 text-white",
     "bg-gradient-to-br from-violet-500 to-purple-600 text-white",
     "bg-gradient-to-br from-emerald-500 to-teal-600 text-white",
-    "bg-gradient-to-br from-rose-500 to-pink-600 text-white",
+    "bg-gradient-to-br from-rose-600 to-red-500 text-white",
     "bg-gradient-to-br from-cyan-500 to-sky-600 text-white",
     "bg-gradient-to-br from-indigo-500 to-blue-600 text-white",
     "bg-gradient-to-br from-orange-500 to-red-600 text-white",
     "bg-gradient-to-br from-teal-500 to-cyan-600 text-white",
     "bg-gradient-to-br from-fuchsia-500 to-pink-600 text-white",
     "bg-gradient-to-br from-lime-500 to-green-600 text-white",
-    "bg-gradient-to-br from-blue-500 to-indigo-600 text-white"
+    "bg-gradient-to-br from-blue-600 to-cyan-600 text-white"
   ]
+
+  if not MapSet.disjoint?(MapSet.new(@user_gradients), MapSet.new(@entity_gradients)) do
+    raise "avatar palettes must be disjoint: user vs entity gradients share entries"
+  end
 
   @size_classes %{
     xs: "w-6 h-6 text-[10px]",
