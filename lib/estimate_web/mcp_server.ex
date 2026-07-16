@@ -21,4 +21,6 @@ defmodule EstimateWeb.MCPServer do
   component(EstimateWeb.MCP.Tools.ListCustomers)
   component(EstimateWeb.MCP.Tools.GetCustomer)
   component(EstimateWeb.MCP.Tools.Search)
+  component(EstimateWeb.MCP.Tools.ListProjects)
+  component(EstimateWeb.MCP.Tools.GetProject)
 end
