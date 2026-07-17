@@ -97,6 +97,25 @@ defmodule Estimate.MCP.OAuthFlowTest do
 
       assert {:error, :invalid_grant} = exchange(ctx, code)
     end
+
+    test "replay after rotation kills the whole family, not just the original token", ctx do
+      code = mint_code(ctx)
+      assert {:ok, %{access_token: at1, refresh_token: rt1}} = exchange(ctx, code)
+
+      assert {:ok, %{access_token: at2}} = OAuth.refresh_tokens(rt1, ctx.client.id)
+
+      # Replaying the ORIGINAL, already-consumed code must kill every token
+      # the code's family ever produced -- including at2, minted by a
+      # rotation that happened after the code was first exchanged (rotate/1
+      # carries the same code_id forward onto every descendant). A sweep
+      # that revoked only the code's immediate token row would leave at2
+      # alive; the fix routes through revoke_family/1 (by the family_id(s)
+      # tied to this code_id) instead.
+      assert {:error, :invalid_grant} = exchange(ctx, code)
+
+      assert {:error, :invalid_key} = OAuth.verify_access_token(at1)
+      assert {:error, :invalid_key} = OAuth.verify_access_token(at2)
+    end
   end
 
   describe "refresh rotation" do
@@ -128,6 +147,26 @@ defmodule Estimate.MCP.OAuthFlowTest do
       Repo.update_all(from(t in Token, where: t.refresh_token_hash == ^hash),
         set: [refresh_expires_at: past]
       )
+
+      assert {:error, :invalid_grant} = OAuth.refresh_tokens(rt, ctx.client.id)
+    end
+
+    test "org mcp disabled => invalid_grant, not rotated (kill switch honored)", ctx do
+      {:ok, %{refresh_token: rt}} = exchange(ctx, mint_code(ctx))
+
+      {:ok, _} = Organizations.update_mcp_settings(Repo.reload!(ctx.org), %{mcp_enabled: false})
+
+      assert {:error, :invalid_grant} = OAuth.refresh_tokens(rt, ctx.client.id)
+    end
+
+    test "membership removed => invalid_grant, not rotated", ctx do
+      {:ok, %{refresh_token: rt}} = exchange(ctx, mint_code(ctx))
+
+      Repo.get_by!(Estimate.Accounts.Membership,
+        user_id: ctx.user.id,
+        organization_id: ctx.org.id
+      )
+      |> Repo.delete!()
 
       assert {:error, :invalid_grant} = OAuth.refresh_tokens(rt, ctx.client.id)
     end

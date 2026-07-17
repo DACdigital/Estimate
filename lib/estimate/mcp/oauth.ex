@@ -80,11 +80,15 @@ defmodule Estimate.MCP.OAuth do
           end
 
         {:replayed, code} ->
-          # OAuth 2.1: a reused code invalidates everything it produced.
-          # Plain update_all (no surrounding transaction) so this commits.
-          Repo.update_all(from(t in Token, where: t.code_id == ^code.id and is_nil(t.revoked_at)),
-            set: [revoked_at: now()]
-          )
+          # OAuth 2.1: a reused code invalidates everything it produced. Route
+          # through revoke_family/1 (advisory-lock + always-commit) for every
+          # family_id this code_id ever spawned, rather than a bare update_all
+          # scoped to code_id -- a concurrent rotation can insert a new family
+          # member the plain update_all's READ COMMITTED snapshot misses,
+          # exactly the race closed for refresh reuse (see revoke_family/1).
+          from(t in Token, where: t.code_id == ^code.id, distinct: true, select: t.family_id)
+          |> Repo.all()
+          |> Enum.each(&revoke_family/1)
 
           {:error, :invalid_grant}
 
@@ -155,10 +159,33 @@ defmodule Estimate.MCP.OAuth do
         DateTime.compare(row.refresh_expires_at, now()) != :gt ->
           {:error, :invalid_grant}
 
+        not org_enabled_and_member?(row) ->
+          # Settings page promises "disabling instantly rejects every key" --
+          # verify_access_token/1 already gates on this; refresh must too, or
+          # a disabled org's connector keeps silently rotating a 30-day
+          # family. No rotation on this path: neither revoke nor reissue.
+          {:error, :invalid_grant}
+
         true ->
           rotate(row)
       end
     end)
+  end
+
+  # Same join taxonomy as verify_access_token/1's query: org must exist with
+  # mcp_enabled true, and the token's user must still hold a membership in it.
+  defp org_enabled_and_member?(%Token{user_id: user_id, organization_id: org_id}) do
+    query =
+      from o in Organization,
+        left_join: m in Membership,
+        on: m.user_id == ^user_id and m.organization_id == ^org_id,
+        where: o.id == ^org_id,
+        select: %{mcp_enabled: o.mcp_enabled, role: m.role}
+
+    case Repo.one(query) do
+      %{mcp_enabled: true, role: role} -> not is_nil(role)
+      _ -> false
+    end
   end
 
   # Revoke-old + insert-new atomically, re-checking revoked_at under a row lock
