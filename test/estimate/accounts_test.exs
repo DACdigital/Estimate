@@ -2,6 +2,7 @@ defmodule Estimate.AccountsTest do
   use Estimate.DataCase
 
   alias Estimate.Accounts
+  alias Estimate.MCP
   alias Estimate.Organizations
   alias Estimate.Portfolio
   alias Estimate.Portfolio.ProjectCollaborator
@@ -322,6 +323,57 @@ defmodule Estimate.AccountsTest do
       # a complete map still succeeds:
       assert {:ok, _} =
                Organizations.delete_membership(leaver_m, %{project.id => owner.id})
+    end
+  end
+
+  describe "delete_membership/2 — MCP API key cleanup" do
+    setup do
+      %{user: owner, organization: org} = user_with_organization_fixture()
+      {:ok, org} = Organizations.update_mcp_settings(org, %{mcp_enabled: true})
+      member = user_fixture()
+      member_membership = membership_fixture(member, org)
+      {:ok, {plaintext, _key}} = MCP.generate_api_key(member.id, org.id)
+
+      %{
+        owner: owner,
+        org: org,
+        member: member,
+        member_membership: member_membership,
+        plaintext: plaintext
+      }
+    end
+
+    test "removing membership deletes the member's key row (not just verify-rejected)", ctx do
+      assert MCP.get_api_key(ctx.member.id, ctx.org.id)
+
+      assert {:ok, _} = Organizations.delete_membership(ctx.member_membership, %{})
+
+      assert MCP.get_api_key(ctx.member.id, ctx.org.id) == nil
+      assert {:error, :invalid_key} = MCP.verify_api_key(ctx.plaintext)
+    end
+
+    test "re-adding membership does not resurrect the old key: old plaintext stays invalid",
+         ctx do
+      assert {:ok, _} = Organizations.delete_membership(ctx.member_membership, %{})
+
+      membership_fixture(ctx.member, ctx.org)
+
+      assert {:error, :invalid_key} = MCP.verify_api_key(ctx.plaintext)
+      assert MCP.get_api_key(ctx.member.id, ctx.org.id) == nil
+    end
+
+    test "admin removing ANOTHER member's key succeeds under RLS org-context", ctx do
+      # Simulates production: connection role estimate_app, org context = org,
+      # user context = the ACTING ADMIN (owner) — not the removed member. The
+      # mcp_api_keys own-key policy (user_id = current_user_id()) would block
+      # a plain delete here; the fix must bypass it via Repo.without_rls.
+      setup_rls(ctx.org.id, ctx.owner.id)
+
+      assert {:ok, _} = Organizations.delete_membership(ctx.member_membership, %{})
+
+      assert Repo.without_rls(fn ->
+               Repo.get_by(MCP.APIKey, user_id: ctx.member.id, organization_id: ctx.org.id)
+             end) == nil
     end
   end
 

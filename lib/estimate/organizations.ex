@@ -13,6 +13,7 @@ defmodule Estimate.Organizations do
     JoinRequest
   }
 
+  alias Estimate.MCP.APIKey
   alias Estimate.Portfolio.{Project, ProjectCollaborator}
 
   @dialyzer :no_opaque
@@ -246,6 +247,27 @@ defmodule Estimate.Organizations do
               where: pc.user_id == ^removed_user_id and pc.project_id in subquery(org_project_ids)
             )
           )
+          |> Ecto.Multi.run(:revoke_mcp_key, fn _repo, _changes ->
+            # Otherwise a rejoin silently resurrects the old key (verify_api_key
+            # rejects while removed, but the row outlives the membership).
+            # An admin deleting ANOTHER user's key row hits the mcp_api_keys
+            # own-key RLS policy (user_id = current_user_id()), which would
+            # silently filter this out under the acting admin's org context —
+            # bypass via without_rls, same system-level escape hatch as
+            # MCP.verify_api_key/1. Delete directly rather than through
+            # MCP.revoke_api_key/2: that function wraps itself in
+            # ensure_org_context, which would re-set the blocking role/context
+            # right back inside this without_rls block.
+            Repo.without_rls(fn ->
+              Repo.delete_all(
+                from(k in APIKey,
+                  where: k.user_id == ^removed_user_id and k.organization_id == ^org_id
+                )
+              )
+            end)
+
+            {:ok, :revoked}
+          end)
           |> Ecto.Multi.delete(:membership, membership)
 
         case Repo.transaction(multi) do
