@@ -101,6 +101,11 @@
             label="Email"
             active={assigns[:settings_page] == :email}
           />
+          <.sidebar_child_link
+            href={~p"/org/#{@org_id}/settings/mcp"}
+            label="MCP"
+            active={assigns[:settings_page] == :mcp}
+          />
         </div>
       </div>
     </nav>

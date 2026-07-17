@@ -130,6 +130,7 @@ defmodule EstimateWeb.Router do
       live "/settings/currencies", SettingsLive.Currencies, :index
       live "/settings/ai", SettingsLive.Ai, :index
       live "/settings/email", SettingsLive.Email, :index
+      live "/settings/mcp", SettingsLive.Mcp, :index
       live "/settings/trash", SettingsLive.Trash, :index
 
       # CRM
