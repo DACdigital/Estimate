@@ -81,12 +81,37 @@ defmodule EstimateWeb.SettingsLive.McpTest do
       assert MCP.get_api_key(user.id, org.id) == nil
     end
 
-    test "disabled org: member sees notice, no generate button", %{conn: conn, org: org} do
+    test "toggling MCP off clears the shown-once plaintext key", %{conn: conn, org: org} do
+      {:ok, lv, _} = live(conn, mcp_path(org))
+
+      html = lv |> element("button", "Generate API Key") |> render_click()
+      assert [_, plaintext] = Regex.run(~r/(est_[A-Za-z0-9_-]{43})/, html)
+      assert html =~ plaintext
+
+      html = lv |> element("button[phx-click=toggle_mcp]") |> render_click()
+      refute Estimate.Repo.reload!(org).mcp_enabled
+      refute html =~ plaintext
+
+      html = lv |> element("button[phx-click=toggle_mcp]") |> render_click()
+      assert Estimate.Repo.reload!(org).mcp_enabled
+      refute html =~ plaintext
+      assert html =~ String.slice(plaintext, 0, 12)
+    end
+
+    test "disabled org: member sees notice, no generate button", %{org: org} do
       {:ok, _} = Organizations.update_mcp_settings(org, %{mcp_enabled: false})
 
-      {:ok, _lv, html} = live(conn, mcp_path(org))
-      assert html =~ "disabled"
+      member = user_fixture()
+      membership_fixture(member, org, "member")
+      conn = log_in_user(build_conn(), member)
+
+      {:ok, lv, html} = live(conn, mcp_path(org))
+      assert html =~ "Ask an admin to enable it"
       refute html =~ "Generate API Key"
+      # Scoped to the heading tag: the member notice paragraph itself contains
+      # the substring "MCP server is disabled", so a plain html =~ check
+      # would pass whether or not the admin-only block renders.
+      refute has_element?(lv, "h2", "MCP server is disabled")
     end
   end
 end
