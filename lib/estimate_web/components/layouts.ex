@@ -47,15 +47,18 @@ defmodule EstimateWeb.Layouts do
 
   @doc """
   Sidebar child link (no icon, indented under a group header).
+  Pass `navigate` (instead of `href`) for LiveView live navigation.
   """
-  attr :href, :string, required: true
+  attr :href, :string, default: nil
+  attr :navigate, :string, default: nil
   attr :label, :string, required: true
   attr :active, :boolean, default: false
 
   def sidebar_child_link(assigns) do
     ~H"""
-    <a
+    <.link
       href={@href}
+      navigate={@navigate}
       class={[
         "block px-3 py-1.5 rounded-lg text-sm transition-colors",
         @active && "bg-base-200 text-base-content font-medium",
@@ -63,7 +66,7 @@ defmodule EstimateWeb.Layouts do
       ]}
     >
       {@label}
-    </a>
+    </.link>
     """
   end
 
@@ -89,23 +92,23 @@ defmodule EstimateWeb.Layouts do
       </div>
       <div class="space-y-0.5">
         <.sidebar_child_link
-          href={~p"/org/#{@org_id}/settings"}
+          navigate={~p"/org/#{@org_id}/settings"}
           label="General"
           active={@settings_page == :general}
         />
         <.sidebar_child_link
-          href={~p"/org/#{@org_id}/settings/members"}
+          navigate={~p"/org/#{@org_id}/settings/members"}
           label="Members"
           active={@settings_page == :members}
         />
         <.sidebar_child_link
-          href={~p"/org/#{@org_id}/settings/currencies"}
+          navigate={~p"/org/#{@org_id}/settings/currencies"}
           label="Currencies"
           active={@settings_page == :currencies}
         />
         <.sidebar_child_link
           :if={admin?(@current_membership)}
-          href={~p"/org/#{@org_id}/settings/trash"}
+          navigate={~p"/org/#{@org_id}/settings/trash"}
           label="Trash"
           active={@settings_page == :trash}
         />
@@ -117,18 +120,18 @@ defmodule EstimateWeb.Layouts do
       <div class="space-y-0.5">
         <.sidebar_child_link
           :if={admin?(@current_membership)}
-          href={~p"/org/#{@org_id}/settings/ai"}
+          navigate={~p"/org/#{@org_id}/settings/ai"}
           label="AI"
           active={@settings_page == :ai}
         />
         <.sidebar_child_link
           :if={admin?(@current_membership)}
-          href={~p"/org/#{@org_id}/settings/email"}
+          navigate={~p"/org/#{@org_id}/settings/email"}
           label="Email"
           active={@settings_page == :email}
         />
         <.sidebar_child_link
-          href={~p"/org/#{@org_id}/settings/mcp"}
+          navigate={~p"/org/#{@org_id}/settings/mcp"}
           label="MCP"
           active={@settings_page == :mcp}
         />

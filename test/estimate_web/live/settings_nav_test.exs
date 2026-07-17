@@ -18,6 +18,12 @@ defmodule EstimateWeb.SettingsNavTest do
 
       for page <- ["", "/members", "/currencies", "/trash", "/ai", "/email", "/mcp"] do
         assert has_element?(view, rail_link(org, page)), "missing rail link for #{page}"
+
+        assert has_element?(
+                 view,
+                 ~s(#settings-rail a[href="/org/#{org.id}/settings#{page}"][data-phx-link="redirect"])
+               ),
+               "rail link for #{page} must live-navigate (no full reload / no animation replay)"
       end
     end
 
@@ -57,6 +63,23 @@ defmodule EstimateWeb.SettingsNavTest do
       {:ok, view, _html} = live(conn, ~p"/org/#{org.id}/settings")
 
       assert has_element?(view, "#settings-rail.settings-rail-enter")
+    end
+
+    test "rail navigation between settings pages is a live navigate", %{conn: conn, org: org} do
+      {:ok, view, _html} = live(conn, ~p"/org/#{org.id}/settings")
+
+      # A live-nav click never round-trips through the server as a plain HTTP
+      # response — it exits with a live_redirect, which we then follow. If
+      # sidebar_child_link/1 ever regresses to a bare `href`, this click would
+      # instead return rendered HTML (no error tuple) and the match below fails.
+      assert {:error, {:live_redirect, %{to: to}}} =
+               view
+               |> element(~s(#settings-rail a[href="/org/#{org.id}/settings/mcp"]))
+               |> render_click()
+
+      {:ok, view, _html} = live(conn, to)
+
+      assert has_element?(view, "#settings-rail")
     end
   end
 end
