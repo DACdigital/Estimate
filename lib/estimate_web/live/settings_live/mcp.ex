@@ -65,6 +65,14 @@ defmodule EstimateWeb.SettingsLive.Mcp do
         :if={@current_organization.mcp_enabled}
         class="bg-base-100 border border-base-300 rounded-xl p-6"
       >
+        <div class="mb-6 p-4 bg-base-200/60 rounded-lg">
+          <h3 class="text-sm font-medium text-base-content mb-1">Connect from claude.ai</h3>
+          <p class="text-sm text-base-content/60 mb-2">
+            Add a custom connector with this URL — you'll sign in and pick this organization. No key needed.
+          </p>
+          <code class="block font-mono text-sm select-all">{@mcp_url}</code>
+        </div>
+
         <h2 class="text-sm font-medium text-base-content mb-1">Your API key</h2>
         <p class="text-sm text-base-content/60 mb-4">
           The key acts as you: it sees exactly what you see in the app.
