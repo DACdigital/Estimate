@@ -46,5 +46,10 @@ defmodule EstimateWeb.MCPServerAuthTest do
     [www] = Plug.Conn.get_resp_header(conn, "www-authenticate")
     assert www =~ ~s(resource_metadata=")
     assert www =~ "/.well-known/oauth-protected-resource"
+
+    # Discriminating: verify real runtime resource URL, not URN fallback
+    runtime_host = URI.parse(EstimateWeb.MCPServer.base_url()).host
+    assert www =~ runtime_host
+    refute www =~ "urn:"
   end
 end
