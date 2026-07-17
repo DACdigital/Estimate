@@ -14,7 +14,8 @@ defmodule Estimate.Application do
       {Phoenix.PubSub, name: Estimate.PubSub},
       {Task.Supervisor, name: Estimate.TaskSupervisor},
       EstimateWeb.Endpoint,
-      {EstimateWeb.MCPServer, transport: :streamable_http}
+      {EstimateWeb.MCPServer,
+       transport: :streamable_http, authorization: EstimateWeb.MCPServer.runtime_authorization()}
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

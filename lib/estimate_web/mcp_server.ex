@@ -10,9 +10,9 @@ defmodule EstimateWeb.MCPServer do
     version: Mix.Project.config()[:version],
     capabilities: [:tools],
     authorization: [
-      # No OAuth AS exists; inert values satisfy anubis' required config.
-      # Header-auth clients (Claude Code/Desktop, Cursor) never read the
-      # RFC 9728 metadata these feed.
+      # Fallback only; application.ex passes runtime_authorization/0 with
+      # real URLs. Header-auth clients (Claude Code/Desktop, Cursor) never
+      # read the RFC 9728 metadata these feed.
       authorization_servers: ["urn:estimate:none"],
       resource: "urn:estimate:mcp",
       validator: {Estimate.MCP.KeyValidator, []}
@@ -29,4 +29,30 @@ defmodule EstimateWeb.MCPServer do
   component(EstimateWeb.MCP.Tools.ListRoleTemplates)
   component(EstimateWeb.MCP.Tools.ListCurrencies)
   component(EstimateWeb.MCP.Tools.Search)
+
+  @doc "Scheme://host[:port] from endpoint config — safe before the endpoint starts."
+  def base_url do
+    cfg = Application.get_env(:estimate, EstimateWeb.Endpoint, [])
+    url = cfg[:url] || []
+    scheme = to_string(url[:scheme] || "http")
+    host = url[:host] || "localhost"
+    port = url[:port] || (cfg[:http] || [])[:port] || 4000
+
+    if {scheme, port} in [{"https", 443}, {"http", 80}] do
+      "#{scheme}://#{host}"
+    else
+      "#{scheme}://#{host}:#{port}"
+    end
+  end
+
+  def mcp_url, do: base_url() <> "/mcp"
+
+  @doc "Child-spec authorization opts with real runtime URLs (overrides the compile-time fallback)."
+  def runtime_authorization do
+    [
+      authorization_servers: [base_url()],
+      resource: mcp_url(),
+      validator: {Estimate.MCP.KeyValidator, []}
+    ]
+  end
 end

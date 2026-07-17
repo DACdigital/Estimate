@@ -7,7 +7,11 @@ defmodule EstimateWeb.MCPServerAuthTest do
   import Estimate.MCPTestHelpers
 
   setup do
-    start_supervised!({EstimateWeb.MCPServer, transport: {:streamable_http, start: true}})
+    start_supervised!(
+      {EstimateWeb.MCPServer,
+       transport: {:streamable_http, start: true},
+       authorization: EstimateWeb.MCPServer.runtime_authorization()}
+    )
 
     %{user: user, organization: org} = user_with_organization_fixture()
     {plaintext, _key, org} = mcp_api_key_fixture(user, org)
@@ -33,5 +37,14 @@ defmodule EstimateWeb.MCPServerAuthTest do
 
     {:ok, _} = Estimate.Organizations.update_mcp_settings(org, %{mcp_enabled: false})
     assert post_mcp(init_body(), [{"authorization", "Bearer " <> key}]).status == 401
+  end
+
+  test "401 advertises the resource metadata location" do
+    conn = post_mcp(init_body(), [])
+    assert conn.status == 401
+
+    [www] = Plug.Conn.get_resp_header(conn, "www-authenticate")
+    assert www =~ ~s(resource_metadata=")
+    assert www =~ "/.well-known/oauth-protected-resource"
   end
 end

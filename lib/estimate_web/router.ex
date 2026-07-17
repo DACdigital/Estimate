@@ -23,6 +23,10 @@ defmodule EstimateWeb.Router do
     get "/health", HealthController, :liveness
     get "/healthz", HealthController, :liveness
     get "/readyz", HealthController, :readiness
+
+    get "/.well-known/oauth-authorization-server", OAuthMetadataController, :authorization_server
+    get "/.well-known/oauth-protected-resource", OAuthMetadataController, :protected_resource
+    get "/.well-known/oauth-protected-resource/mcp", OAuthMetadataController, :protected_resource
   end
 
   # MCP server (Streamable HTTP). Auth handled inside the plug via

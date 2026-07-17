@@ -8,7 +8,11 @@ defmodule EstimateWeb.MCPServerIntegrationTest do
   import Estimate.MCPTestHelpers
 
   setup do
-    start_supervised!({EstimateWeb.MCPServer, transport: {:streamable_http, start: true}})
+    start_supervised!(
+      {EstimateWeb.MCPServer,
+       transport: {:streamable_http, start: true},
+       authorization: EstimateWeb.MCPServer.runtime_authorization()}
+    )
 
     %{user: user, organization: org} = user_with_organization_fixture()
     customer = customer_fixture(org, %{"name" => "Acme Corp"})
