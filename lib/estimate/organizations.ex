@@ -264,6 +264,8 @@ defmodule Estimate.Organizations do
                   where: k.user_id == ^removed_user_id and k.organization_id == ^org_id
                 )
               )
+
+              Estimate.MCP.OAuth.revoke_for_membership(removed_user_id, org_id)
             end)
 
             {:ok, :revoked}

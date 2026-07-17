@@ -53,6 +53,14 @@ defmodule Estimate.MCP do
     end)
   end
 
+  @doc """
+  Single bearer-credential entry point for the MCP endpoint:
+  OAuth access tokens (`est_at_`) and personal API keys (`est_`).
+  """
+  def verify_bearer("est_at_" <> _ = token), do: Estimate.MCP.OAuth.verify_access_token(token)
+  def verify_bearer(@prefix <> _ = key), do: verify_api_key(key)
+  def verify_bearer(_), do: {:error, :invalid_key}
+
   def verify_api_key(@prefix <> _rest = plaintext) do
     hash = :crypto.hash(:sha256, plaintext)
 

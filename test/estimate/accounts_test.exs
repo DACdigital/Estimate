@@ -3,6 +3,7 @@ defmodule Estimate.AccountsTest do
 
   alias Estimate.Accounts
   alias Estimate.MCP
+  alias Estimate.MCP.OAuth
   alias Estimate.Organizations
   alias Estimate.Portfolio
   alias Estimate.Portfolio.ProjectCollaborator
@@ -374,6 +375,53 @@ defmodule Estimate.AccountsTest do
       assert Repo.without_rls(fn ->
                Repo.get_by(MCP.APIKey, user_id: ctx.member.id, organization_id: ctx.org.id)
              end) == nil
+    end
+
+    test "delete_membership also removes the member's OAuth tokens and codes", ctx do
+      redirect_uri = "https://claude.ai/api/mcp/auth_callback"
+      resource = "http://localhost:4000/mcp"
+
+      {:ok, client} = OAuth.register_client(%{"redirect_uris" => [redirect_uri]})
+
+      {:ok, unused_code} =
+        OAuth.create_code(%{
+          client_id: client.id,
+          user_id: ctx.member.id,
+          organization_id: ctx.org.id,
+          redirect_uri: redirect_uri,
+          code_challenge: "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
+          resource: resource
+        })
+
+      {:ok, code} =
+        OAuth.create_code(%{
+          client_id: client.id,
+          user_id: ctx.member.id,
+          organization_id: ctx.org.id,
+          redirect_uri: redirect_uri,
+          code_challenge: "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
+          resource: resource
+        })
+
+      assert {:ok, %{access_token: access_token}} =
+               OAuth.exchange_code(code, %{
+                 client_id: client.id,
+                 redirect_uri: redirect_uri,
+                 code_verifier: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
+                 resource: resource
+               })
+
+      assert {:ok, _} = Organizations.delete_membership(ctx.member_membership, %{})
+
+      assert {:error, :invalid_key} = OAuth.verify_access_token(access_token)
+
+      assert {:error, :invalid_grant} =
+               OAuth.exchange_code(unused_code, %{
+                 client_id: client.id,
+                 redirect_uri: redirect_uri,
+                 code_verifier: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
+                 resource: resource
+               })
     end
   end
 
