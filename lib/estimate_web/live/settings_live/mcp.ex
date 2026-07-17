@@ -53,7 +53,7 @@ defmodule EstimateWeb.SettingsLive.Mcp do
       </div>
 
       <div
-        :if={!@current_organization.mcp_enabled}
+        :if={!@current_organization.mcp_enabled && !admin?(@current_membership)}
         class="bg-base-100 border border-base-300 rounded-xl p-6"
       >
         <p class="text-sm text-base-content/60">
@@ -151,6 +151,7 @@ defmodule EstimateWeb.SettingsLive.Mcp do
           {:noreply,
            socket
            |> assign(:current_organization, org)
+           |> assign(:new_key, nil)
            |> put_flash(
              :info,
              if(org.mcp_enabled, do: "MCP server enabled", else: "MCP server disabled")
@@ -162,6 +163,7 @@ defmodule EstimateWeb.SettingsLive.Mcp do
     end)
   end
 
+  @impl true
   def handle_event("generate_key", _params, socket) do
     %{current_user: user, org_id: org_id} = socket.assigns
 
@@ -174,6 +176,7 @@ defmodule EstimateWeb.SettingsLive.Mcp do
     end
   end
 
+  @impl true
   def handle_event("revoke_key", _params, socket) do
     %{current_user: user, org_id: org_id} = socket.assigns
     MCP.revoke_api_key(user.id, org_id)
@@ -185,6 +188,7 @@ defmodule EstimateWeb.SettingsLive.Mcp do
      |> put_flash(:info, "API key revoked")}
   end
 
+  @impl true
   def handle_event("dismiss_new_key", _params, socket) do
     {:noreply, assign(socket, :new_key, nil)}
   end
