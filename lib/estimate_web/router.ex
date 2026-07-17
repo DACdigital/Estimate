@@ -27,6 +27,8 @@ defmodule EstimateWeb.Router do
     get "/.well-known/oauth-authorization-server", OAuthMetadataController, :authorization_server
     get "/.well-known/oauth-protected-resource", OAuthMetadataController, :protected_resource
     get "/.well-known/oauth-protected-resource/mcp", OAuthMetadataController, :protected_resource
+
+    post "/oauth/register", OAuthRegistrationController, :create
   end
 
   # MCP server (Streamable HTTP). Auth handled inside the plug via
