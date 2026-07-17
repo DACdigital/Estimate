@@ -115,6 +115,44 @@ defmodule EstimateWeb.OAuthAuthorizeTest do
     assert org_id == org.id
   end
 
+  test "approve binds the code to the chosen org, not just the first mcp-enabled one", %{
+    conn: conn,
+    client: client,
+    user: user,
+    org: first_org
+  } do
+    second_org = organization_fixture()
+    membership_fixture(user, second_org, "member")
+    {:ok, second_org} = Organizations.update_mcp_settings(second_org, %{mcp_enabled: true})
+
+    # user is now a member of two mcp-enabled orgs: first_org (from setup,
+    # created first) and second_org (created here, second). Approving with
+    # second_org.id must bind the token to second_org — a regression that
+    # bound `hd(mcp_orgs)` instead of the chosen org would still pass the
+    # single-org test above but fails this one.
+    params =
+      authorize_params(client)
+      |> Map.put("organization_id", second_org.id)
+      |> Map.put("decision", "approve")
+
+    conn = post(conn, ~p"/oauth/authorize", params)
+
+    assert %{"code" => code, "state" => "xyz"} =
+             URI.decode_query(URI.parse(redirected_to(conn)).query)
+
+    assert {:ok, %{access_token: access_token}} =
+             OAuth.exchange_code(code, %{
+               client_id: client.id,
+               redirect_uri: @redirect,
+               code_verifier: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
+               resource: EstimateWeb.MCPServer.mcp_url()
+             })
+
+    assert {:ok, %{organization_id: org_id}} = OAuth.verify_access_token(access_token)
+    assert org_id == second_org.id
+    refute org_id == first_org.id
+  end
+
   test "deny redirects with access_denied", %{conn: conn, client: client, org: org} do
     params =
       authorize_params(client)

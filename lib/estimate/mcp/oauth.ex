@@ -57,9 +57,11 @@ defmodule Estimate.MCP.OAuth do
   # must PERSIST that revocation while still returning an error. Do NOT wrap
   # revoke-then-error in a `Repo.transaction` that ends in `Repo.rollback` —
   # rollback reverts the revocation you just made. The structure below returns
-  # plain `{:error, :invalid_grant}` tuples (no rollback) after any revocation,
-  # so the revocation commits; only the happy-path issue/rotate uses a
-  # transaction, and it always commits (never rolls back).
+  # plain `{:error, :invalid_grant}` tuples after any revocation. revoke_family/1
+  # does run its update inside a `Repo.transaction` now (to hold an advisory
+  # lock, see below) — but that transaction always commits, never rolls back.
+  # The real invariant isn't "no transaction", it's: no path rolls back after
+  # a revoke has happened (a rollback would undo it).
 
   def exchange_code(plaintext, %{} = params) do
     Repo.without_rls(fn ->
@@ -144,8 +146,9 @@ defmodule Estimate.MCP.OAuth do
           {:error, :invalid_grant}
 
         not is_nil(row.revoked_at) ->
-          # Rotated-token reuse: assume theft, kill the family. Plain
-          # update_all (no transaction) so the revocation commits.
+          # Rotated-token reuse: assume theft, kill the family.
+          # revoke_family/1 wraps its update in an always-commit transaction
+          # (advisory lock only, never rolls back), so the revocation persists.
           revoke_family(row.family_id)
           {:error, :invalid_grant}
 

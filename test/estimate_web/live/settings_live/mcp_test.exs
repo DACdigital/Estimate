@@ -43,10 +43,14 @@ defmodule EstimateWeb.SettingsLive.McpTest do
     end
 
     test "shows the claude.ai connector instructions", %{conn: conn, org: org} do
-      {:ok, _lv, html} = live(conn, ~p"/org/#{org.id}/settings/mcp")
+      {:ok, lv, html} = live(conn, ~p"/org/#{org.id}/settings/mcp")
 
       assert html =~ "Connect from claude.ai"
-      assert html =~ url(~p"/mcp")
+      # Scoped to the <code> tag: the pre-existing admin summary card also
+      # renders @mcp_url (in a plain <p>), so an unscoped `html =~ url(...)`
+      # would pass even if this block never rendered the URL. Only the
+      # "Connect from claude.ai" block puts the URL in <code>.
+      assert has_element?(lv, "code", url(~p"/mcp"))
     end
 
     test "generate shows plaintext once; remount shows only prefix", %{
