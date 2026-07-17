@@ -73,7 +73,7 @@ defmodule Estimate.Organizations.Currencies do
   def create_currency(org_id, attrs) do
     Repo.ensure_org_context(fn ->
       %Currency{}
-      |> Currency.changeset(Map.put(attrs, :organization_id, org_id))
+      |> Currency.changeset(Map.put(attrs, "organization_id", org_id))
       |> Repo.insert()
     end)
   end

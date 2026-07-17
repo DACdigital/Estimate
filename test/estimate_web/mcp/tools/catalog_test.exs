@@ -68,19 +68,13 @@ defmodule EstimateWeb.MCP.Tools.CatalogTest do
     # (currencies_org_main_index), so "USD"/is_main: true would collide.
     # Add a second, non-main currency and check both it and the seeded
     # main currency serialize correctly.
-    #
-    # NOTE: attrs must be atom-keyed here — Currencies.create_currency/2
-    # does `Map.put(attrs, :organization_id, org_id)`, and Ecto's cast/4
-    # raises Ecto.CastError on maps mixing atom and string keys (the atom
-    # key sorts first in Erlang's small-map term order, tripping the
-    # mixed-keys guard regardless of which string keys are present).
     {:ok, _} =
       Estimate.Organizations.Currencies.create_currency(org.id, %{
-        code: "CHF",
-        name: "Swiss Franc",
-        symbol: "CHF",
-        exchange_rate: Decimal.new("0.9"),
-        is_main: false
+        "code" => "CHF",
+        "name" => "Swiss Franc",
+        "symbol" => "CHF",
+        "exchange_rate" => "0.9",
+        "is_main" => false
       })
 
     assert {:reply, response, _} = ListCurrencies.execute(%{}, frame)
