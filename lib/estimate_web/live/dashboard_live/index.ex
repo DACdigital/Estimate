@@ -79,13 +79,13 @@ defmodule EstimateWeb.DashboardLive.Index do
             count={@watchtower_2fa}
             label="Members Without 2FA"
             icon="hero-shield-exclamation"
-            navigate={~p"/org/#{@org_id}/settings"}
+            navigate={~p"/org/#{@org_id}/settings/members"}
           />
           <.watchtower_card
             count={@watchtower_deleted_estimations}
             label="Deleted Estimations"
             icon="hero-trash"
-            navigate={~p"/org/#{@org_id}/settings"}
+            navigate={~p"/org/#{@org_id}/settings/trash"}
           />
         </div>
       </div>

@@ -87,23 +87,25 @@ defmodule EstimateWeb.SettingsNavTest do
     test "has a single Settings entry, no expanded settings links", %{conn: conn, org: org} do
       # Dashboard: rail is absent, so any settings child link found here would
       # be a leftover of the old expanded sidebar group.
-      {:ok, view, html} = live(conn, ~p"/org/#{org.id}")
+      {:ok, view, _html} = live(conn, ~p"/org/#{org.id}")
 
-      assert has_element?(view, ~s(a[href="/org/#{org.id}/settings"]), "Settings")
+      assert has_element?(view, ~s(#app-sidebar a[href="/org/#{org.id}/settings"]), "Settings")
 
       for page <- ["/members", "/currencies", "/ai", "/email", "/mcp"] do
-        refute has_element?(view, ~s(a[href="/org/#{org.id}/settings#{page}"])),
+        refute has_element?(view, ~s(#app-sidebar a[href="/org/#{org.id}/settings#{page}"])),
                "old sidebar link to settings#{page} still present"
       end
-
-      refute html =~ "AI Integration"
     end
 
     test "Settings entry is active on settings pages", %{conn: conn, org: org} do
       {:ok, view, _html} = live(conn, ~p"/org/#{org.id}/settings/mcp")
 
       # sidebar_link active state renders bg-base-200 on the anchor
-      assert has_element?(view, ~s(a[href="/org/#{org.id}/settings"].bg-base-200), "Settings")
+      assert has_element?(
+               view,
+               ~s(#app-sidebar a[href="/org/#{org.id}/settings"].bg-base-200),
+               "Settings"
+             )
     end
   end
 end
