@@ -117,11 +117,26 @@ defmodule Estimate.Repo do
   @doc """
   Checks out a connection and resets to the login role (postgres/superuser),
   bypassing RLS. For system-level operations like search reindexing.
+  State-neutral: captures the connection's role and RLS context first and restores both afterward, so pooled connections never check back in polluted.
   """
   def without_rls(fun) when is_function(fun, 0) do
     checkout(fn ->
+      %{rows: [[prev_role, prev_org, prev_user]]} =
+        query!(
+          "SELECT current_user, current_setting('app.current_org_id', true), current_setting('app.current_user_id', true)",
+          []
+        )
+
       query!("RESET ROLE", [])
-      fun.()
+
+      try do
+        fun.()
+      after
+        # Role names cannot be bind params; prev_role comes from Postgres itself.
+        query!(~s(SET ROLE "#{prev_role}"), [])
+        query!("SELECT set_config('app.current_org_id', $1, false)", [prev_org || ""])
+        query!("SELECT set_config('app.current_user_id', $1, false)", [prev_user || ""])
+      end
     end)
   end
 
