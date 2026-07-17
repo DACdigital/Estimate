@@ -189,7 +189,7 @@ defmodule EstimateWeb.ProjectLive.Show do
 
   defp mount_project(socket, id, org_id, current_collaborator) do
     project = Portfolio.get_project_with_roles!(id, org_id)
-    estimations = EstimationEngine.list_estimations(id)
+    estimations = EstimationEngine.list_estimations(id, org_id)
     role_templates = Accounts.list_role_templates(org_id)
     estimation_templates = Estimate.Templates.list_estimation_templates(org_id)
     currencies = Currencies.list_currencies(org_id)

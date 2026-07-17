@@ -2,6 +2,7 @@ defmodule Estimate.EstimationEngineTest do
   use Estimate.DataCase
 
   alias Estimate.EstimationEngine
+  import Estimate.AccountsFixtures
   import Estimate.EstimationEngineFixtures
   import Estimate.PortfolioFixtures
 
@@ -22,6 +23,21 @@ defmodule Estimate.EstimationEngineTest do
       estimation = estimation_fixture()
       {:ok, deleted} = EstimationEngine.soft_delete_estimation(estimation)
       assert deleted.deleted_at != nil
+    end
+
+    test "list_estimations/2 filters by organization_id at the app level, independent of RLS" do
+      # Plain DataCase connection: no setup_rls call anywhere in this test, so
+      # this runs as the postgres superuser and RLS is bypassed entirely. Only
+      # the context's own `where: e.organization_id == ^org_id` can discriminate here.
+      project = project_fixture()
+      org_id = project.organization_id
+      estimation = estimation_fixture(project)
+
+      %{organization: other_org} = user_with_organization_fixture()
+
+      assert EstimationEngine.list_estimations(project.id, other_org.id) == []
+      assert [got] = EstimationEngine.list_estimations(project.id, org_id)
+      assert got.id == estimation.id
     end
   end
 

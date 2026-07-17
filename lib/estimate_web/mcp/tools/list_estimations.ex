@@ -12,8 +12,8 @@ defmodule EstimateWeb.MCP.Tools.ListEstimations do
 
   @impl true
   def execute(%{project_id: project_id}, frame) do
-    case Scope.fetch(frame, fn _claims ->
-           Estimate.EstimationEngine.list_estimations(project_id)
+    case Scope.fetch(frame, fn %{org_id: org_id} ->
+           Estimate.EstimationEngine.list_estimations(project_id, org_id)
          end) do
       {:ok, estimations} ->
         {:reply,

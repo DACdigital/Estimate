@@ -38,10 +38,12 @@ defmodule Estimate.EstimationEngine.Estimations do
   def list_newest_estimations_for_org(org_id, limit \\ 5),
     do: list_estimations_for_org(org_id, order_by: :inserted_at, limit: limit)
 
-  def list_estimations(project_id) do
+  def list_estimations(project_id, org_id) do
     Repo.ensure_org_context(fn ->
       from(e in Estimation,
-        where: e.project_id == ^project_id and is_nil(e.deleted_at),
+        where:
+          e.project_id == ^project_id and e.organization_id == ^org_id and
+            is_nil(e.deleted_at),
         order_by: [desc: e.updated_at],
         preload: [:roles, :currency]
       )

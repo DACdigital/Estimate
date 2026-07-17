@@ -867,7 +867,10 @@ defmodule EstimateWeb.ProjectLive.ShowTest do
       # (Accounts.seed_default_role_templates/1), and mount's init_modal_assigns/4 builds
       # modal_roles from them (show.ex:662) -- so roles_valid?/1 already passes without ever
       # opening the modal or touching modal_roles.
-      before_ids = project.id |> EstimationEngine.list_estimations() |> Enum.map(& &1.id)
+      before_ids =
+        project.id
+        |> EstimationEngine.list_estimations(project.organization_id)
+        |> Enum.map(& &1.id)
 
       {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
 
@@ -881,7 +884,7 @@ defmodule EstimateWeb.ProjectLive.ShowTest do
 
       # Prove REAL creation, not just the flash: the project's estimation list actually grew,
       # and the redirect target names that concrete new estimation's id.
-      after_list = EstimationEngine.list_estimations(project.id)
+      after_list = EstimationEngine.list_estimations(project.id, project.organization_id)
       assert length(after_list) == length(before_ids) + 1
       new_estimation = Enum.find(after_list, &(&1.id not in before_ids))
       assert new_estimation
@@ -896,7 +899,8 @@ defmodule EstimateWeb.ProjectLive.ShowTest do
       owner: owner,
       project: project
     } do
-      before_count = project.id |> EstimationEngine.list_estimations() |> length()
+      before_count =
+        project.id |> EstimationEngine.list_estimations(project.organization_id) |> length()
 
       {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
       # mount's modal_roles start valid (from seeded templates, see the "fresh" test above) --
@@ -912,13 +916,19 @@ defmodule EstimateWeb.ProjectLive.ShowTest do
         })
 
       assert html =~ "All roles must have a name and abbreviation"
-      assert project.id |> EstimationEngine.list_estimations() |> length() == before_count
+
+      assert project.id |> EstimationEngine.list_estimations(project.organization_id) |> length() ==
+               before_count
     end
 
     test "copy: copies an existing estimation in the SAME project, flashes Estimation copied, and redirects",
          %{conn: conn, org: org, owner: owner, project: project} do
       source_est = estimation_fixture(project)
-      before_ids = project.id |> EstimationEngine.list_estimations() |> Enum.map(& &1.id)
+
+      before_ids =
+        project.id
+        |> EstimationEngine.list_estimations(project.organization_id)
+        |> Enum.map(& &1.id)
 
       {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
 
@@ -931,7 +941,7 @@ defmodule EstimateWeb.ProjectLive.ShowTest do
       {path, flash} = assert_redirect(lv)
       assert flash["info"] == "Estimation copied"
 
-      after_list = EstimationEngine.list_estimations(project.id)
+      after_list = EstimationEngine.list_estimations(project.id, project.organization_id)
       assert length(after_list) == length(before_ids) + 1
       new_estimation = Enum.find(after_list, &(&1.id not in before_ids))
       assert new_estimation
@@ -946,7 +956,11 @@ defmodule EstimateWeb.ProjectLive.ShowTest do
       # for "copy" the whole condition short-circuits to false regardless of modal_roles, since
       # copy takes its roles from the SOURCE estimation, not the modal list.
       source_est = estimation_fixture(project)
-      before_ids = project.id |> EstimationEngine.list_estimations() |> Enum.map(& &1.id)
+
+      before_ids =
+        project.id
+        |> EstimationEngine.list_estimations(project.organization_id)
+        |> Enum.map(& &1.id)
 
       {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
       render_click(lv, "add_modal_role", %{})
@@ -961,7 +975,7 @@ defmodule EstimateWeb.ProjectLive.ShowTest do
       {_path, flash} = assert_redirect(lv)
       assert flash["info"] == "Estimation copied"
 
-      after_list = EstimationEngine.list_estimations(project.id)
+      after_list = EstimationEngine.list_estimations(project.id, project.organization_id)
       assert length(after_list) == length(before_ids) + 1
     end
 
@@ -984,7 +998,9 @@ defmodule EstimateWeb.ProjectLive.ShowTest do
       # sibling project is what actually reaches that guard.
       other_project = project_fixture(nil, owner)
       sibling_est = estimation_fixture(other_project)
-      before_count = project.id |> EstimationEngine.list_estimations() |> length()
+
+      before_count =
+        project.id |> EstimationEngine.list_estimations(project.organization_id) |> length()
 
       {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
 
@@ -997,13 +1013,19 @@ defmodule EstimateWeb.ProjectLive.ShowTest do
 
       assert html =~ "Could not create estimation"
       refute html =~ "Estimation copied"
-      assert project.id |> EstimationEngine.list_estimations() |> length() == before_count
+
+      assert project.id |> EstimationEngine.list_estimations(project.organization_id) |> length() ==
+               before_count
     end
 
     test "template: creates from an estimation template, flashes Estimation created, and redirects",
          %{conn: conn, org: org, owner: owner, project: project} do
       template = template_fixture(org)
-      before_ids = project.id |> EstimationEngine.list_estimations() |> Enum.map(& &1.id)
+
+      before_ids =
+        project.id
+        |> EstimationEngine.list_estimations(project.organization_id)
+        |> Enum.map(& &1.id)
 
       {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
 
@@ -1016,7 +1038,7 @@ defmodule EstimateWeb.ProjectLive.ShowTest do
       {path, flash} = assert_redirect(lv)
       assert flash["info"] == "Estimation created"
 
-      after_list = EstimationEngine.list_estimations(project.id)
+      after_list = EstimationEngine.list_estimations(project.id, project.organization_id)
       assert length(after_list) == length(before_ids) + 1
       new_estimation = Enum.find(after_list, &(&1.id not in before_ids))
       assert new_estimation
@@ -1031,7 +1053,10 @@ defmodule EstimateWeb.ProjectLive.ShowTest do
       owner: owner,
       project: project
     } do
-      before_ids = project.id |> EstimationEngine.list_estimations() |> Enum.map(& &1.id)
+      before_ids =
+        project.id
+        |> EstimationEngine.list_estimations(project.organization_id)
+        |> Enum.map(& &1.id)
 
       {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
 
@@ -1052,7 +1077,7 @@ defmodule EstimateWeb.ProjectLive.ShowTest do
       {path, flash} = assert_redirect(lv)
       assert flash["info"] == "Estimation created"
 
-      after_list = EstimationEngine.list_estimations(project.id)
+      after_list = EstimationEngine.list_estimations(project.id, project.organization_id)
       assert length(after_list) == length(before_ids) + 1
       new_estimation = Enum.find(after_list, &(&1.id not in before_ids))
       assert new_estimation
@@ -1071,7 +1096,8 @@ defmodule EstimateWeb.ProjectLive.ShowTest do
       # dispatch_create("json", ...) hits its `nil -> {:error, :no_json}` clause (show.ex:1427) --
       # which, like the copy project_id guard above, surfaces only as the generic
       # "Could not create estimation" flash.
-      before_count = project.id |> EstimationEngine.list_estimations() |> length()
+      before_count =
+        project.id |> EstimationEngine.list_estimations(project.organization_id) |> length()
 
       {:ok, lv, _} = live(log_in_user(conn, owner), project_path(org, project))
 
@@ -1082,7 +1108,9 @@ defmodule EstimateWeb.ProjectLive.ShowTest do
         })
 
       assert html =~ "Could not create estimation"
-      assert project.id |> EstimationEngine.list_estimations() |> length() == before_count
+
+      assert project.id |> EstimationEngine.list_estimations(project.organization_id) |> length() ==
+               before_count
     end
   end
 
@@ -1231,7 +1259,11 @@ defmodule EstimateWeb.ProjectLive.ShowTest do
       assert html =~ "Cannot delete current estimation"
       assert assigns(lv).deleting_estimation == nil
 
-      live_ids = project.id |> EstimationEngine.list_estimations() |> Enum.map(& &1.id)
+      live_ids =
+        project.id
+        |> EstimationEngine.list_estimations(project.organization_id)
+        |> Enum.map(& &1.id)
+
       trashed_ids = project.id |> EstimationEngine.list_deleted_estimations() |> Enum.map(& &1.id)
       assert est1.id in live_ids
       refute est1.id in trashed_ids
@@ -1252,7 +1284,9 @@ defmodule EstimateWeb.ProjectLive.ShowTest do
       assert assigns(lv).deleting_estimation == nil
 
       foreign_live_ids =
-        other_project.id |> EstimationEngine.list_estimations() |> Enum.map(& &1.id)
+        other_project.id
+        |> EstimationEngine.list_estimations(other_project.organization_id)
+        |> Enum.map(& &1.id)
 
       assert foreign_est.id in foreign_live_ids
     end
@@ -1270,7 +1304,11 @@ defmodule EstimateWeb.ProjectLive.ShowTest do
       assert html =~ "Estimation moved to trash"
       assert assigns(lv).deleting_estimation == nil
 
-      live_ids = project.id |> EstimationEngine.list_estimations() |> Enum.map(& &1.id)
+      live_ids =
+        project.id
+        |> EstimationEngine.list_estimations(project.organization_id)
+        |> Enum.map(& &1.id)
+
       trashed_ids = project.id |> EstimationEngine.list_deleted_estimations() |> Enum.map(& &1.id)
       refute est2.id in live_ids
       assert est2.id in trashed_ids
@@ -1341,7 +1379,11 @@ defmodule EstimateWeb.ProjectLive.ShowTest do
 
       assert html =~ "Estimation restored"
 
-      live_ids = project.id |> EstimationEngine.list_estimations() |> Enum.map(& &1.id)
+      live_ids =
+        project.id
+        |> EstimationEngine.list_estimations(project.organization_id)
+        |> Enum.map(& &1.id)
+
       trashed_ids = project.id |> EstimationEngine.list_deleted_estimations() |> Enum.map(& &1.id)
       assert est_trashed.id in live_ids
       refute est_trashed.id in trashed_ids

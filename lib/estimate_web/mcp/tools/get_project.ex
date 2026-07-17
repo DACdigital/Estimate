@@ -43,7 +43,7 @@ defmodule EstimateWeb.MCP.Tools.GetProject do
         {project, Estimate.Portfolio.list_project_roles(project.id)}
       end
 
-    estimations = Estimate.EstimationEngine.list_estimations(project.id)
+    estimations = Estimate.EstimationEngine.list_estimations(project.id, org_id)
     {project, roles, estimations}
   end
 end

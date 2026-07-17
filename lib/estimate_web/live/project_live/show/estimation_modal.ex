@@ -181,7 +181,7 @@ defmodule EstimateWeb.ProjectLive.Show.EstimationModal do
 
         case result do
           {:ok, estimation} ->
-            estimations = EstimationEngine.list_estimations(project.id)
+            estimations = EstimationEngine.list_estimations(project.id, org_id)
 
             {:noreply,
              socket

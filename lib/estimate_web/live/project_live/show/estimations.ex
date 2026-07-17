@@ -22,7 +22,12 @@ defmodule EstimateWeb.ProjectLive.Show.Estimations do
         {:ok, estimation} ->
           case EstimationEngine.set_current_estimation(estimation) do
             {:ok, _} ->
-              estimations = EstimationEngine.list_estimations(socket.assigns.project.id)
+              estimations =
+                EstimationEngine.list_estimations(
+                  socket.assigns.project.id,
+                  socket.assigns.org_id
+                )
+
               current = EstimationEngine.get_estimation!(estimation.id, socket.assigns.org_id)
 
               {:noreply,
@@ -61,7 +66,7 @@ defmodule EstimateWeb.ProjectLive.Show.Estimations do
             case EstimationEngine.soft_delete_estimation(estimation) do
               {:ok, _} ->
                 project_id = socket.assigns.project.id
-                estimations = EstimationEngine.list_estimations(project_id)
+                estimations = EstimationEngine.list_estimations(project_id, socket.assigns.org_id)
                 deleted = EstimationEngine.list_deleted_estimations(project_id)
 
                 {:noreply,
@@ -103,7 +108,7 @@ defmodule EstimateWeb.ProjectLive.Show.Estimations do
         {:ok, estimation} ->
           case EstimationEngine.restore_estimation(estimation) do
             {:ok, _} ->
-              estimations = EstimationEngine.list_estimations(project_id)
+              estimations = EstimationEngine.list_estimations(project_id, org_id)
               deleted = EstimationEngine.list_deleted_estimations(project_id)
 
               current_estimation =
