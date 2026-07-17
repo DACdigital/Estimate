@@ -60,6 +60,19 @@ config :logger, :default_formatter,
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 
+# Redact secrets from Phoenix's debug-level "Parameters:" request log line.
+# filter_parameters keeps everything except these keys (Phoenix default is
+# just ["password"]) -- the OAuth token endpoint receives `code`,
+# `code_verifier` and `refresh_token` as plain form params, which would
+# otherwise be logged verbatim.
+config :phoenix, :filter_parameters, [
+  "password",
+  "code",
+  "code_verifier",
+  "refresh_token",
+  "token"
+]
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{config_env()}.exs"

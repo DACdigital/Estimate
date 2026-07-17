@@ -34,6 +34,14 @@ defmodule Estimate.MCPTest do
       assert {:error, :invalid_key} = MCP.verify_api_key(old_plaintext)
       assert {:ok, _} = MCP.verify_api_key(new_plaintext)
     end
+
+    test "never mints a key whose random part collides with the OAuth access-token prefix" do
+      # est_ + a suffix starting with "at_" spells "est_at_...", which
+      # verify_bearer/1 would route to the OAuth path instead of
+      # verify_api_key/1 -- the key would silently never authenticate.
+      assert MCP.oauth_prefix_collision?("at_" <> "anything-here")
+      refute MCP.oauth_prefix_collision?("xyz123-not-a-collision")
+    end
   end
 
   describe "get_api_key/2 and revoke_api_key/2" do

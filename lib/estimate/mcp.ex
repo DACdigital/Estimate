@@ -18,8 +18,7 @@ defmodule Estimate.MCP do
   @last_used_resolution_seconds 300
 
   def generate_api_key(user_id, org_id) do
-    plaintext =
-      @prefix <> Base.url_encode64(:crypto.strong_rand_bytes(@rand_size), padding: false)
+    plaintext = @prefix <> random_suffix()
 
     attrs = %{
       key_hash: :crypto.hash(:sha256, plaintext),
@@ -108,4 +107,17 @@ defmodule Estimate.MCP do
   defp own_key_query(user_id, org_id) do
     from k in APIKey, where: k.user_id == ^user_id and k.organization_id == ^org_id
   end
+
+  # A random suffix starting with "at_" would spell "est_at_..." once @prefix
+  # is prepended -- verify_bearer/1 above dispatches anything starting with
+  # "est_at_" to the OAuth access-token path, so a key like that would
+  # silently never authenticate as an API key (~1/262144 odds per key).
+  # Regenerate rather than special-case verify_bearer's routing.
+  defp random_suffix do
+    suffix = Base.url_encode64(:crypto.strong_rand_bytes(@rand_size), padding: false)
+    if oauth_prefix_collision?(suffix), do: random_suffix(), else: suffix
+  end
+
+  @doc false
+  def oauth_prefix_collision?(suffix), do: String.starts_with?(suffix, "at_")
 end
