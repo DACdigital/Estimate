@@ -7,7 +7,7 @@ defmodule EstimateWeb.MCPServer do
 
   use Anubis.Server,
     name: "estimate",
-    version: "1.0.0",
+    version: Mix.Project.config()[:version],
     capabilities: [:tools],
     authorization: [
       # No OAuth AS exists; inert values satisfy anubis' required config.

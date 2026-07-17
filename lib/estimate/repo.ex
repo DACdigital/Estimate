@@ -91,7 +91,7 @@ defmodule Estimate.Repo do
     checkout(fn ->
       %{rows: [[prev_role, prev_org, prev_user]]} =
         query!(
-          "SELECT current_user, current_setting('app.current_org_id', true), current_setting('app.current_user_id', true)",
+          "SELECT quote_ident(current_user), current_setting('app.current_org_id', true), current_setting('app.current_user_id', true)",
           []
         )
 
@@ -105,8 +105,9 @@ defmodule Estimate.Repo do
       try do
         fun.()
       after
-        # Role names cannot be bind params; prev_role comes from Postgres itself.
-        query!(~s(SET ROLE "#{prev_role}"), [])
+        # Role names cannot be bind params; quote_ident (in the SELECT above)
+        # already returns prev_role safely quoted, so no extra wrapping here.
+        query!("SET ROLE " <> prev_role, [])
         query!("SELECT set_config('app.current_org_id', $1, false)", [prev_org || ""])
         query!("SELECT set_config('app.current_user_id', $1, false)", [prev_user || ""])
       end
@@ -137,7 +138,7 @@ defmodule Estimate.Repo do
     checkout(fn ->
       %{rows: [[prev_role, prev_org, prev_user]]} =
         query!(
-          "SELECT current_user, current_setting('app.current_org_id', true), current_setting('app.current_user_id', true)",
+          "SELECT quote_ident(current_user), current_setting('app.current_org_id', true), current_setting('app.current_user_id', true)",
           []
         )
 
@@ -146,8 +147,9 @@ defmodule Estimate.Repo do
       try do
         fun.()
       after
-        # Role names cannot be bind params; prev_role comes from Postgres itself.
-        query!(~s(SET ROLE "#{prev_role}"), [])
+        # Role names cannot be bind params; quote_ident (in the SELECT above)
+        # already returns prev_role safely quoted, so no extra wrapping here.
+        query!("SET ROLE " <> prev_role, [])
         query!("SELECT set_config('app.current_org_id', $1, false)", [prev_org || ""])
         query!("SELECT set_config('app.current_user_id', $1, false)", [prev_user || ""])
       end

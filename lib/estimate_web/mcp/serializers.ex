@@ -79,18 +79,7 @@ defmodule EstimateWeb.MCP.Serializers do
     }
   end
 
-  def estimation_role(r) do
-    %{
-      id: r.id,
-      name: r.name,
-      abbreviation: r.abbreviation,
-      hourly_rate: decimal(r.hourly_rate),
-      position: r.position,
-      pm_overhead: decimal(r.pm_overhead),
-      qa_overhead: decimal(r.qa_overhead),
-      risk_buffer: decimal(r.risk_buffer)
-    }
-  end
+  def estimation_role(r), do: r |> project_role() |> Map.put(:position, r.position)
 
   def epic(e) do
     %{
