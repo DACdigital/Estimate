@@ -29,6 +29,7 @@ defmodule EstimateWeb.Router do
     get "/.well-known/oauth-protected-resource/mcp", OAuthMetadataController, :protected_resource
 
     post "/oauth/register", OAuthRegistrationController, :create
+    post "/oauth/token", OAuthTokenController, :create
   end
 
   # OAuth authorize + consent (browser, requires login)
