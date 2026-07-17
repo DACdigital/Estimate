@@ -103,13 +103,16 @@ defmodule EstimateWeb.OAuthAuthorizeTest do
     assert %{"code" => code, "state" => "xyz"} =
              URI.decode_query(URI.parse(redirected_to(conn)).query)
 
-    assert {:ok, %{access_token: _}} =
+    assert {:ok, %{access_token: access_token}} =
              OAuth.exchange_code(code, %{
                client_id: client.id,
                redirect_uri: @redirect,
                code_verifier: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
                resource: EstimateWeb.MCPServer.mcp_url()
              })
+
+    assert {:ok, %{organization_id: org_id}} = OAuth.verify_access_token(access_token)
+    assert org_id == org.id
   end
 
   test "deny redirects with access_denied", %{conn: conn, client: client, org: org} do
@@ -131,6 +134,10 @@ defmodule EstimateWeb.OAuthAuthorizeTest do
 
   test "approve with a foreign org id is rejected", %{conn: conn, client: client} do
     %{organization: other_org} = user_with_organization_fixture()
+    # mcp_enabled: true so the ONLY reason this can be rejected is that the
+    # session user isn't a member — isolates cross-org membership enforcement
+    # from a buggy validate_org that merely checks "is some mcp-enabled org".
+    {:ok, other_org} = Organizations.update_mcp_settings(other_org, %{mcp_enabled: true})
 
     params =
       authorize_params(client)
@@ -138,6 +145,90 @@ defmodule EstimateWeb.OAuthAuthorizeTest do
       |> Map.put("decision", "approve")
 
     conn = post(conn, ~p"/oauth/authorize", params)
-    assert redirected_to(conn) =~ "error=invalid_request"
+
+    query = URI.decode_query(URI.parse(redirected_to(conn)).query)
+    assert query["error"] == "invalid_request"
+    refute Map.has_key?(query, "code")
+  end
+
+  test "approve with a member org that has MCP disabled is rejected", %{
+    conn: conn,
+    client: client,
+    user: user
+  } do
+    other_org = organization_fixture()
+    membership_fixture(user, other_org)
+
+    params =
+      authorize_params(client)
+      |> Map.put("organization_id", other_org.id)
+      |> Map.put("decision", "approve")
+
+    conn = post(conn, ~p"/oauth/authorize", params)
+
+    query = URI.decode_query(URI.parse(redirected_to(conn)).query)
+    assert query["error"] == "invalid_request"
+    refute Map.has_key?(query, "code")
+  end
+
+  test "approve without an organization_id is rejected", %{conn: conn, client: client} do
+    params =
+      authorize_params(client)
+      |> Map.put("decision", "approve")
+
+    conn = post(conn, ~p"/oauth/authorize", params)
+
+    query = URI.decode_query(URI.parse(redirected_to(conn)).query)
+    assert query["error"] == "invalid_request"
+    refute Map.has_key?(query, "code")
+  end
+
+  test "approve with a missing decision is treated as deny (fail-safe)", %{
+    conn: conn,
+    client: client,
+    org: org
+  } do
+    params =
+      authorize_params(client)
+      |> Map.put("organization_id", org.id)
+
+    conn = post(conn, ~p"/oauth/authorize", params)
+
+    query = URI.decode_query(URI.parse(redirected_to(conn)).query)
+    assert query["error"] == "access_denied"
+    refute Map.has_key?(query, "code")
+  end
+
+  test "approve with a garbage decision is treated as deny (fail-safe)", %{
+    conn: conn,
+    client: client,
+    org: org
+  } do
+    params =
+      authorize_params(client)
+      |> Map.put("organization_id", org.id)
+      |> Map.put("decision", "garbage")
+
+    conn = post(conn, ~p"/oauth/authorize", params)
+
+    query = URI.decode_query(URI.parse(redirected_to(conn)).query)
+    assert query["error"] == "access_denied"
+    refute Map.has_key?(query, "code")
+  end
+
+  test "a bracket-array state param is dropped instead of crashing the redirect", %{
+    conn: conn,
+    client: client
+  } do
+    base =
+      authorize_params(client, %{"resource" => "https://other.example/mcp"})
+      |> Map.delete("state")
+      |> URI.encode_query()
+
+    conn = get(conn, "/oauth/authorize?" <> base <> "&state[]=a")
+
+    query = URI.decode_query(URI.parse(redirected_to(conn)).query)
+    assert query["error"] == "invalid_request"
+    refute Map.has_key?(query, "state")
   end
 end

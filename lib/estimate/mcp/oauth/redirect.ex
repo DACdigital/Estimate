@@ -9,9 +9,16 @@ defmodule Estimate.MCP.OAuth.Redirect do
 
   def valid_for_registration?(uri_string) when is_binary(uri_string) do
     case URI.parse(uri_string) do
-      %URI{scheme: "https", host: host} when is_binary(host) and host != "" -> true
-      %URI{scheme: "http", host: host} when host in @loopback_hosts -> true
-      _ -> false
+      %URI{scheme: "https", host: host, query: nil, fragment: nil}
+      when is_binary(host) and host != "" ->
+        true
+
+      %URI{scheme: "http", host: host, query: nil, fragment: nil}
+      when host in @loopback_hosts ->
+        true
+
+      _ ->
+        false
     end
   end
 

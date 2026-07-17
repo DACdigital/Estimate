@@ -18,6 +18,11 @@ defmodule Estimate.MCP.OAuth.RedirectTest do
       refute Redirect.valid_for_registration?("not a uri")
       refute Redirect.valid_for_registration?("https://")
     end
+
+    test "rejects query or fragment components (RFC 6749 §3.1.2 append safety)" do
+      refute Redirect.valid_for_registration?("https://claude.ai/cb?x=1")
+      refute Redirect.valid_for_registration?("http://localhost/cb#f")
+    end
   end
 
   describe "matches?/2" do

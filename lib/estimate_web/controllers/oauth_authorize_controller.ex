@@ -44,17 +44,10 @@ defmodule EstimateWeb.OAuthAuthorizeController do
     end
   end
 
-  def approve(conn, %{"decision" => "deny"} = params) do
-    case resolve_client(params) do
-      {:ok, _client, redirect_uri} ->
-        deny_redirect(conn, redirect_uri, "access_denied", params["state"])
-
-      {:error, :bad_client} ->
-        bad_client(conn)
-    end
-  end
-
-  def approve(conn, params) do
+  # Fail-safe consent: only an exact "approve" decision may mint a code.
+  # Everything else (deny, missing, garbage) falls through to the catch-all
+  # clause below and is treated as a denial.
+  def approve(conn, %{"decision" => "approve"} = params) do
     user = conn.assigns.current_user
 
     with {:ok, client, redirect_uri} <- resolve_client(params),
@@ -70,12 +63,7 @@ defmodule EstimateWeb.OAuthAuthorizeController do
           resource: params["resource"]
         })
 
-      query =
-        URI.encode_query(
-          Enum.reject([code: code, state: params["state"]], fn {_, v} -> is_nil(v) end)
-        )
-
-      redirect(conn, external: redirect_uri <> "?" <> query)
+      redirect(conn, external: append_params(redirect_uri, code: code, state: params["state"]))
     else
       {:error, :bad_client} ->
         bad_client(conn)
@@ -84,7 +72,21 @@ defmodule EstimateWeb.OAuthAuthorizeController do
         deny_redirect(conn, redirect_uri, "invalid_request", params["state"])
 
       {:error, :bad_org} ->
+        # Invariant: resolve_client/1 above already validated params["redirect_uri"]
+        # against the registered client's redirect_uris, so redirecting to the raw
+        # param here is safe (not an open redirect). Keep resolve_client first if
+        # this clause is ever reordered.
         deny_redirect(conn, params["redirect_uri"], "invalid_request", params["state"])
+    end
+  end
+
+  def approve(conn, params) do
+    case resolve_client(params) do
+      {:ok, _client, redirect_uri} ->
+        deny_redirect(conn, redirect_uri, "access_denied", params["state"])
+
+      {:error, :bad_client} ->
+        bad_client(conn)
     end
   end
 
@@ -125,10 +127,32 @@ defmodule EstimateWeb.OAuthAuthorizeController do
   end
 
   defp deny_redirect(conn, redirect_uri, error, state) do
-    query =
-      URI.encode_query(Enum.reject([error: error, state: state], fn {_, v} -> is_nil(v) end))
+    redirect(conn, external: append_params(redirect_uri, error: error, state: state))
+  end
 
-    redirect(conn, external: redirect_uri <> "?" <> query)
+  # Appends params as proper query-string key/value pairs (RFC 6749 §3.1.2),
+  # never a fragment. Registered redirect URIs are rejected at registration
+  # if they already carry a query or fragment (Redirect.valid_for_registration?/1),
+  # so `uri.query` here is normally empty — the merge is still implemented
+  # properly so this stays correct if that invariant ever changes. Non-binary
+  # values (e.g. a `state[]=a` request parses "state" to a list) and nil
+  # values are dropped rather than fed to URI.encode_query/1, which raises on
+  # list values.
+  defp append_params(redirect_uri, params) do
+    uri = URI.parse(redirect_uri)
+
+    new_params =
+      params
+      |> Enum.filter(fn {_key, value} -> is_binary(value) end)
+      |> Map.new(fn {key, value} -> {to_string(key), value} end)
+
+    merged_query =
+      (uri.query || "")
+      |> URI.decode_query()
+      |> Map.merge(new_params)
+      |> URI.encode_query()
+
+    URI.to_string(%{uri | query: merged_query, fragment: nil})
   end
 
   defp bad_client(conn) do
