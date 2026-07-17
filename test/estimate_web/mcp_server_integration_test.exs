@@ -98,7 +98,7 @@ defmodule EstimateWeb.MCPServerIntegrationTest do
     for tool <- ~w(list_customers get_customer list_projects get_project list_estimations
                    get_estimation list_templates get_template list_role_templates
                    list_currencies search) do
-      assert conn.resp_body =~ ~s("#{tool}")
+      assert conn.resp_body =~ ~s("name":"#{tool}")
     end
   end
 
