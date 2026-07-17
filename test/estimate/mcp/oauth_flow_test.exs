@@ -119,6 +119,57 @@ defmodule Estimate.MCP.OAuthFlowTest do
       {:ok, %{refresh_token: rt}} = exchange(ctx, mint_code(ctx))
       assert {:error, :invalid_grant} = OAuth.refresh_tokens(rt, Ecto.UUID.generate())
     end
+
+    test "expired refresh token => invalid_grant", ctx do
+      {:ok, %{refresh_token: rt}} = exchange(ctx, mint_code(ctx))
+      hash = :crypto.hash(:sha256, rt)
+      past = DateTime.utc_now() |> DateTime.add(-10) |> DateTime.truncate(:second)
+
+      Repo.update_all(from(t in Token, where: t.refresh_token_hash == ^hash),
+        set: [refresh_expires_at: past]
+      )
+
+      assert {:error, :invalid_grant} = OAuth.refresh_tokens(rt, ctx.client.id)
+    end
+  end
+
+  describe "revoke_family blast radius" do
+    test "killing a family also revokes a token inserted after the fact", ctx do
+      {:ok, %{refresh_token: rt1}} = exchange(ctx, mint_code(ctx))
+
+      assert {:ok, %{refresh_token: rt2, access_token: at2}} =
+               OAuth.refresh_tokens(rt1, ctx.client.id)
+
+      family_id = Repo.get_by!(Token, refresh_token_hash: :crypto.hash(:sha256, rt2)).family_id
+      future = DateTime.utc_now() |> DateTime.add(3600) |> DateTime.truncate(:second)
+
+      # Simulate a rotation child that lands in the family after the fact —
+      # e.g. a concurrent rotation committing mid-kill (the READ COMMITTED
+      # snapshot-miss scenario Fix 2 closes with the advisory lock). A live,
+      # unrevoked token in the same family, created independently of rt1/rt2.
+      late = %Token{
+        access_token_hash: :crypto.hash(:sha256, "est_at_" <> Ecto.UUID.generate()),
+        refresh_token_hash: :crypto.hash(:sha256, "est_rt_" <> Ecto.UUID.generate()),
+        family_id: family_id,
+        access_expires_at: future,
+        refresh_expires_at: future,
+        client_id: ctx.client.id,
+        user_id: ctx.user.id,
+        organization_id: ctx.org.id
+      }
+
+      {:ok, late} = Repo.insert(late)
+      refute late.revoked_at
+
+      # Reuse of the already-rotated rt1 => sequential-reuse branch =>
+      # revoke_family(family_id). Must sweep every live row in the family,
+      # not just the ones this test's own rotation chain produced.
+      assert {:error, :invalid_grant} = OAuth.refresh_tokens(rt1, ctx.client.id)
+
+      assert {:error, :invalid_key} = OAuth.verify_access_token(at2)
+      assert %Token{revoked_at: revoked_at} = Repo.reload!(late)
+      refute is_nil(revoked_at)
+    end
   end
 
   describe "verify_access_token/1" do
@@ -158,14 +209,38 @@ defmodule Estimate.MCP.OAuthFlowTest do
   end
 
   describe "revoke_for_membership/2" do
-    test "removes codes and tokens for the pair", ctx do
+    test "removes codes and tokens for the pair, without touching another member's tokens", ctx do
       unused_code = mint_code(ctx)
       {:ok, %{access_token: at}} = exchange(ctx, mint_code(ctx))
+
+      user2 = user_fixture()
+      membership_fixture(user2, ctx.org)
+
+      {:ok, code2} =
+        OAuth.create_code(%{
+          client_id: ctx.client.id,
+          user_id: user2.id,
+          organization_id: ctx.org.id,
+          redirect_uri: @redirect,
+          code_challenge: @challenge,
+          resource: @resource
+        })
+
+      assert {:ok, %{access_token: at2}} =
+               OAuth.exchange_code(code2, %{
+                 client_id: ctx.client.id,
+                 redirect_uri: @redirect,
+                 code_verifier: @verifier,
+                 resource: @resource
+               })
 
       Repo.without_rls(fn -> OAuth.revoke_for_membership(ctx.user.id, ctx.org.id) end)
 
       assert {:error, :invalid_key} = OAuth.verify_access_token(at)
       assert {:error, :invalid_grant} = exchange(ctx, unused_code)
+
+      assert {:ok, %{user_id: uid2}} = OAuth.verify_access_token(at2)
+      assert uid2 == user2.id
     end
   end
 end

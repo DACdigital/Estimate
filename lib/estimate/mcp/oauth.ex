@@ -161,48 +161,92 @@ defmodule Estimate.MCP.OAuth do
   # Revoke-old + insert-new atomically, re-checking revoked_at under a row lock
   # so two concurrent refreshes of the same token can't both rotate. On success
   # the transaction commits (no rollback-reverts-revocation problem here).
+  #
+  # First statement: a transaction-scoped advisory lock keyed on the token's
+  # family. This serializes against revoke_family/1's own lock on the same
+  # key, so a concurrent family-kill can never land in the gap between "this
+  # rotation's child has committed" and "the kill's snapshot was taken" —
+  # closing the READ COMMITTED snapshot-miss race (see revoke_family/1).
   defp rotate(row) do
     result =
       Repo.transaction(fn ->
+        Repo.query!("SELECT pg_advisory_xact_lock(hashtext($1))", [row.family_id])
+
         locked = Repo.one(from(t in Token, where: t.id == ^row.id, lock: "FOR UPDATE"))
 
-        if is_nil(locked.revoked_at) do
-          Repo.update_all(from(t in Token, where: t.id == ^locked.id), set: [revoked_at: now()])
+        cond do
+          is_nil(locked) ->
+            # Row vanished between the outer unlocked read and this locked
+            # re-check (e.g. a concurrent revoke_for_membership deleted it).
+            # No row => no family to key on, so no revoke_family call.
+            Repo.rollback(:not_found)
 
-          access = @access_prefix <> random_token()
-          refresh = @refresh_prefix <> random_token()
+          is_nil(locked.revoked_at) ->
+            Repo.update_all(from(t in Token, where: t.id == ^locked.id),
+              set: [revoked_at: now()]
+            )
 
-          {:ok, _} =
-            Repo.insert(%Token{
-              access_token_hash: hash(access),
-              refresh_token_hash: hash(refresh),
-              family_id: locked.family_id,
-              access_expires_at: expires_in(@access_ttl_seconds),
-              refresh_expires_at: expires_in(@refresh_ttl_seconds),
-              client_id: locked.client_id,
-              code_id: locked.code_id,
-              user_id: locked.user_id,
-              organization_id: locked.organization_id
-            })
+            access = @access_prefix <> random_token()
+            refresh = @refresh_prefix <> random_token()
 
-          %{access_token: access, refresh_token: refresh, expires_in: @access_ttl_seconds}
-        else
-          # Lost the race: another request already rotated this exact token.
-          Repo.rollback(:invalid_grant)
+            {:ok, _} =
+              Repo.insert(%Token{
+                access_token_hash: hash(access),
+                refresh_token_hash: hash(refresh),
+                family_id: locked.family_id,
+                access_expires_at: expires_in(@access_ttl_seconds),
+                refresh_expires_at: expires_in(@refresh_ttl_seconds),
+                client_id: locked.client_id,
+                code_id: locked.code_id,
+                user_id: locked.user_id,
+                organization_id: locked.organization_id
+              })
+
+            %{access_token: access, refresh_token: refresh, expires_in: @access_ttl_seconds}
+
+          true ->
+            # Lost the race: another concurrent refresh of this exact token
+            # already rotated it — reuse of a rotated refresh token by
+            # definition, same threat as the sequential-reuse branch in
+            # refresh_tokens/2. Must kill the family too (below).
+            Repo.rollback(:reused)
         end
       end)
 
     case result do
-      {:ok, tokens} -> {:ok, tokens}
-      {:error, :invalid_grant} -> {:error, :invalid_grant}
+      {:ok, tokens} ->
+        {:ok, tokens}
+
+      {:error, :not_found} ->
+        {:error, :invalid_grant}
+
+      {:error, :reused} ->
+        # Transaction above already rolled back (nothing in it persisted), so
+        # this runs as a plain autocommit update_all — it commits regardless
+        # of the {:error, ...} this function returns.
+        revoke_family(row.family_id)
+        {:error, :invalid_grant}
     end
   end
 
   defp revoke_family(family_id) do
-    Repo.update_all(
-      from(t in Token, where: t.family_id == ^family_id and is_nil(t.revoked_at)),
-      set: [revoked_at: now()]
-    )
+    # Always commits — never rolls back — so the revoke-must-persist rule
+    # holds despite using a transaction. The transaction exists only to hold
+    # the advisory lock for its duration: taking the same family-scoped lock
+    # as rotate/1 serializes the two, so whichever of a racing rotate/kill
+    # pair runs second sees the other's fully-committed effect (either the
+    # new child row is visible to this UPDATE, or this revocation is visible
+    # to rotate/1's FOR UPDATE re-check) — no snapshot-miss window.
+    Repo.transaction(fn ->
+      Repo.query!("SELECT pg_advisory_xact_lock(hashtext($1))", [family_id])
+
+      Repo.update_all(
+        from(t in Token, where: t.family_id == ^family_id and is_nil(t.revoked_at)),
+        set: [revoked_at: now()]
+      )
+    end)
+
+    :ok
   end
 
   def verify_access_token(@access_prefix <> _ = plaintext) do
