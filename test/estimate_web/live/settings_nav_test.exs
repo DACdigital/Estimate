@@ -107,5 +107,13 @@ defmodule EstimateWeb.SettingsNavTest do
                "Settings"
              )
     end
+
+    test "sidebar user section renders account + logout", %{conn: conn, org: org, user: user} do
+      {:ok, view, _html} = live(conn, ~p"/org/#{org.id}")
+
+      assert has_element?(view, ~s(#app-sidebar a[href="/account"]))
+      assert has_element?(view, ~s(#app-sidebar a[href="/users/log_out"]))
+      assert render(view) =~ user.email
+    end
   end
 end

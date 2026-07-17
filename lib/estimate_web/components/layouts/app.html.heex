@@ -80,22 +80,22 @@
     </nav>
     
 <!-- User section -->
-    <div :if={assigns[:current_scope]} class="border-t border-base-300 p-4">
+    <div :if={assigns[:current_user]} class="border-t border-base-300 p-4">
       <div class="flex items-center gap-3">
         <.link
           navigate={~p"/account"}
           class="flex items-center gap-3 flex-1 min-w-0 hover:opacity-80 transition-opacity"
         >
           <.avatar
-            name={@current_scope.user.name || @current_scope.user.email}
-            seed={@current_scope.user.id}
+            name={@current_user.name || @current_user.email}
+            seed={@current_user.id}
             size={:sm}
           />
           <div class="flex-1 min-w-0">
             <p class="text-sm font-medium text-base-content truncate">
-              {@current_scope.user.name || @current_scope.user.email}
+              {@current_user.name || @current_user.email}
             </p>
-            <p class="text-xs text-base-content/60 truncate">{@current_scope.user.email}</p>
+            <p class="text-xs text-base-content/60 truncate">{@current_user.email}</p>
           </div>
         </.link>
         <.link
