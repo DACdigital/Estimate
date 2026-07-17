@@ -69,64 +69,33 @@
       </div>
 
       <div class="pt-4 mt-4 border-t border-base-content/10">
-        <div class="flex items-center gap-3 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-base-content/40">
-          <.icon name="hero-cog-6-tooth" class="w-5 h-5" />
-          <span>Settings</span>
-        </div>
-        <div class="ml-8 space-y-0.5">
-          <.sidebar_child_link
-            href={~p"/org/#{@org_id}/settings"}
-            label="General"
-            active={assigns[:settings_page] == :general}
-          />
-          <.sidebar_child_link
-            href={~p"/org/#{@org_id}/settings/members"}
-            label="Members"
-            active={assigns[:settings_page] == :members}
-          />
-          <.sidebar_child_link
-            href={~p"/org/#{@org_id}/settings/currencies"}
-            label="Currencies"
-            active={assigns[:settings_page] == :currencies}
-          />
-          <.sidebar_child_link
-            :if={admin?(assigns[:current_membership])}
-            href={~p"/org/#{@org_id}/settings/ai"}
-            label="AI Integration"
-            active={assigns[:settings_page] == :ai}
-          />
-          <.sidebar_child_link
-            :if={admin?(assigns[:current_membership])}
-            href={~p"/org/#{@org_id}/settings/email"}
-            label="Email"
-            active={assigns[:settings_page] == :email}
-          />
-          <.sidebar_child_link
-            href={~p"/org/#{@org_id}/settings/mcp"}
-            label="MCP"
-            active={assigns[:settings_page] == :mcp}
-          />
-        </div>
+        <.sidebar_link
+          :if={assigns[:org_id]}
+          href={~p"/org/#{@org_id}/settings"}
+          icon="hero-cog-6-tooth"
+          label="Settings"
+          active={assigns[:active_tab] == :settings}
+        />
       </div>
     </nav>
     
 <!-- User section -->
-    <div :if={assigns[:current_user]} class="border-t border-base-300 p-4">
+    <div :if={assigns[:current_scope]} class="border-t border-base-300 p-4">
       <div class="flex items-center gap-3">
         <.link
           navigate={~p"/account"}
           class="flex items-center gap-3 flex-1 min-w-0 hover:opacity-80 transition-opacity"
         >
           <.avatar
-            name={@current_user.name || @current_user.email}
-            seed={@current_user.id}
+            name={@current_scope.user.name || @current_scope.user.email}
+            seed={@current_scope.user.id}
             size={:sm}
           />
           <div class="flex-1 min-w-0">
             <p class="text-sm font-medium text-base-content truncate">
-              {@current_user.name || @current_user.email}
+              {@current_scope.user.name || @current_scope.user.email}
             </p>
-            <p class="text-xs text-base-content/60 truncate">{@current_user.email}</p>
+            <p class="text-xs text-base-content/60 truncate">{@current_scope.user.email}</p>
           </div>
         </.link>
         <.link
