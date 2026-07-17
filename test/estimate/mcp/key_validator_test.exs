@@ -10,7 +10,7 @@ defmodule Estimate.MCP.KeyValidatorTest do
 
   setup do
     %{user: user, organization: org} = user_with_organization_fixture()
-    {plaintext, _key} = mcp_api_key_fixture(user, org)
+    {plaintext, _key, org} = mcp_api_key_fixture(user, org)
     %{user: user, org: org, key: plaintext}
   end
 
@@ -28,13 +28,6 @@ defmodule Estimate.MCP.KeyValidatorTest do
   end
 
   test "disabled org → error", %{org: org, key: key} do
-    # `mcp_api_key_fixture/2` enables MCP via `update_mcp_settings/2` on its own
-    # (unreturned) copy of `org`, so the `org` bound in `setup` is stale
-    # in-memory (`mcp_enabled: false`, its value at creation). Reload before
-    # flipping it off so the changeset diffs against real current state —
-    # otherwise `cast/3` sees `false -> false` (no-op) and never issues the
-    # UPDATE, since the target value coincidentally matches the stale struct.
-    org = Estimate.Repo.reload!(org)
     {:ok, _} = Estimate.Organizations.update_mcp_settings(org, %{mcp_enabled: false})
     assert {:error, :mcp_disabled} = KeyValidator.validate_token(key, @config)
   end

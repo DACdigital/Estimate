@@ -5,6 +5,7 @@ defmodule EstimateWeb.MCP.Tools.ProjectsTest do
   import Estimate.CRMFixtures
   import Estimate.PortfolioFixtures
   import Estimate.MCPFixtures
+  import Estimate.MCPTestHelpers
 
   alias Anubis.Server.Response
   alias EstimateWeb.MCP.Tools.{GetProject, ListProjects}
@@ -14,10 +15,6 @@ defmodule EstimateWeb.MCP.Tools.ProjectsTest do
     customer = customer_fixture(org)
     project = project_fixture(customer, owner, %{"name" => "Apollo"})
     %{owner: owner, org: org, customer: customer, project: project}
-  end
-
-  defp json_content(%Response{content: [%{"type" => "text", "text" => text}]}) do
-    Jason.decode!(text)
   end
 
   describe "list_projects" do

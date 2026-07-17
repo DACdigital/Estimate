@@ -6,6 +6,7 @@ defmodule EstimateWeb.MCP.Tools.EstimationsTest do
   import Estimate.PortfolioFixtures
   import Estimate.EstimationEngineFixtures
   import Estimate.MCPFixtures
+  import Estimate.MCPTestHelpers
 
   alias Anubis.Server.Response
   alias EstimateWeb.MCP.Tools.{GetEstimation, ListEstimations}
@@ -25,10 +26,6 @@ defmodule EstimateWeb.MCP.Tools.EstimationsTest do
       estimation: estimation,
       frame: mcp_frame(owner, org, "owner")
     }
-  end
-
-  defp json_content(%Response{content: [%{"type" => "text", "text" => text}]}) do
-    Jason.decode!(text)
   end
 
   test "list_estimations returns project estimations", %{project: project, frame: frame} do

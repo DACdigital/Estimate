@@ -4,6 +4,7 @@ defmodule EstimateWeb.MCP.Tools.CustomersTest do
   import Estimate.AccountsFixtures
   import Estimate.CRMFixtures
   import Estimate.MCPFixtures
+  import Estimate.MCPTestHelpers
 
   alias Anubis.Server.Response
   alias EstimateWeb.MCP.Tools.{GetCustomer, ListCustomers}
@@ -11,10 +12,6 @@ defmodule EstimateWeb.MCP.Tools.CustomersTest do
   setup do
     %{user: user, organization: org} = user_with_organization_fixture()
     %{user: user, org: org, frame: mcp_frame(user, org)}
-  end
-
-  defp json_content(%Response{content: [%{"type" => "text", "text" => text}]}) do
-    Jason.decode!(text)
   end
 
   describe "list_customers" do

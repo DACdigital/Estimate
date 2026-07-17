@@ -4,8 +4,10 @@ defmodule EstimateWeb.MCP.Tools.CatalogTest do
   import Estimate.AccountsFixtures
   import Estimate.TemplatesFixtures
   import Estimate.MCPFixtures
+  import Estimate.MCPTestHelpers
 
   alias Anubis.Server.Response
+  alias Estimate.Templates
 
   alias EstimateWeb.MCP.Tools.{
     GetTemplate,
@@ -19,12 +21,22 @@ defmodule EstimateWeb.MCP.Tools.CatalogTest do
     %{user: user, org: org, frame: mcp_frame(user, org, "owner")}
   end
 
-  defp json_content(%Response{content: [%{"type" => "text", "text" => text}]}) do
-    Jason.decode!(text)
-  end
-
   test "list_templates + get_template", %{org: org, frame: frame} do
     template = template_fixture(org, %{"name" => "SaaS Starter"})
+
+    {:ok, epic} =
+      Templates.create_template_epic(%{
+        name: "Onboarding",
+        position: 0,
+        estimation_template_id: template.id
+      })
+
+    {:ok, _task} =
+      Templates.create_template_task(%{
+        name: "Wire up SSO",
+        position: 0,
+        estimation_template_epic_id: epic.id
+      })
 
     assert {:reply, list_resp, _} = ListTemplates.execute(%{limit: 50}, frame)
     assert %{"templates" => [%{"name" => "SaaS Starter"}]} = json_content(list_resp)
@@ -32,7 +44,9 @@ defmodule EstimateWeb.MCP.Tools.CatalogTest do
     assert {:reply, get_resp, _} = GetTemplate.execute(%{id: template.id}, frame)
     body = json_content(get_resp)
     assert body["name"] == "SaaS Starter"
-    assert is_list(body["epics"])
+
+    assert [%{"name" => "Onboarding", "position" => 0, "tasks" => tasks}] = body["epics"]
+    assert [%{"name" => "Wire up SSO", "position" => 0}] = tasks
   end
 
   test "get_template foreign org → not found", %{frame: frame} do

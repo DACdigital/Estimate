@@ -4,13 +4,9 @@ defmodule EstimateWeb.MCP.Tools.SearchTest do
   import Estimate.AccountsFixtures
   import Estimate.CRMFixtures
   import Estimate.MCPFixtures
+  import Estimate.MCPTestHelpers
 
-  alias Anubis.Server.Response
   alias EstimateWeb.MCP.Tools.Search
-
-  defp json_content(%Response{content: [%{"type" => "text", "text" => text}]}) do
-    Jason.decode!(text)
-  end
 
   test "finds indexed entities in own org only" do
     %{user: user, organization: org} = user_with_organization_fixture()
