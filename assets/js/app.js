@@ -28,6 +28,7 @@ import Sortable from "sortablejs"
 import SearchFocus from "./hooks/search_focus"
 import AiEnhance from "./hooks/ai_enhance"
 import CellInput from "./hooks/cell_input"
+import SettingsRail from "./hooks/settings_rail"
 
 // Custom hooks
 const Hooks = {
@@ -35,6 +36,7 @@ const Hooks = {
   SearchFocus,
   AiEnhance,
   CellInput,
+  SettingsRail,
 
   JsonFileReader: {
     mounted() {

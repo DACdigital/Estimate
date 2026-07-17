@@ -74,8 +74,10 @@ defmodule EstimateWeb.Layouts do
   Secondary navigation rail for the settings area.
 
   Rendered by the app layout whenever the LiveView assigned `:settings_page`.
-  The stable DOM id lets morphdom persist the element across settings-to-settings
-  live navigations, so the entry animation plays only when settings is entered.
+  Live navigation to another settings LiveView replaces the main container,
+  so the rail is re-created on every rail navigation — the `SettingsRail` JS
+  hook suppresses the CSS entry animation for those swaps, keeping it to the
+  first entry into the settings area.
   """
   attr :org_id, :string, required: true
   attr :settings_page, :atom, required: true
@@ -85,6 +87,7 @@ defmodule EstimateWeb.Layouts do
     ~H"""
     <aside
       id="settings-rail"
+      phx-hook="SettingsRail"
       class="settings-rail-enter w-52 shrink-0 border-r border-base-300 bg-base-100 px-4 py-6 overflow-y-auto"
     >
       <div class="px-3 pb-1.5 text-xs font-semibold uppercase tracking-wider text-base-content/40">

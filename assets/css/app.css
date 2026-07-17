@@ -133,8 +133,10 @@ input[type="number"] {
   -moz-appearance: textfield;
 }
 
-/* Settings rail entry animation — plays only when the rail is first inserted;
-   morphdom keeps #settings-rail alive across settings-to-settings navigation. */
+/* Settings rail entry animation — meant for the first entry into settings.
+   Live navigation between settings pages replaces the main container and
+   re-creates the rail; the SettingsRail JS hook suppresses the animation on
+   those swaps so it plays once per real entry. */
 @keyframes settings-rail-in {
   from {
     opacity: 0;

@@ -59,10 +59,19 @@ defmodule EstimateWeb.SettingsNavTest do
       assert has_element?(view, rail_link(org, "/trash") <> ".font-medium")
     end
 
-    test "rail carries the entry animation class", %{conn: conn, org: org} do
+    test "rail carries the entry animation class and its replay-suppression hook", %{
+      conn: conn,
+      org: org
+    } do
       {:ok, view, _html} = live(conn, ~p"/org/#{org.id}/settings")
 
       assert has_element?(view, "#settings-rail.settings-rail-enter")
+
+      # A live_redirect between settings LiveViews replaces the main container,
+      # so the rail is re-created (fresh DOM) on every rail navigation — the
+      # SettingsRail JS hook suppresses the entry animation for those swaps.
+      # Without the hook the animation replays on every settings click.
+      assert has_element?(view, ~s(#settings-rail[phx-hook="SettingsRail"]))
     end
 
     test "rail navigation between settings pages is a live navigate", %{conn: conn, org: org} do
