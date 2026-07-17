@@ -83,11 +83,18 @@ defmodule Estimate.Repo do
   Checks out a connection, ensures `estimate_app` role, and sets the
   RLS org context variable. All DB calls within `fun` use the same
   connection with RLS enforced for `org_id`.
+  State-neutral: captures the connection's prior role, org, and user context first and restores all three afterward, so pooled connections never check back in polluted.
   """
   def with_org_context(org_id, fun) when is_binary(org_id) and is_function(fun, 0) do
     user_id = Process.get(:rls_user_id)
 
     checkout(fn ->
+      %{rows: [[prev_role, prev_org, prev_user]]} =
+        query!(
+          "SELECT current_user, current_setting('app.current_org_id', true), current_setting('app.current_user_id', true)",
+          []
+        )
+
       query!("SET ROLE estimate_app", [])
       query!("SELECT set_config('app.current_org_id', $1, false)", [org_id])
 
@@ -95,7 +102,14 @@ defmodule Estimate.Repo do
         query!("SELECT set_config('app.current_user_id', $1, false)", [user_id])
       end
 
-      fun.()
+      try do
+        fun.()
+      after
+        # Role names cannot be bind params; prev_role comes from Postgres itself.
+        query!(~s(SET ROLE "#{prev_role}"), [])
+        query!("SELECT set_config('app.current_org_id', $1, false)", [prev_org || ""])
+        query!("SELECT set_config('app.current_user_id', $1, false)", [prev_user || ""])
+      end
     end)
   end
 
