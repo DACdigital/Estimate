@@ -199,10 +199,18 @@
         Set up now
       </.link>
     </div>
-    <!-- Page content -->
-    <main class="flex-1 overflow-y-auto p-8">
-      <.flash_group flash={@flash} />
-      {@inner_content}
-    </main>
+    <!-- Page content (settings pages get the secondary rail) -->
+    <div class="flex-1 flex overflow-hidden">
+      <.settings_rail
+        :if={assigns[:settings_page]}
+        org_id={@org_id}
+        settings_page={@settings_page}
+        current_membership={@current_membership}
+      />
+      <main class="flex-1 overflow-y-auto p-8">
+        <.flash_group flash={@flash} />
+        {@inner_content}
+      </main>
+    </div>
   </div>
 </div>

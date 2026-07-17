@@ -68,6 +68,76 @@ defmodule EstimateWeb.Layouts do
   end
 
   @doc """
+  Secondary navigation rail for the settings area.
+
+  Rendered by the app layout whenever the LiveView assigned `:settings_page`.
+  The stable DOM id lets morphdom persist the element across settings-to-settings
+  live navigations, so the entry animation plays only when settings is entered.
+  """
+  attr :org_id, :string, required: true
+  attr :settings_page, :atom, required: true
+  attr :current_membership, :map, required: true
+
+  def settings_rail(assigns) do
+    ~H"""
+    <aside
+      id="settings-rail"
+      class="settings-rail-enter w-52 shrink-0 border-r border-base-300 bg-base-100 px-4 py-6 overflow-y-auto"
+    >
+      <div class="px-3 pb-1.5 text-xs font-semibold uppercase tracking-wider text-base-content/40">
+        Workspace
+      </div>
+      <div class="space-y-0.5">
+        <.sidebar_child_link
+          href={~p"/org/#{@org_id}/settings"}
+          label="General"
+          active={@settings_page == :general}
+        />
+        <.sidebar_child_link
+          href={~p"/org/#{@org_id}/settings/members"}
+          label="Members"
+          active={@settings_page == :members}
+        />
+        <.sidebar_child_link
+          href={~p"/org/#{@org_id}/settings/currencies"}
+          label="Currencies"
+          active={@settings_page == :currencies}
+        />
+        <.sidebar_child_link
+          :if={admin?(@current_membership)}
+          href={~p"/org/#{@org_id}/settings/trash"}
+          label="Trash"
+          active={@settings_page == :trash}
+        />
+      </div>
+
+      <div class="px-3 pb-1.5 pt-6 text-xs font-semibold uppercase tracking-wider text-base-content/40">
+        Integrations
+      </div>
+      <div class="space-y-0.5">
+        <.sidebar_child_link
+          :if={admin?(@current_membership)}
+          href={~p"/org/#{@org_id}/settings/ai"}
+          label="AI"
+          active={@settings_page == :ai}
+        />
+        <.sidebar_child_link
+          :if={admin?(@current_membership)}
+          href={~p"/org/#{@org_id}/settings/email"}
+          label="Email"
+          active={@settings_page == :email}
+        />
+        <.sidebar_child_link
+          href={~p"/org/#{@org_id}/settings/mcp"}
+          label="MCP"
+          active={@settings_page == :mcp}
+        />
+      </div>
+    </aside>
+    """
+  end
+
+  @doc """
   Shows the flash group with standard titles and content.
 
   ## Examples

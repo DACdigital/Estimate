@@ -132,3 +132,20 @@ input[type="number"]::-webkit-outer-spin-button {
 input[type="number"] {
   -moz-appearance: textfield;
 }
+
+/* Settings rail entry animation — plays only when the rail is first inserted;
+   morphdom keeps #settings-rail alive across settings-to-settings navigation. */
+@keyframes settings-rail-in {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.settings-rail-enter {
+  animation: settings-rail-in 180ms ease-out;
+}

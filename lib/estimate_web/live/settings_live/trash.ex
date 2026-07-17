@@ -102,6 +102,7 @@ defmodule EstimateWeb.SettingsLive.Trash do
        socket
        |> assign(:page_title, "Deleted Estimations")
        |> assign(:active_tab, :settings)
+       |> assign(:settings_page, :trash)
        |> assign(:deleted_estimations, deleted)
        |> assign(:permanently_deleting, nil)}
     end
