@@ -165,31 +165,45 @@ defmodule EstimateWeb.SettingsLive.Mcp do
 
   @impl true
   def handle_event("generate_key", _params, socket) do
-    %{current_user: user, org_id: org_id} = socket.assigns
+    require_mcp_enabled(socket, fn ->
+      %{current_user: user, org_id: org_id} = socket.assigns
 
-    case MCP.generate_api_key(user.id, org_id) do
-      {:ok, {plaintext, api_key}} ->
-        {:noreply, socket |> assign(:api_key, api_key) |> assign(:new_key, plaintext)}
+      case MCP.generate_api_key(user.id, org_id) do
+        {:ok, {plaintext, api_key}} ->
+          {:noreply, socket |> assign(:api_key, api_key) |> assign(:new_key, plaintext)}
 
-      {:error, _} ->
-        {:noreply, put_flash(socket, :error, "Could not generate API key")}
-    end
+        {:error, _} ->
+          {:noreply, put_flash(socket, :error, "Could not generate API key")}
+      end
+    end)
   end
 
   @impl true
   def handle_event("revoke_key", _params, socket) do
-    %{current_user: user, org_id: org_id} = socket.assigns
-    MCP.revoke_api_key(user.id, org_id)
+    require_mcp_enabled(socket, fn ->
+      %{current_user: user, org_id: org_id} = socket.assigns
+      MCP.revoke_api_key(user.id, org_id)
 
-    {:noreply,
-     socket
-     |> assign(:api_key, nil)
-     |> assign(:new_key, nil)
-     |> put_flash(:info, "API key revoked")}
+      {:noreply,
+       socket
+       |> assign(:api_key, nil)
+       |> assign(:new_key, nil)
+       |> put_flash(:info, "API key revoked")}
+    end)
   end
 
   @impl true
   def handle_event("dismiss_new_key", _params, socket) do
     {:noreply, assign(socket, :new_key, nil)}
+  end
+
+  # `current_organization` is a mount-time snapshot, so it can lag a concurrent
+  # admin's toggle within the same connection's lifetime; acceptable here since
+  # verify_api_key/1 is the authoritative gate at actual MCP request time — this
+  # guard only blocks wasted/forged writes from a stale-but-disabled UI.
+  defp require_mcp_enabled(socket, fun) do
+    if socket.assigns.current_organization.mcp_enabled,
+      do: fun.(),
+      else: {:noreply, put_flash(socket, :error, "MCP is disabled for this organization")}
   end
 end

@@ -114,4 +114,42 @@ defmodule EstimateWeb.SettingsLive.McpTest do
       refute has_element?(lv, "h2", "MCP server is disabled")
     end
   end
+
+  describe "server-side mcp_enabled guard on key events" do
+    test "forged generate_key on a disabled org creates no key row", %{
+      conn: conn,
+      user: user,
+      org: org
+    } do
+      refute org.mcp_enabled
+      {:ok, lv, _html} = live(conn, mcp_path(org))
+
+      # Event forged directly (button isn't even rendered when disabled).
+      render_click(lv, "generate_key", %{})
+
+      assert MCP.get_api_key(user.id, org.id) == nil
+    end
+
+    test "forged revoke_key on a disabled org does not delete an existing key", %{
+      conn: conn,
+      user: user,
+      org: org
+    } do
+      {:ok, org} = Organizations.update_mcp_settings(org, %{mcp_enabled: true})
+      {:ok, lv, _html} = live(conn, mcp_path(org))
+      lv |> element("button", "Generate API Key") |> render_click()
+      assert MCP.get_api_key(user.id, org.id)
+
+      {:ok, org} = Organizations.update_mcp_settings(org, %{mcp_enabled: false})
+
+      # `current_organization` is read fresh only at mount time (OrgAuth on_mount),
+      # so the already-connected `lv` above would still see a stale enabled=true
+      # snapshot. Re-mount so the guard actually observes mcp_enabled: false.
+      {:ok, lv2, _html2} = live(conn, mcp_path(org))
+
+      render_click(lv2, "revoke_key", %{})
+
+      assert MCP.get_api_key(user.id, org.id)
+    end
+  end
 end
