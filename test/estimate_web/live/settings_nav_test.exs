@@ -70,8 +70,10 @@ defmodule EstimateWeb.SettingsNavTest do
 
       # A live-nav click never round-trips through the server as a plain HTTP
       # response — it exits with a live_redirect, which we then follow. If
-      # sidebar_child_link/1 ever regresses to a bare `href`, this click would
-      # instead return rendered HTML (no error tuple) and the match below fails.
+      # sidebar_child_link/1 ever regresses to a bare `href` (no
+      # data-phx-link="redirect"), this click instead returns
+      # {:error, {:redirect, %{to: to}}} — a different tuple shape — and the
+      # match below fails.
       assert {:error, {:live_redirect, %{to: to}}} =
                view
                |> element(~s(#settings-rail a[href="/org/#{org.id}/settings/mcp"]))
@@ -113,7 +115,7 @@ defmodule EstimateWeb.SettingsNavTest do
 
       assert has_element?(view, ~s(#app-sidebar a[href="/account"]))
       assert has_element?(view, ~s(#app-sidebar a[href="/users/log_out"]))
-      assert render(view) =~ user.email
+      assert view |> element("#app-sidebar") |> render() =~ user.email
     end
   end
 end

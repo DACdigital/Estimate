@@ -149,3 +149,9 @@ input[type="number"] {
 .settings-rail-enter {
   animation: settings-rail-in 180ms ease-out;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-rail-enter {
+    animation: none;
+  }
+}
