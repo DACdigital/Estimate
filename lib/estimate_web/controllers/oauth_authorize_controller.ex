@@ -27,7 +27,7 @@ defmodule EstimateWeb.OAuthAuthorizeController do
             redirect_host: URI.parse(redirect_uri).host,
             loopback_warning: Redirect.loopback_only?(client.redirect_uris),
             orgs: orgs,
-            params: params
+            params: sanitize_state(params)
           )
       end
     else
@@ -129,6 +129,20 @@ defmodule EstimateWeb.OAuthAuthorizeController do
   defp deny_redirect(conn, redirect_uri, error, state) do
     redirect(conn, external: append_params(redirect_uri, error: error, state: state))
   end
+
+  # A `?state[k]=v` (or `state[]=v`) request parses "state" to a map (or
+  # list), not a binary. The redirect paths already tolerate this silently --
+  # append_params/2 below filters to `is_binary(value)`, so a non-binary
+  # state is simply dropped from the redirect query string. The consent
+  # template renders `@params` values straight into a hidden input's
+  # `value={...}`, which has no Phoenix.HTML.Safe impl for maps/lists and
+  # 500s -- so `show/2` needs the same drop-if-not-binary treatment applied
+  # to `params` before it ever reaches the template.
+  defp sanitize_state(%{"state" => state} = params) when not is_binary(state) do
+    Map.delete(params, "state")
+  end
+
+  defp sanitize_state(params), do: params
 
   # Appends params as proper query-string key/value pairs (RFC 6749 §3.1.2),
   # never a fragment. Registered redirect URIs are rejected at registration

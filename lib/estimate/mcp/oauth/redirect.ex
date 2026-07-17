@@ -31,7 +31,14 @@ defmodule Estimate.MCP.OAuth.Redirect do
   defp loopback_match?(registered, presented) do
     with %URI{scheme: "http", host: host, path: path} when host in @loopback_hosts <-
            URI.parse(registered),
-         %URI{scheme: "http", host: ^host, path: ^path} <- URI.parse(presented) do
+         # query/fragment: nil on the PRESENTED side too -- registered loopback
+         # URIs can never carry them (valid_for_registration?/1 rejects that
+         # at registration), but a presented URI is attacker-controlled input.
+         # Without this, e.g. a presented "http://localhost:3000/cb?evil=1" or
+         # "...#frag" would still byte-match on host/path and smuggle extra
+         # query/fragment data past the redirect.
+         %URI{scheme: "http", host: ^host, path: ^path, query: nil, fragment: nil} <-
+           URI.parse(presented) do
       true
     else
       _ -> false

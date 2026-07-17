@@ -269,4 +269,22 @@ defmodule EstimateWeb.OAuthAuthorizeTest do
     assert query["error"] == "invalid_request"
     refute Map.has_key?(query, "state")
   end
+
+  test "a map-shaped state param renders the consent page instead of 500ing", %{
+    conn: conn,
+    client: client
+  } do
+    # An otherwise-valid request (so show/2 reaches the consent render, not
+    # the error/redirect branches) with state[k]=v, which Plug parses to a
+    # map. The consent template renders each param into a hidden input's
+    # `value={...}` -- a map has no Phoenix.HTML.Safe impl and used to 500.
+    base =
+      authorize_params(client)
+      |> Map.delete("state")
+      |> URI.encode_query()
+
+    conn = get(conn, "/oauth/authorize?" <> base <> "&state[k]=v")
+
+    assert html_response(conn, 200) =~ "Claude"
+  end
 end

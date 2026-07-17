@@ -43,5 +43,16 @@ defmodule Estimate.MCP.OAuth.RedirectTest do
       refute Redirect.matches?(registered, "https://localhost:3118/callback")
       refute Redirect.matches?(registered, "http://localhost.evil.com:3118/callback")
     end
+
+    test "loopback match rejects a presented query or fragment (smuggling guard)" do
+      registered = ["http://localhost/callback", "http://127.0.0.1/callback"]
+
+      refute Redirect.matches?(registered, "http://localhost:3000/callback?evil=1")
+      refute Redirect.matches?(registered, "http://localhost:3000/callback#frag")
+      refute Redirect.matches?(registered, "http://127.0.0.1:3000/callback?evil=1")
+
+      # sanity: the same URI without query/fragment still matches
+      assert Redirect.matches?(registered, "http://localhost:3000/callback")
+    end
   end
 end
