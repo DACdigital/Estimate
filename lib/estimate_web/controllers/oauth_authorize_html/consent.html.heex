@@ -1,0 +1,65 @@
+<div class="max-w-md mx-auto">
+  <h1 class="text-xl font-semibold text-base-content mb-1">Connect {@client.name}</h1>
+  <p class="text-sm text-base-content/60 mb-4">
+    <span class="font-mono">{@redirect_host}</span>
+    is asking for read-only MCP access to your estimation data, acting as you.
+  </p>
+
+  <div
+    :if={@loopback_warning}
+    class="mb-4 p-3 bg-warning/10 border border-warning/30 rounded-lg text-sm"
+  >
+    This application redirects to a local address on your computer. Only approve if you started this request yourself.
+  </div>
+
+  <.form for={%{}} as={:consent} action={~p"/oauth/authorize"} method="post">
+    <input
+      :for={
+        {k, v} <-
+          Map.take(
+            @params,
+            ~w(client_id redirect_uri state code_challenge code_challenge_method response_type resource)
+          )
+      }
+      type="hidden"
+      name={k}
+      value={v}
+    />
+
+    <fieldset class="mb-4">
+      <legend class="text-xs font-medium text-base-content/60 mb-2">Organization</legend>
+      <label
+        :for={{org, _role} <- @orgs}
+        class="flex items-center gap-3 px-3 py-2 border border-base-300 rounded-lg mb-1.5 cursor-pointer hover:bg-base-200"
+      >
+        <input
+          type="radio"
+          name="organization_id"
+          value={org.id}
+          checked={length(@orgs) == 1}
+          required
+        />
+        <span class="text-sm text-base-content">{org.name}</span>
+      </label>
+    </fieldset>
+
+    <div class="flex items-center gap-2">
+      <button
+        type="submit"
+        name="decision"
+        value="approve"
+        class="px-4 py-1.5 bg-neutral text-neutral-content text-sm rounded-md hover:bg-neutral/90 font-medium"
+      >
+        Approve
+      </button>
+      <button
+        type="submit"
+        name="decision"
+        value="deny"
+        class="px-4 py-1.5 text-sm rounded-md border border-base-300 hover:bg-base-200"
+      >
+        Deny
+      </button>
+    </div>
+  </.form>
+</div>

@@ -31,6 +31,14 @@ defmodule EstimateWeb.Router do
     post "/oauth/register", OAuthRegistrationController, :create
   end
 
+  # OAuth authorize + consent (browser, requires login)
+  scope "/oauth", EstimateWeb do
+    pipe_through [:browser, :require_authenticated_user]
+
+    get "/authorize", OAuthAuthorizeController, :show
+    post "/authorize", OAuthAuthorizeController, :approve
+  end
+
   # MCP server (Streamable HTTP). Auth handled inside the plug via
   # bearer API keys — no session, no CSRF.
   forward "/mcp", Anubis.Server.Transport.StreamableHTTP.Plug, server: EstimateWeb.MCPServer
