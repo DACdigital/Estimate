@@ -39,7 +39,7 @@ defmodule EstimateWeb.OrgAuth do
           Estimate.Repo.put_org_id(org_id)
           Estimate.Repo.put_user_id(user.id)
 
-          Task.start(fn -> Accounts.touch_user_activity(user, org_id) end)
+          touch_activity_async(user, org_id)
 
           socket =
             socket
@@ -93,6 +93,20 @@ defmodule EstimateWeb.OrgAuth do
       end
     else
       {:cont, socket}
+    end
+  end
+
+  # Fire-and-forget activity touch. In :test it runs inline so the DB write uses
+  # the caller's sandboxed connection (a bare Task.start spawns an unsupervised,
+  # unowned process whose query races the SQL sandbox and disconnects on checkin).
+  # In prod it runs as a supervised child of Estimate.TaskSupervisor.
+  defp touch_activity_async(user, org_id) do
+    task_fn = fn -> Accounts.touch_user_activity(user, org_id) end
+
+    if Application.get_env(:estimate, :env) == :test do
+      task_fn.()
+    else
+      Task.Supervisor.start_child(Estimate.TaskSupervisor, task_fn)
     end
   end
 
