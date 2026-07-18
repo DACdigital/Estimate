@@ -66,9 +66,10 @@ defmodule EstimateWeb.SettingsLive.Mcp do
           Add a custom connector with this URL — you'll sign in and pick this organization. No key needed.
         </p>
         <div class="flex items-start gap-2">
-          <code class="flex-1 block font-mono text-sm bg-base-200/60 rounded-lg p-3 select-all">
-            {@mcp_url}
-          </code>
+          <code
+            class="flex-1 block font-mono text-sm bg-base-200/60 rounded-lg p-3 select-all"
+            phx-no-format
+          >{@mcp_url}</code>
           <.copy_button what="url" />
         </div>
       </div>
@@ -186,9 +187,10 @@ defmodule EstimateWeb.SettingsLive.Mcp do
     <div class="mb-4 last:mb-0">
       <div class="text-xs font-medium text-base-content/60 mb-1">{@label}</div>
       <div class="flex items-start gap-2">
-        <code class="flex-1 block font-mono text-xs bg-base-200/60 rounded-lg p-3 break-all whitespace-pre-wrap select-all">
-          {@text}
-        </code>
+        <code
+          class="flex-1 block font-mono text-xs bg-base-200/60 rounded-lg p-3 break-all whitespace-pre-wrap select-all"
+          phx-no-format
+        >{@text}</code>
         <.copy_button what={@what} />
       </div>
     </div>
