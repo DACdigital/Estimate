@@ -70,7 +70,7 @@ defmodule EstimateWeb.SettingsLive.Mcp do
             class="flex-1 block font-mono text-sm bg-base-200/60 rounded-lg p-3 select-all"
             phx-no-format
           >{@mcp_url}</code>
-          <.copy_button what="url" />
+          <.copy_button what="url" label="Copy connector URL" />
         </div>
       </div>
 
@@ -91,7 +91,7 @@ defmodule EstimateWeb.SettingsLive.Mcp do
           </p>
           <div class="flex items-start gap-2 mb-3">
             <code class="flex-1 block font-mono text-sm break-all select-all">{@new_key}</code>
-            <.copy_button what="key" />
+            <.copy_button what="key" label="Copy API key" />
           </div>
           <button
             phx-click="dismiss_new_key"
@@ -163,6 +163,7 @@ defmodule EstimateWeb.SettingsLive.Mcp do
   end
 
   attr :what, :string, required: true
+  attr :label, :string, required: true
 
   defp copy_button(assigns) do
     ~H"""
@@ -170,8 +171,8 @@ defmodule EstimateWeb.SettingsLive.Mcp do
       phx-click="copy"
       phx-value-what={@what}
       class="shrink-0 text-base-content/40 hover:text-base-content/70 transition-colors"
-      aria-label="Copy to clipboard"
-      title="Copy"
+      aria-label={@label}
+      title={@label}
     >
       <.icon name="hero-clipboard-document" class="w-4 h-4" />
     </button>
@@ -191,7 +192,7 @@ defmodule EstimateWeb.SettingsLive.Mcp do
           class="flex-1 block font-mono text-xs bg-base-200/60 rounded-lg p-3 break-all whitespace-pre-wrap select-all"
           phx-no-format
         >{@text}</code>
-        <.copy_button what={@what} />
+        <.copy_button what={@what} label={"Copy " <> @label <> " snippet"} />
       </div>
     </div>
     """
@@ -268,8 +269,8 @@ defmodule EstimateWeb.SettingsLive.Mcp do
   end
 
   @impl true
-  def handle_event("copy", %{"what" => what}, socket) do
-    case copy_text(what, socket.assigns) do
+  def handle_event("copy", params, socket) do
+    case copy_text(params["what"], socket.assigns) do
       nil ->
         {:noreply, socket}
 

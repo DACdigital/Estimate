@@ -264,6 +264,22 @@ defmodule EstimateWeb.SettingsLive.McpTest do
 
       html = render_click(lv, "copy", %{"what" => "bogus"})
       refute html =~ "Copied to clipboard"
+
+      html = render_click(lv, "copy", %{})
+      refute html =~ "Copied to clipboard"
+    end
+
+    test "dismissing the reveal reverts snippets to the placeholder", %{conn: conn, org: org} do
+      {:ok, lv, _} = live(conn, ~p"/org/#{org.id}/settings/mcp")
+
+      html = lv |> element("button", "Generate API Key") |> render_click()
+      assert [_, key] = Regex.run(~r/(est_[A-Za-z0-9_-]{43})/, html)
+
+      lv |> element("button", "Dismiss") |> render_click()
+
+      snippets = lv |> element("#mcp-setup-snippets") |> render()
+      refute snippets =~ key
+      assert snippets =~ "est_YOUR_KEY"
     end
   end
 
