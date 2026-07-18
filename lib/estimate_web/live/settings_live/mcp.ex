@@ -65,7 +65,12 @@ defmodule EstimateWeb.SettingsLive.Mcp do
         <p class="mt-1 text-sm text-base-content/60 mb-3">
           Add a custom connector with this URL — you'll sign in and pick this organization. No key needed.
         </p>
-        <code class="block font-mono text-sm bg-base-200/60 rounded-lg p-3 select-all">{@mcp_url}</code>
+        <div class="flex items-start gap-2">
+          <code class="flex-1 block font-mono text-sm bg-base-200/60 rounded-lg p-3 select-all">
+            {@mcp_url}
+          </code>
+          <.copy_button what="url" />
+        </div>
       </div>
 
       <div
@@ -83,7 +88,10 @@ defmodule EstimateWeb.SettingsLive.Mcp do
           <p class="text-sm font-medium text-base-content mb-2">
             Copy your key now — it will not be shown again.
           </p>
-          <code class="block font-mono text-sm break-all select-all mb-3">{@new_key}</code>
+          <div class="flex items-start gap-2 mb-3">
+            <code class="flex-1 block font-mono text-sm break-all select-all">{@new_key}</code>
+            <.copy_button what="key" />
+          </div>
           <button
             phx-click="dismiss_new_key"
             class="text-sm text-base-content/60 hover:text-base-content"
@@ -128,7 +136,60 @@ defmodule EstimateWeb.SettingsLive.Mcp do
           Generate API Key
         </button>
 
-        <div id="mcp-setup-snippets"></div>
+        <div id="mcp-setup-snippets" class="mt-6 pt-6 border-t border-base-300">
+          <h3 class="text-sm font-medium text-base-content mb-1">Setup</h3>
+          <p :if={@new_key == nil} class="text-sm text-base-content/60 mb-3">
+            <code class="font-mono text-xs">est_YOUR_KEY</code>
+            is a placeholder — generate or regenerate a key to fill it in.
+          </p>
+          <p :if={@new_key} class="text-sm text-base-content/60 mb-3">
+            Snippets below include your new key.
+          </p>
+          <.snippet
+            label="Claude Code"
+            text={cli_snippet(@mcp_url, display_key(@new_key))}
+            what="cli"
+          />
+          <.snippet
+            label="Claude Desktop / Cursor / .mcp.json"
+            text={json_snippet(@mcp_url, display_key(@new_key))}
+            what="json"
+          />
+        </div>
+      </div>
+    </div>
+    """
+  end
+
+  attr :what, :string, required: true
+
+  defp copy_button(assigns) do
+    ~H"""
+    <button
+      phx-click="copy"
+      phx-value-what={@what}
+      class="shrink-0 text-base-content/40 hover:text-base-content/70 transition-colors"
+      aria-label="Copy to clipboard"
+      title="Copy"
+    >
+      <.icon name="hero-clipboard-document" class="w-4 h-4" />
+    </button>
+    """
+  end
+
+  attr :label, :string, required: true
+  attr :text, :string, required: true
+  attr :what, :string, required: true
+
+  defp snippet(assigns) do
+    ~H"""
+    <div class="mb-4 last:mb-0">
+      <div class="text-xs font-medium text-base-content/60 mb-1">{@label}</div>
+      <div class="flex items-start gap-2">
+        <code class="flex-1 block font-mono text-xs bg-base-200/60 rounded-lg p-3 break-all whitespace-pre-wrap select-all">
+          {@text}
+        </code>
+        <.copy_button what={@what} />
       </div>
     </div>
     """
@@ -202,6 +263,51 @@ defmodule EstimateWeb.SettingsLive.Mcp do
   @impl true
   def handle_event("dismiss_new_key", _params, socket) do
     {:noreply, assign(socket, :new_key, nil)}
+  end
+
+  @impl true
+  def handle_event("copy", %{"what" => what}, socket) do
+    case copy_text(what, socket.assigns) do
+      nil ->
+        {:noreply, socket}
+
+      text ->
+        {:noreply,
+         socket
+         |> push_event("copy_to_clipboard", %{text: text})
+         |> put_flash(:info, "Copied to clipboard")}
+    end
+  end
+
+  @placeholder_key "est_YOUR_KEY"
+
+  # Copy payloads are recomputed from assigns — the client only names a target.
+  defp copy_text("url", %{mcp_url: url}), do: url
+  defp copy_text("key", %{new_key: key}), do: key
+  defp copy_text("cli", %{mcp_url: url, new_key: key}), do: cli_snippet(url, display_key(key))
+  defp copy_text("json", %{mcp_url: url, new_key: key}), do: json_snippet(url, display_key(key))
+  defp copy_text(_, _), do: nil
+
+  defp display_key(nil), do: @placeholder_key
+  defp display_key(key), do: key
+
+  defp cli_snippet(url, key) do
+    ~s(claude mcp add --transport http estimate #{url} --header "Authorization: Bearer #{key}")
+  end
+
+  defp json_snippet(url, key) do
+    Jason.encode!(
+      %{
+        "mcpServers" => %{
+          "estimate" => %{
+            "type" => "http",
+            "url" => url,
+            "headers" => %{"Authorization" => "Bearer " <> key}
+          }
+        }
+      },
+      pretty: true
+    )
   end
 
   # `current_organization` is a mount-time snapshot, so it can lag a concurrent

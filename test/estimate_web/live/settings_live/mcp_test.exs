@@ -147,6 +147,126 @@ defmodule EstimateWeb.SettingsLive.McpTest do
     end
   end
 
+  describe "setup snippets and copy" do
+    setup %{org: org} do
+      {:ok, org} = Organizations.update_mcp_settings(org, %{mcp_enabled: true})
+      %{org: org}
+    end
+
+    test "snippets render with placeholder key before any key exists", %{conn: conn, org: org} do
+      {:ok, lv, html} = live(conn, ~p"/org/#{org.id}/settings/mcp")
+
+      snippets = lv |> element("#mcp-setup-snippets") |> render()
+      assert snippets =~ "claude mcp add --transport http estimate"
+      assert snippets =~ "mcpServers"
+      assert snippets =~ "est_YOUR_KEY"
+      # hint shown only while no plaintext key is on screen
+      assert snippets =~ "placeholder"
+      refute html =~ "Copied to clipboard"
+    end
+
+    test "after generate, snippets carry the real key; after remount, placeholder again", %{
+      conn: conn,
+      org: org
+    } do
+      {:ok, lv, _} = live(conn, ~p"/org/#{org.id}/settings/mcp")
+
+      html = lv |> element("button", "Generate API Key") |> render_click()
+      assert [_, key] = Regex.run(~r/(est_[A-Za-z0-9_-]{43})/, html)
+
+      snippets = lv |> element("#mcp-setup-snippets") |> render()
+      assert snippets =~ "Bearer #{key}"
+      refute snippets =~ "est_YOUR_KEY"
+
+      {:ok, lv2, _} = live(conn, ~p"/org/#{org.id}/settings/mcp")
+      snippets2 = lv2 |> element("#mcp-setup-snippets") |> render()
+      refute snippets2 =~ key
+      assert snippets2 =~ "est_YOUR_KEY"
+    end
+
+    test "copy url pushes clipboard payload and flashes", %{conn: conn, org: org} do
+      {:ok, lv, html} = live(conn, ~p"/org/#{org.id}/settings/mcp")
+      refute html =~ "Copied to clipboard"
+
+      html =
+        lv
+        |> element(~s(button[phx-click="copy"][phx-value-what="url"]))
+        |> render_click()
+
+      assert_push_event(lv, "copy_to_clipboard", %{text: text})
+      assert text == url(~p"/mcp")
+      assert html =~ "Copied to clipboard"
+    end
+
+    test "copy json yields valid mcpServers JSON with the real key after generate", %{
+      conn: conn,
+      org: org
+    } do
+      {:ok, lv, _} = live(conn, ~p"/org/#{org.id}/settings/mcp")
+      html = lv |> element("button", "Generate API Key") |> render_click()
+      assert [_, key] = Regex.run(~r/(est_[A-Za-z0-9_-]{43})/, html)
+
+      lv |> element(~s(button[phx-click="copy"][phx-value-what="json"])) |> render_click()
+
+      assert_push_event(lv, "copy_to_clipboard", %{text: json})
+
+      assert %{
+               "mcpServers" => %{
+                 "estimate" => %{
+                   "type" => "http",
+                   "url" => mcp_url,
+                   "headers" => %{"Authorization" => auth}
+                 }
+               }
+             } = Jason.decode!(json)
+
+      assert mcp_url == url(~p"/mcp")
+      assert auth == "Bearer #{key}"
+    end
+
+    test "copy cli pushes the claude mcp add command with placeholder when no reveal", %{
+      conn: conn,
+      org: org
+    } do
+      {:ok, lv, _} = live(conn, ~p"/org/#{org.id}/settings/mcp")
+
+      lv |> element(~s(button[phx-click="copy"][phx-value-what="cli"])) |> render_click()
+
+      assert_push_event(lv, "copy_to_clipboard", %{text: text})
+
+      assert text ==
+               ~s(claude mcp add --transport http estimate #{url(~p"/mcp")} ) <>
+                 ~s(--header "Authorization: Bearer est_YOUR_KEY")
+    end
+
+    test "copy key pushes the plaintext only while revealed; forged copy without reveal is a no-op",
+         %{conn: conn, org: org} do
+      {:ok, lv, _} = live(conn, ~p"/org/#{org.id}/settings/mcp")
+
+      # forged: no key generated, button not rendered → handler must not crash/flash
+      html = render_click(lv, "copy", %{"what" => "key"})
+      refute html =~ "Copied to clipboard"
+
+      html = lv |> element("button", "Generate API Key") |> render_click()
+      assert [_, key] = Regex.run(~r/(est_[A-Za-z0-9_-]{43})/, html)
+
+      html =
+        lv
+        |> element(~s(button[phx-click="copy"][phx-value-what="key"]))
+        |> render_click()
+
+      assert_push_event(lv, "copy_to_clipboard", %{text: ^key})
+      assert html =~ "Copied to clipboard"
+    end
+
+    test "unknown copy target is a no-op", %{conn: conn, org: org} do
+      {:ok, lv, _} = live(conn, ~p"/org/#{org.id}/settings/mcp")
+
+      html = render_click(lv, "copy", %{"what" => "bogus"})
+      refute html =~ "Copied to clipboard"
+    end
+  end
+
   describe "server-side mcp_enabled guard on key events" do
     test "forged generate_key on a disabled org creates no key row", %{
       conn: conn,
