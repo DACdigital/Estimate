@@ -128,15 +128,15 @@ defmodule EstimateWeb.Layouts do
           active={@settings_page == :ai}
         />
         <.sidebar_child_link
+          navigate={~p"/org/#{@org_id}/settings/mcp"}
+          label="MCP"
+          active={@settings_page == :mcp}
+        />
+        <.sidebar_child_link
           :if={admin?(@current_membership)}
           navigate={~p"/org/#{@org_id}/settings/email"}
           label="Email"
           active={@settings_page == :email}
-        />
-        <.sidebar_child_link
-          navigate={~p"/org/#{@org_id}/settings/mcp"}
-          label="MCP"
-          active={@settings_page == :mcp}
         />
       </div>
     </aside>

@@ -92,6 +92,19 @@ defmodule EstimateWeb.SettingsNavTest do
 
       assert has_element?(view, "#settings-rail")
     end
+
+    test "integrations group orders AI before MCP before Email", %{conn: conn, org: org} do
+      {:ok, view, _html} = live(conn, ~p"/org/#{org.id}/settings")
+
+      rail = view |> element("#settings-rail") |> render()
+
+      {ai, _} = :binary.match(rail, "/settings/ai")
+      {mcp, _} = :binary.match(rail, "/settings/mcp")
+      {email, _} = :binary.match(rail, "/settings/email")
+
+      assert ai < mcp, "AI link must precede MCP link"
+      assert mcp < email, "MCP link must precede Email link"
+    end
   end
 
   describe "global sidebar" do
