@@ -42,15 +42,36 @@ defmodule EstimateWeb.SettingsLive.McpTest do
       %{org: org}
     end
 
-    test "shows the claude.ai connector instructions", %{conn: conn, org: org} do
+    test "claude.ai card shows the connector URL; server card does not", %{conn: conn, org: org} do
       {:ok, lv, html} = live(conn, ~p"/org/#{org.id}/settings/mcp")
 
       assert html =~ "Connect from claude.ai"
-      # Scoped to the <code> tag: the pre-existing admin summary card also
-      # renders @mcp_url (in a plain <p>), so an unscoped `html =~ url(...)`
-      # would pass even if this block never rendered the URL. Only the
-      # "Connect from claude.ai" block puts the URL in <code>.
-      assert has_element?(lv, "code", url(~p"/mcp"))
+      # URL lives only in the claude.ai card's <code>; the admin server card
+      # must no longer render it (dedupe).
+      assert has_element?(lv, "#mcp-claude-ai code", url(~p"/mcp"))
+      refute lv |> element("#mcp-server-card") |> render() =~ url(~p"/mcp")
+    end
+
+    test "enabled page renders the three cards for an admin", %{conn: conn, org: org} do
+      {:ok, lv, _html} = live(conn, ~p"/org/#{org.id}/settings/mcp")
+
+      assert has_element?(lv, "#mcp-server-card")
+      assert has_element?(lv, "#mcp-claude-ai")
+      assert has_element?(lv, "#mcp-api-clients")
+      # claude.ai block is a sibling card, not nested inside the api-clients card
+      refute lv |> element("#mcp-api-clients") |> render() =~ "Connect from claude.ai"
+    end
+
+    test "member on an enabled org sees connect cards but no server toggle card", %{org: org} do
+      member = user_fixture()
+      membership_fixture(member, org, "member")
+      conn = log_in_user(build_conn(), member)
+
+      {:ok, lv, _html} = live(conn, ~p"/org/#{org.id}/settings/mcp")
+
+      refute has_element?(lv, "#mcp-server-card")
+      assert has_element?(lv, "#mcp-claude-ai")
+      assert has_element?(lv, "#mcp-api-clients")
     end
 
     test "generate shows plaintext once; remount shows only prefix", %{

@@ -17,6 +17,7 @@ defmodule EstimateWeb.SettingsLive.Mcp do
 
       <div
         :if={admin?(@current_membership)}
+        id="mcp-server-card"
         class="bg-base-100 border border-base-300 rounded-xl p-6 mb-6"
       >
         <div class="flex items-center justify-between">
@@ -29,12 +30,6 @@ defmodule EstimateWeb.SettingsLive.Mcp do
             <p class="mt-1 text-sm text-base-content/60">
               Members authenticate with personal API keys that inherit their access. Disabling
               instantly rejects every key.
-            </p>
-            <p
-              :if={@current_organization.mcp_enabled}
-              class="mt-2 text-sm font-mono text-base-content/70"
-            >
-              {@mcp_url}
             </p>
           </div>
           <button
@@ -63,18 +58,24 @@ defmodule EstimateWeb.SettingsLive.Mcp do
 
       <div
         :if={@current_organization.mcp_enabled}
+        id="mcp-claude-ai"
+        class="bg-base-100 border border-base-300 rounded-xl p-6 mb-6"
+      >
+        <h2 class="text-sm font-medium text-base-content">Connect from claude.ai</h2>
+        <p class="mt-1 text-sm text-base-content/60 mb-3">
+          Add a custom connector with this URL — you'll sign in and pick this organization. No key needed.
+        </p>
+        <code class="block font-mono text-sm bg-base-200/60 rounded-lg p-3 select-all">{@mcp_url}</code>
+      </div>
+
+      <div
+        :if={@current_organization.mcp_enabled}
+        id="mcp-api-clients"
         class="bg-base-100 border border-base-300 rounded-xl p-6"
       >
-        <div class="mb-6 p-4 bg-base-200/60 rounded-lg">
-          <h3 class="text-sm font-medium text-base-content mb-1">Connect from claude.ai</h3>
-          <p class="text-sm text-base-content/60 mb-2">
-            Add a custom connector with this URL — you'll sign in and pick this organization. No key needed.
-          </p>
-          <code class="block font-mono text-sm select-all">{@mcp_url}</code>
-        </div>
-
-        <h2 class="text-sm font-medium text-base-content mb-1">Your API key</h2>
-        <p class="text-sm text-base-content/60 mb-4">
+        <h2 class="text-sm font-medium text-base-content">API clients</h2>
+        <p class="mt-1 text-sm text-base-content/60 mb-4">
+          Claude Code, Claude Desktop, Cursor — authenticate with your personal key.
           The key acts as you: it sees exactly what you see in the app.
         </p>
 
@@ -83,10 +84,6 @@ defmodule EstimateWeb.SettingsLive.Mcp do
             Copy your key now — it will not be shown again.
           </p>
           <code class="block font-mono text-sm break-all select-all mb-3">{@new_key}</code>
-          <p class="text-xs font-medium text-base-content/60 mb-1">Add to Claude Code:</p>
-          <code class="block font-mono text-xs break-all select-all mb-3">
-            claude mcp add --transport http estimate {@mcp_url} --header "Authorization: Bearer {@new_key}"
-          </code>
           <button
             phx-click="dismiss_new_key"
             class="text-sm text-base-content/60 hover:text-base-content"
@@ -130,6 +127,8 @@ defmodule EstimateWeb.SettingsLive.Mcp do
         >
           Generate API Key
         </button>
+
+        <div id="mcp-setup-snippets"></div>
       </div>
     </div>
     """
