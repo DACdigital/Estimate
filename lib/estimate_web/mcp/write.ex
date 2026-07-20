@@ -50,4 +50,8 @@ defmodule EstimateWeb.MCP.Write do
   defp render({:error, :unauthorized}), do: Response.error(Response.tool(), "not authorized")
   defp render({:error, :not_found}), do: Response.error(Response.tool(), "not found")
   defp render({:error, msg}) when is_binary(msg), do: Response.error(Response.tool(), msg)
+
+  # Defensive catch-all: an unexpected error shape must render a clean tool
+  # error, never raise FunctionClauseError into anubis.
+  defp render({:error, _reason}), do: Response.error(Response.tool(), "operation failed")
 end

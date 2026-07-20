@@ -27,7 +27,8 @@ defmodule EstimateWeb.MCP.Tools.WriteEstimationsTest do
       currency: "EUR",
       roles: [
         %{name: "Backend", abbreviation: "BE", hourly_rate: 90.0},
-        %{name: "Frontend", abbreviation: "FE", hourly_rate: 80.0}
+        %{name: "Frontend", abbreviation: "FE", hourly_rate: 80.0},
+        %{name: "QA", abbreviation: "QA", hourly_rate: 85.5}
       ]
     }
 
@@ -35,8 +36,16 @@ defmodule EstimateWeb.MCP.Tools.WriteEstimationsTest do
     refute resp.isError
     body = json_content(resp)
     assert body["name"] == "MVP"
-    assert Enum.map(body["roles"], & &1["abbreviation"]) |> Enum.sort() == ["BE", "FE"]
+    assert Enum.map(body["roles"], & &1["abbreviation"]) |> Enum.sort() == ["BE", "FE", "QA"]
     assert body["url"] =~ "/projects/#{project.id}/estimations/#{body["id"]}/estimator"
+
+    # Whole-number rates must serialize without a trailing ".0" (matches the
+    # `num/1` convention every other write tool uses), fractional rates keep
+    # their scale.
+    rates = Map.new(body["roles"], &{&1["abbreviation"], &1["hourly_rate"]})
+    assert rates["BE"] == "90"
+    assert rates["FE"] == "80"
+    assert rates["QA"] == "85.5"
   end
 
   test "omitting roles seeds the org role templates", %{owner: owner, org: org, project: project} do

@@ -55,6 +55,7 @@ defmodule Estimate.EstimationEngine.Tasks do
           task = Repo.preload(task, :estimates)
           epic = Repo.get!(Epic, epic_id)
           Estimate.EstimationEngine.broadcast(epic.estimation_id, {:task_created, task})
+          Estimate.EstimationEngine.reindex_estimation_async(epic.estimation_id)
           {:ok, task}
 
         {:error, _op, changeset, _} ->

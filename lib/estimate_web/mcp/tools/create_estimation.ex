@@ -101,6 +101,15 @@ defmodule EstimateWeb.MCP.Tools.CreateEstimation do
 
   defp to_decimal(nil), do: nil
   defp to_decimal(%Decimal{} = d), do: d
-  defp to_decimal(n) when is_integer(n) or is_float(n), do: Decimal.new(to_string(n))
+  defp to_decimal(n) when is_integer(n) or is_float(n), do: Decimal.new(num(n))
   defp to_decimal(s) when is_binary(s), do: Decimal.new(s)
+
+  # `to_string/1` on a float always keeps a `.0` (Elixir never prints a bare
+  # integer for a float), and the `:decimal` column cast preserves that scale
+  # verbatim through insert + reload (Postgres `numeric` with no declared
+  # scale stores exactly what it's given) — so a whole-number rate would
+  # otherwise serialize back as "90.0" instead of "90". Drop the fraction
+  # when the value is integral, same convention as `AddEstimationRole.num/1`.
+  defp num(n) when n == trunc(n), do: n |> trunc() |> to_string()
+  defp num(n), do: to_string(n)
 end
