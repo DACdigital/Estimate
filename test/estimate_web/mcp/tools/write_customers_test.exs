@@ -39,7 +39,7 @@ defmodule EstimateWeb.MCP.Tools.WriteCustomersTest do
     assert json_error(resp) =~ "not authorized"
   end
 
-  test "writes disabled → rejected", %{owner: owner} do
+  test "writes disabled → rejected", %{} do
     %{user: owner2, organization: org2} = user_with_organization_fixture()
     # org2 write NOT enabled
     assert {:reply, %Response{isError: true} = resp, _} =

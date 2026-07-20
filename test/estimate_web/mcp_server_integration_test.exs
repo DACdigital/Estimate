@@ -66,6 +66,16 @@ defmodule EstimateWeb.MCPServerIntegrationTest do
 
     assert conn.status == 200
 
+    tool_names =
+      conn.resp_body
+      |> String.split("data: ", parts: 2)
+      |> List.last()
+      |> Jason.decode!()
+      |> get_in(["result", "tools"])
+      |> Enum.map(& &1["name"])
+
+    assert length(tool_names) == 24
+
     for tool <- ~w(list_customers get_customer list_projects get_project list_estimations
                    get_estimation list_templates get_template list_role_templates
                    list_currencies search create_customer update_customer create_project
