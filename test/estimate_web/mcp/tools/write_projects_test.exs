@@ -1,10 +1,11 @@
 defmodule EstimateWeb.MCP.Tools.WriteProjectsTest do
   use Estimate.DataCase, async: false
 
-  import Estimate.{AccountsFixtures, CRMFixtures, MCPFixtures}
+  import Estimate.{AccountsFixtures, CRMFixtures, MCPFixtures, PortfolioFixtures}
   import Estimate.MCPTestHelpers
   alias Anubis.Server.Response
-  alias EstimateWeb.MCP.Tools.CreateProject
+  alias Estimate.Portfolio
+  alias EstimateWeb.MCP.Tools.{CreateProject, UpdateProject}
 
   setup do
     %{user: owner, organization: org} = user_with_organization_fixture()
@@ -49,5 +50,24 @@ defmodule EstimateWeb.MCP.Tools.WriteProjectsTest do
              CreateProject.execute(%{customer_id: c2.id, name: "X"}, frame(owner2, org2))
 
     assert json_error(resp) =~ "writes are disabled"
+  end
+
+  test "owner edits; viewer collaborator is denied", %{owner: owner, org: org, customer: customer} do
+    project = project_fixture(customer, owner, %{"name" => "Site"})
+
+    assert {:reply, resp, _} =
+             UpdateProject.execute(%{id: project.id, name: "Site v2"}, frame(owner, org))
+
+    refute resp.isError
+    assert json_content(resp)["name"] == "Site v2"
+
+    viewer = user_fixture()
+    _ = membership_fixture(viewer, org, "member")
+    {:ok, _} = Portfolio.add_collaborator(project.id, viewer.id, "viewer")
+
+    assert {:reply, %Response{isError: true} = denied, _} =
+             UpdateProject.execute(%{id: project.id, name: "Nope"}, frame(viewer, org, "member"))
+
+    assert json_error(denied) =~ "not authorized"
   end
 end
