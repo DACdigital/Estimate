@@ -43,6 +43,7 @@ defmodule EstimateWeb.MCPServer do
   component(EstimateWeb.MCP.Tools.UpdateEpic)
   component(EstimateWeb.MCP.Tools.AddTask)
   component(EstimateWeb.MCP.Tools.UpdateTask)
+  component(EstimateWeb.MCP.Tools.SetTaskEffort)
 
   @doc "Scheme://host[:port] from endpoint config — safe before the endpoint starts."
   def base_url do
