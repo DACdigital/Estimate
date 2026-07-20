@@ -32,6 +32,7 @@ defmodule EstimateWeb.MCPServer do
 
   # --- Write tools ---
   component(EstimateWeb.MCP.Tools.CreateCustomer)
+  component(EstimateWeb.MCP.Tools.UpdateCustomer)
 
   @doc "Scheme://host[:port] from endpoint config — safe before the endpoint starts."
   def base_url do

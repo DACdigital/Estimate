@@ -56,4 +56,33 @@ defmodule EstimateWeb.MCP.Tools.WriteCustomersTest do
 
     assert json_error(resp) =~ "key:"
   end
+
+  test "admin updates a customer's name + currency", %{owner: owner, org: org} do
+    customer = customer_fixture(org, %{"key" => "ACME", "name" => "Acme"})
+
+    assert {:reply, resp, _} =
+             EstimateWeb.MCP.Tools.UpdateCustomer.execute(
+               %{id: customer.id, name: "Acme Renamed", currency: "GBP"},
+               frame(owner, org)
+             )
+
+    refute resp.isError
+    body = json_content(resp)
+    assert body["name"] == "Acme Renamed"
+    assert body["currency"] == "GBP"
+    assert body["url"] =~ "/customers/#{customer.id}"
+  end
+
+  test "update foreign-org customer → not found", %{owner: owner, org: org} do
+    %{organization: other} = user_with_organization_fixture()
+    foreign = customer_fixture(other, %{"key" => "FGN", "name" => "Foreign"})
+
+    assert {:reply, %Response{isError: true} = resp, _} =
+             EstimateWeb.MCP.Tools.UpdateCustomer.execute(
+               %{id: foreign.id, name: "x"},
+               frame(owner, org)
+             )
+
+    assert json_error(resp) =~ "not found"
+  end
 end
