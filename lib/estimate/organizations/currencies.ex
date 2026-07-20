@@ -38,6 +38,17 @@ defmodule Estimate.Organizations.Currencies do
     end)
   end
 
+  def get_currency_by_code(org_id, code) when is_binary(code) do
+    upcased = String.upcase(code)
+
+    Repo.ensure_org_context(fn ->
+      from(c in Currency,
+        where: c.organization_id == ^org_id and fragment("upper(?)", c.code) == ^upcased
+      )
+      |> Repo.one()
+    end)
+  end
+
   def set_main_currency(%Currency{} = currency) do
     Repo.ensure_org_context(fn ->
       new_main_rate = currency.exchange_rate
