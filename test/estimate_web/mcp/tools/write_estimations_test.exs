@@ -1,11 +1,11 @@
 defmodule EstimateWeb.MCP.Tools.WriteEstimationsTest do
   use Estimate.DataCase, async: false
 
-  import Estimate.{AccountsFixtures, PortfolioFixtures, MCPFixtures}
+  import Estimate.{AccountsFixtures, PortfolioFixtures, EstimationEngineFixtures, MCPFixtures}
   import Estimate.MCPTestHelpers
   alias Anubis.Server.Response
   alias Estimate.Portfolio
-  alias EstimateWeb.MCP.Tools.CreateEstimation
+  alias EstimateWeb.MCP.Tools.{CreateEstimation, UpdateEstimation}
 
   setup do
     %{user: owner, organization: org} = user_with_organization_fixture()
@@ -93,5 +93,21 @@ defmodule EstimateWeb.MCP.Tools.WriteEstimationsTest do
              )
 
     assert json_error(resp) =~ "not found"
+  end
+
+  test "owner updates estimation name + currency", %{owner: owner, org: org, project: project} do
+    est = estimation_fixture(project)
+
+    assert {:reply, resp, _} =
+             UpdateEstimation.execute(
+               %{id: est.id, name: "Renamed", currency: "GBP"},
+               frame(owner, org)
+             )
+
+    refute resp.isError
+    body = json_content(resp)
+    assert body["name"] == "Renamed"
+    assert body["currency"] == "GBP"
+    assert body["url"] =~ "/estimations/#{est.id}/estimator"
   end
 end
