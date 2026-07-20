@@ -36,6 +36,21 @@ defmodule EstimateWeb.MCP.Tools.WriteRolesTest do
     assert body["url"] =~ "/estimations/#{est.id}/estimator"
   end
 
+  test "adds a role without hourly_rate defaults to 0 (no NOT NULL crash)", %{
+    owner: owner,
+    org: org,
+    est: est
+  } do
+    assert {:reply, resp, _} =
+             AddEstimationRole.execute(
+               %{estimation_id: est.id, name: "NoRate", abbreviation: "NR"},
+               frame(owner, org)
+             )
+
+    refute resp.isError
+    assert json_content(resp)["hourly_rate"] == "0"
+  end
+
   test "add rejects abbreviation over 5 chars with readable error", %{
     owner: owner,
     org: org,

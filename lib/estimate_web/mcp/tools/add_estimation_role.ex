@@ -44,13 +44,19 @@ defmodule EstimateWeb.MCP.Tools.AddEstimationRole do
       "estimation_id" => params.estimation_id,
       "name" => params.name,
       "abbreviation" => params.abbreviation,
-      "hourly_rate" => num(params[:hourly_rate]),
-      "pm_overhead" => num(params[:pm_overhead]),
-      "qa_overhead" => num(params[:qa_overhead]),
-      "risk_buffer" => num(params[:risk_buffer]),
       "position" => 0
     }
+    |> put_num("hourly_rate", params[:hourly_rate])
+    |> put_num("pm_overhead", params[:pm_overhead])
+    |> put_num("qa_overhead", params[:qa_overhead])
+    |> put_num("risk_buffer", params[:risk_buffer])
   end
+
+  # Omitted numeric fields must be left out of attrs entirely so the
+  # `EstimationRole` schema's `default: Decimal.new(0)` applies on insert —
+  # casting an explicit nil into a NOT NULL column crashes uncaught.
+  defp put_num(map, _key, nil), do: map
+  defp put_num(map, key, n), do: Map.put(map, key, num(n))
 
   # Anubis hands numeric params in as native floats. `to_string/1` on a float
   # always keeps a `.0` (Elixir never prints a bare integer for a float), and
@@ -58,7 +64,6 @@ defmodule EstimateWeb.MCP.Tools.AddEstimationRole do
   # (Postgres `numeric` with no declared scale stores exactly what it's
   # given) — so a whole-number rate would otherwise serialize back as
   # "100.0" instead of "100". Drop the fraction when the value is integral.
-  defp num(nil), do: nil
   defp num(n) when n == trunc(n), do: n |> trunc() |> to_string()
   defp num(n), do: to_string(n)
 end

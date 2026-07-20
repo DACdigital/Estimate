@@ -37,11 +37,17 @@ defmodule EstimateWeb.MCP.Tools.UpdateEstimationRole do
     end)
   end
 
+  @numeric_fields [:hourly_rate, :pm_overhead, :qa_overhead, :risk_buffer]
+
   defp attrs(params) do
     params
-    |> Map.take([:name, :abbreviation, :hourly_rate, :pm_overhead, :qa_overhead, :risk_buffer])
+    |> Map.take([:name, :abbreviation | @numeric_fields])
+    # Drop nil numeric fields entirely (never cast as an explicit nil into a
+    # NOT NULL column) rather than changing the value — an omitted/nil
+    # numeric field means "leave it unchanged" on update.
+    |> Enum.reject(fn {k, v} -> is_nil(v) and k in @numeric_fields end)
     |> Map.new(fn
-      {k, v} when k in [:hourly_rate, :pm_overhead, :qa_overhead, :risk_buffer] ->
+      {k, v} when k in @numeric_fields ->
         {to_string(k), num(v)}
 
       {k, v} ->
