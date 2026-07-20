@@ -18,7 +18,7 @@ defmodule EstimateWeb.MCP.Tools.AddTask do
     field :priority, :enum, values: ["must", "should", "could", "wont"], default: "must"
     field :position, :integer, min: 0
 
-    field :efforts, {:map, :string, :float},
+    field :efforts, {:map, :string, {:either, {:float, :integer}}},
       description: ~s(Role abbreviation → hours, e.g. {"BE": 8, "FE": 4})
   end
 

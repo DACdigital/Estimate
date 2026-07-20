@@ -99,4 +99,32 @@ defmodule EstimateWeb.MCP.Tools.WriteTasksTest do
     refute resp.isError
     assert json_content(resp)["priority"] == "could"
   end
+
+  # Beyond the brief's verbatim tests: a real MCP client JSON-encodes a
+  # whole-number effort without a decimal point (`{"BE": 8}`), which Jason
+  # decodes as an Elixir integer, not a float. `efforts`'s value type must
+  # accept both — see `add_task.ex`'s `{:either, {:float, :integer}}` and the
+  # task-15 report for the full empirical trace (a bare `:float` type rejects
+  # every whole-number effort at the schema-validation layer, before
+  # `execute/2` ever runs).
+  test "schema validation accepts whole-number (integer) effort hours", %{epic: epic} do
+    params = %{"epic_id" => epic.id, "name" => "X", "efforts" => %{"BE" => 8}}
+    assert {:ok, validated} = AddTask.mcp_schema(params)
+    assert validated.efforts["BE"] == 8
+  end
+
+  test "adds a task with integer (whole-number) effort hours", %{
+    owner: owner,
+    org: org,
+    epic: epic
+  } do
+    assert {:reply, resp, _} =
+             AddTask.execute(
+               %{epic_id: epic.id, name: "IntEffort", efforts: %{"BE" => 8}},
+               frame(owner, org)
+             )
+
+    refute resp.isError
+    assert [%{"hours" => "8"}] = json_content(resp)["estimates"]
+  end
 end
