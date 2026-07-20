@@ -178,9 +178,31 @@ const Hooks = {
   }
 }
 
-// Handle clipboard copy
+// Handle clipboard copy. Fall back to execCommand when the async Clipboard API
+// is unavailable (insecure context) or rejected (permissions), so a copy the
+// server flashed as done doesn't silently leave the clipboard empty.
 window.addEventListener("phx:copy_to_clipboard", (e) => {
-  navigator.clipboard.writeText(e.detail.text)
+  const text = e.detail.text
+  const fallback = () => {
+    const ta = document.createElement("textarea")
+    ta.value = text
+    ta.setAttribute("readonly", "")
+    ta.style.position = "fixed"
+    ta.style.left = "-9999px"
+    document.body.appendChild(ta)
+    ta.select()
+    try {
+      document.execCommand("copy")
+    } catch (err) {
+      console.warn("Copy to clipboard failed", err)
+    }
+    document.body.removeChild(ta)
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).catch(fallback)
+  } else {
+    fallback()
+  }
 })
 
 // Handle file download from server push

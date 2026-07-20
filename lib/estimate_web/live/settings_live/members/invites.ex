@@ -73,10 +73,7 @@ defmodule EstimateWeb.SettingsLive.Members.Invites do
 
   def copy_invite_code(socket, %{"code" => code}) do
     require_admin(socket, fn ->
-      {:noreply,
-       socket
-       |> push_event("copy_to_clipboard", %{text: code})
-       |> put_flash(:info, "Code copied to clipboard!")}
+      copy_to_clipboard(socket, known_invite_code(socket, code), "Code copied to clipboard!")
     end)
   end
 
@@ -85,21 +82,13 @@ defmodule EstimateWeb.SettingsLive.Members.Invites do
 
   def copy_join_link(socket, _params) do
     require_admin(socket, fn ->
-      {:noreply,
-       socket
-       |> push_event("copy_to_clipboard", %{text: socket.assigns.join_url})
-       |> put_flash(:info, "Join link copied to clipboard!")}
+      copy_to_clipboard(socket, socket.assigns.join_url, "Join link copied to clipboard!")
     end)
   end
 
   def copy_invite_link(socket, %{"token" => token}) do
     require_admin(socket, fn ->
-      url = url(~p"/invites/#{token}")
-
-      {:noreply,
-       socket
-       |> push_event("copy_to_clipboard", %{text: url})
-       |> put_flash(:info, "Link copied to clipboard!")}
+      copy_to_clipboard(socket, known_invite_link(socket, token), "Link copied to clipboard!")
     end)
   end
 
@@ -132,5 +121,36 @@ defmodule EstimateWeb.SettingsLive.Members.Invites do
 
   defp atomize_keys(map) do
     Map.new(map, fn {k, v} -> {String.to_existing_atom(k), v} end)
+  end
+
+  # Copy payloads are recomputed from server state — the client only names which
+  # invite; a value not backed by a visible invite yields nil and a silent
+  # no-op, so a forged param can never be echoed back to the clipboard.
+  # secure_compare avoids leaking, via timing, which codes/tokens exist.
+  defp known_invite_code(socket, code) when is_binary(code) do
+    Enum.find_value(socket.assigns.invites, fn invite ->
+      if is_binary(invite.code) and Plug.Crypto.secure_compare(invite.code, code),
+        do: invite.code
+    end)
+  end
+
+  defp known_invite_code(_socket, _code), do: nil
+
+  defp known_invite_link(socket, token) when is_binary(token) do
+    Enum.find_value(socket.assigns.invites, fn invite ->
+      if is_binary(invite.token) and Plug.Crypto.secure_compare(invite.token, token),
+        do: url(~p"/invites/#{invite.token}")
+    end)
+  end
+
+  defp known_invite_link(_socket, _token), do: nil
+
+  defp copy_to_clipboard(socket, nil, _flash), do: {:noreply, socket}
+
+  defp copy_to_clipboard(socket, text, flash) do
+    {:noreply,
+     socket
+     |> push_event("copy_to_clipboard", %{text: text})
+     |> put_flash(:info, flash)}
   end
 end

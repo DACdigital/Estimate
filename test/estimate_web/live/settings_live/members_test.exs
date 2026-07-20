@@ -220,15 +220,29 @@ defmodule EstimateWeb.SettingsLive.MembersTest do
       assert assigns(lv).generated_code == nil
     end
 
-    test "copy_invite_code pushes to clipboard with a flash", %{
+    test "copy_invite_code pushes the real generated code with a flash", %{
+      conn: conn,
+      org: org,
+      owner: owner
+    } do
+      {:ok, lv, _html} = live(log_in_user(conn, owner), path_for(org.id))
+      render_click(lv, "generate_invite_code", %{"role" => "member"})
+      code = assigns(lv).generated_code
+
+      html = render_click(lv, "copy_invite_code", %{"code" => code})
+      assert_push_event(lv, "copy_to_clipboard", %{text: ^code})
+      assert html =~ "Code copied to clipboard!"
+    end
+
+    test "copy_invite_code ignores a code not among the org's invites", %{
       conn: conn,
       org: org,
       owner: owner
     } do
       {:ok, lv, _html} = live(log_in_user(conn, owner), path_for(org.id))
       html = render_click(lv, "copy_invite_code", %{"code" => "ZZZ12345"})
-      assert_push_event(lv, "copy_to_clipboard", %{text: "ZZZ12345"})
-      assert html =~ "Code copied to clipboard!"
+      refute_push_event(lv, "copy_to_clipboard", %{})
+      refute html =~ "Code copied to clipboard!"
     end
   end
 
@@ -243,13 +257,25 @@ defmodule EstimateWeb.SettingsLive.MembersTest do
       assert html =~ "Join link copied to clipboard!"
     end
 
-    test "copy_invite_link pushes the invite url for a token",
+    test "copy_invite_link pushes the url for a real invite token",
+         %{conn: conn, org: org, owner: owner} do
+      {:ok, lv, _html} = live(log_in_user(conn, owner), path_for(org.id))
+      render_click(lv, "generate_invite_code", %{"role" => "member"})
+      code = assigns(lv).generated_code
+      invite = Enum.find(Organizations.list_organization_invites(org.id), &(&1.code == code))
+
+      html = render_click(lv, "copy_invite_link", %{"token" => invite.token})
+      assert_push_event(lv, "copy_to_clipboard", %{text: text})
+      assert text =~ "/invites/#{invite.token}"
+      assert html =~ "Link copied to clipboard!"
+    end
+
+    test "copy_invite_link ignores a token not among the org's invites",
          %{conn: conn, org: org, owner: owner} do
       {:ok, lv, _html} = live(log_in_user(conn, owner), path_for(org.id))
       html = render_click(lv, "copy_invite_link", %{"token" => "tok-abc"})
-      assert_push_event(lv, "copy_to_clipboard", %{text: text})
-      assert text =~ "/invites/tok-abc"
-      assert html =~ "Link copied to clipboard!"
+      refute_push_event(lv, "copy_to_clipboard", %{})
+      refute html =~ "Link copied to clipboard!"
     end
   end
 
