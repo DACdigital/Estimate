@@ -34,6 +34,22 @@ defmodule EstimateWeb.SettingsLive.McpTest do
       render_click(lv, "toggle_mcp", %{})
       refute Estimate.Repo.reload!(org).mcp_enabled
     end
+
+    test "admin toggles write access on and off", %{conn: conn, org: org} do
+      {:ok, org} = Organizations.update_mcp_settings(org, %{mcp_enabled: true})
+
+      {:ok, lv, _html} = live(conn, mcp_path(org))
+
+      assert lv |> element("button[phx-click=toggle_mcp_write]") |> render_click() =~
+               "writes enabled"
+
+      assert Organizations.mcp_write_enabled?(org.id)
+
+      assert lv |> element("button[phx-click=toggle_mcp_write]") |> render_click() =~
+               "writes disabled"
+
+      refute Organizations.mcp_write_enabled?(org.id)
+    end
   end
 
   describe "personal key" do

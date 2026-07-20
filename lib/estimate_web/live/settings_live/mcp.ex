@@ -45,6 +45,34 @@ defmodule EstimateWeb.SettingsLive.Mcp do
             {if @current_organization.mcp_enabled, do: "Disable", else: "Enable"}
           </button>
         </div>
+
+        <div
+          :if={@current_organization.mcp_enabled}
+          class="mt-4 pt-4 border-t border-base-300 flex items-center justify-between"
+        >
+          <div>
+            <h3 class="text-sm font-medium text-base-content">
+              {if @current_organization.mcp_write_enabled,
+                do: "Write access is enabled",
+                else: "Write access is disabled"}
+            </h3>
+            <p class="mt-1 text-sm text-base-content/60">
+              Lets connected clients create and modify customers, projects, and estimations. Off by default.
+            </p>
+          </div>
+          <button
+            phx-click="toggle_mcp_write"
+            class={[
+              "px-4 py-1.5 text-sm rounded-md font-medium transition-colors",
+              if(@current_organization.mcp_write_enabled,
+                do: "bg-error/10 text-error hover:bg-error/20",
+                else: "bg-neutral text-neutral-content hover:bg-neutral/90"
+              )
+            ]}
+          >
+            {if @current_organization.mcp_write_enabled, do: "Disable writes", else: "Enable writes"}
+          </button>
+        </div>
       </div>
 
       <div
@@ -230,6 +258,29 @@ defmodule EstimateWeb.SettingsLive.Mcp do
 
         {:error, _changeset} ->
           {:noreply, put_flash(socket, :error, "Could not update MCP settings")}
+      end
+    end)
+  end
+
+  @impl true
+  def handle_event("toggle_mcp_write", _params, socket) do
+    require_admin(socket, fn ->
+      org = socket.assigns.current_organization
+
+      case Organizations.update_mcp_write_settings(org, %{
+             mcp_write_enabled: !org.mcp_write_enabled
+           }) do
+        {:ok, updated} ->
+          {:noreply,
+           socket
+           |> assign(:current_organization, updated)
+           |> put_flash(
+             :info,
+             if(updated.mcp_write_enabled, do: "MCP writes enabled", else: "MCP writes disabled")
+           )}
+
+        {:error, _changeset} ->
+          {:noreply, put_flash(socket, :error, "Could not update write setting")}
       end
     end)
   end
