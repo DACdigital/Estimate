@@ -168,4 +168,24 @@ defmodule EstimateWeb.MCP.Serializers do
 
   def assoc_code(%{code: code}), do: code
   def assoc_code(_), do: nil
+
+  def changeset_errors(%Ecto.Changeset{} = changeset) do
+    changeset
+    |> Ecto.Changeset.traverse_errors(fn {msg, opts} ->
+      Enum.reduce(opts, msg, fn {key, value}, acc ->
+        String.replace(acc, "%{#{key}}", to_string(value))
+      end)
+    end)
+    |> Enum.map(fn {field, msgs} -> "#{field}: #{Enum.join(msgs, ", ")}" end)
+    |> Enum.join("; ")
+  end
+
+  def customer_url(org_id, id), do: url_for(org_id, "/customers/#{id}")
+  def project_url(org_id, id), do: url_for(org_id, "/projects/#{id}")
+
+  def estimation_url(org_id, project_id, id),
+    do: url_for(org_id, "/projects/#{project_id}/estimations/#{id}/estimator")
+
+  defp url_for(org_id, rest),
+    do: EstimateWeb.MCPServer.base_url() <> "/org/#{org_id}" <> rest
 end
