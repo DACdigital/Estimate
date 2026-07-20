@@ -45,6 +45,7 @@ defmodule Estimate.EstimationEngine do
   defdelegate list_newest_estimations_for_org(org_id, limit \\ 5), to: Estimations
   defdelegate list_estimations(project_id, org_id), to: Estimations
   defdelegate get_estimation!(id, org_id), to: Estimations
+  defdelegate get_estimation_project_id(id, org_id), to: Estimations
   defdelegate create_estimation(attrs), to: Estimations
   defdelegate create_estimation_with_roles(attrs, role_ids), to: Estimations
   defdelegate update_estimation(estimation, attrs), to: Estimations

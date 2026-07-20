@@ -75,6 +75,16 @@ defmodule Estimate.EstimationEngine.Estimations do
     end)
   end
 
+  def get_estimation_project_id(id, org_id) do
+    Repo.ensure_org_context(fn ->
+      from(e in Estimation,
+        where: e.id == ^id and e.organization_id == ^org_id and is_nil(e.deleted_at),
+        select: e.project_id
+      )
+      |> Repo.one()
+    end)
+  end
+
   def create_estimation(attrs) do
     alias Estimate.EstimationEngine.Helpers
 
