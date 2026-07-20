@@ -55,7 +55,7 @@ defmodule EstimateWeb.MCPServerIntegrationTest do
     conn.resp_body
   end
 
-  test "tools/list exposes the 11-tool catalog", %{key: key} do
+  test "tools/list exposes the 24-tool catalog", %{key: key} do
     session_id = initialize_session(key)
 
     conn =
@@ -68,7 +68,10 @@ defmodule EstimateWeb.MCPServerIntegrationTest do
 
     for tool <- ~w(list_customers get_customer list_projects get_project list_estimations
                    get_estimation list_templates get_template list_role_templates
-                   list_currencies search) do
+                   list_currencies search create_customer update_customer create_project
+                   update_project create_estimation update_estimation add_estimation_role
+                   update_estimation_role add_epic update_epic add_task update_task
+                   set_task_effort) do
       assert conn.resp_body =~ ~s("name":"#{tool}")
     end
   end
@@ -104,5 +107,16 @@ defmodule EstimateWeb.MCPServerIntegrationTest do
       )
 
     assert conn.status == 401
+  end
+
+  test "tools/call create_customer writes through the plug", %{key: key, org: org} do
+    org = enable_mcp_write(org)
+    session_id = initialize_session(key)
+
+    body =
+      call_tool(key, session_id, "create_customer", %{"key" => "ACME", "name" => "Acme Corp"})
+
+    refute body =~ ~s("isError":true)
+    assert Enum.any?(Estimate.CRM.list_customers(org.id), &(&1.key == "ACME"))
   end
 end
