@@ -1,8 +1,17 @@
 # MCP Write Tools — Design
 
 **Date:** 2026-07-20
-**Status:** Approved (brainstorm), pending implementation plan
+**Status:** Implemented on branch `mcp-write-tools` (from `96addc78`), pending final review + merge. 23 commits, 525 tests + 2 doctests green, dev+test compile `--warnings-as-errors` clean. Plan: [2026-07-20-mcp-write-tools.md](../plans/2026-07-20-mcp-write-tools.md).
 **Builds on:** [MCP server](2026-07-16-mcp-server-design.md) · [MCP OAuth](2026-07-17-mcp-oauth-design.md)
+
+## Implementation notes (post-build)
+
+- All 13 tools shipped (7 create + 6 edit) + `mcp_write_enabled` toggle + settings UI. Nearly all logic reused existing context fns; new: migration, `get_currency_by_code`, `get_estimation_project_id`, `MCP.Authz`, `MCP.Write`, `create_task_with_estimates` (atomic).
+- **Peri `:float` rejects integer JSON** (Jason decodes `8`→integer). All numeric input fields use `{:either, {:float, :integer}}`; verified at the schema layer (the `execute/2` unit tests bypass Peri).
+- Non-collaborator members get `not found` (project-level RLS hides the row) rather than `not authorized`; only a viewer-role collaborator (who can see the row) gets `not authorized`. Both deny.
+- Fixed in-branch: `Customer.changeset` duplicate-key error now attaches to `:key`; role tools default omitted numerics instead of inserting `nil` into NOT NULL columns; `set_task_effort` uses atom-keyed attrs (mixed keys crashed).
+- **Found pre-existing, out-of-scope (chip-flagged):** `Accounts.seed_default_role_templates/1` never applies pm/qa/risk overhead %, so new orgs' default role templates are all 0%.
+- **Deferred decision:** estimation-mutating write tools (`add_epic`/`add_task`/`update_*`/`set_task_effort`/`add_estimation_role`) do not reindex search — MCP-created/edited content is stale in search until the next estimation update. Decide reindex-on-write vs follow-up.
 
 ## Goal
 
