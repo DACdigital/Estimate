@@ -16,6 +16,10 @@ defmodule Estimate.MCPTestHelpers do
     Jason.decode!(text)
   end
 
+  @doc "The error text of an Anubis tool error response."
+  def json_error(%Anubis.Server.Response{content: [%{"type" => "text", "text" => text}]}),
+    do: text
+
   # Not a module attribute: `Plug.init/1`'s return defaults `subscriber_metadata`
   # to a function local to `StreamableHTTP.Plug` (`&default_subscriber_metadata/1`),
   # which Elixir cannot escape into a `@module_attribute` (only literals and

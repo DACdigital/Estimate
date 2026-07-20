@@ -30,6 +30,9 @@ defmodule EstimateWeb.MCPServer do
   component(EstimateWeb.MCP.Tools.ListCurrencies)
   component(EstimateWeb.MCP.Tools.Search)
 
+  # --- Write tools ---
+  component(EstimateWeb.MCP.Tools.CreateCustomer)
+
   @doc "Scheme://host[:port] from endpoint config — safe before the endpoint starts."
   def base_url do
     cfg = Application.get_env(:estimate, EstimateWeb.Endpoint, [])
