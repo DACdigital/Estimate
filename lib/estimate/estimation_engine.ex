@@ -75,6 +75,7 @@ defmodule Estimate.EstimationEngine do
 
   ## Tasks
   defdelegate create_task(attrs), to: Tasks
+  defdelegate create_task_with_estimates(epic_id, task_attrs, effort_by_role_id), to: Tasks
   defdelegate update_task(task, attrs), to: Tasks
   defdelegate delete_task(task), to: Tasks
   defdelegate get_task!(id, org_id), to: Tasks
