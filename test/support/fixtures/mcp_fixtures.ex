@@ -10,6 +10,14 @@ defmodule Estimate.MCPFixtures do
     {plaintext, key, org}
   end
 
+  @doc "Turns on write access for the org and returns the updated struct."
+  def enable_mcp_write(organization) do
+    {:ok, org} =
+      Estimate.Organizations.update_mcp_write_settings(organization, %{mcp_write_enabled: true})
+
+    org
+  end
+
   @doc "A frame shaped like anubis builds after successful authorization."
   def mcp_frame(user, organization, role \\ "owner") do
     %Frame{

@@ -74,6 +74,19 @@ defmodule Estimate.Organizations do
     |> Repo.update()
   end
 
+  def update_mcp_write_settings(%Organization{} = org, attrs) do
+    org
+    |> Organization.mcp_write_settings_changeset(attrs)
+    |> Repo.update()
+  end
+
+  def mcp_write_enabled?(org_id) when is_binary(org_id) do
+    Repo.ensure_org_context(fn ->
+      from(o in Organization, where: o.id == ^org_id, select: o.mcp_write_enabled)
+      |> Repo.one()
+    end) == true
+  end
+
   ## SMTP Settings
 
   def update_smtp_settings(%Organization{} = org, attrs) do

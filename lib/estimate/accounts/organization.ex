@@ -26,6 +26,7 @@ defmodule Estimate.Accounts.Organization do
     field :enforce_2fa_grace_period_days, :integer, default: 14
 
     field :mcp_enabled, :boolean, default: false
+    field :mcp_write_enabled, :boolean, default: false
 
     # Virtual — for form input only, never persisted
     field :openrouter_api_key, :string, virtual: true, redact: true
@@ -82,6 +83,12 @@ defmodule Estimate.Accounts.Organization do
     organization
     |> cast(attrs, [:mcp_enabled])
     |> validate_required([:mcp_enabled])
+  end
+
+  def mcp_write_settings_changeset(organization, attrs) do
+    organization
+    |> cast(attrs, [:mcp_write_enabled])
+    |> validate_required([:mcp_write_enabled])
   end
 
   defp encrypt_smtp_password(changeset) do
