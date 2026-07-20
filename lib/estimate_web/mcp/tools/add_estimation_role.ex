@@ -14,10 +14,10 @@ defmodule EstimateWeb.MCP.Tools.AddEstimationRole do
       required: true,
       description: "1–5 chars, referenced by task efforts"
 
-    field :hourly_rate, :float
-    field :pm_overhead, :float, description: "0–100 (%)"
-    field :qa_overhead, :float, description: "0–100 (%)"
-    field :risk_buffer, :float, description: "0–100 (%)"
+    field :hourly_rate, {:either, {:float, :integer}}
+    field :pm_overhead, {:either, {:float, :integer}}, description: "0–100 (%)"
+    field :qa_overhead, {:either, {:float, :integer}}, description: "0–100 (%)"
+    field :risk_buffer, {:either, {:float, :integer}}, description: "0–100 (%)"
   end
 
   @impl true

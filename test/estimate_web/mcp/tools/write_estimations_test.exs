@@ -110,4 +110,26 @@ defmodule EstimateWeb.MCP.Tools.WriteEstimationsTest do
     assert body["currency"] == "GBP"
     assert body["url"] =~ "/estimations/#{est.id}/estimator"
   end
+
+  # A real MCP client JSON-encodes a whole-number rate without a decimal
+  # point (`{"hourly_rate": 90}`), which Jason decodes as an Elixir integer,
+  # not a float. Peri's bare `:float` type rejects every such integer at
+  # schema-validation time, before `execute/2` ever runs — see `add_task.ex`'s
+  # `{:either, {:float, :integer}}` fix (`efforts`) and the task-15b report
+  # for the full empirical trace. `roles` is an `embeds_many`, so this also
+  # covers integer acceptance through a nested Peri schema.
+  test "schema validation accepts whole-number (integer) role hourly_rate + overhead", %{
+    project: project
+  } do
+    params = %{
+      "project_id" => project.id,
+      "name" => "MVP",
+      "roles" => [
+        %{"name" => "Backend", "abbreviation" => "BE", "hourly_rate" => 90, "pm_overhead" => 10}
+      ]
+    }
+
+    assert {:ok, validated} = CreateEstimation.mcp_schema(params)
+    assert [%{hourly_rate: 90, pm_overhead: 10}] = validated.roles
+  end
 end

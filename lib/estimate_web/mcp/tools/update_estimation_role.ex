@@ -10,10 +10,10 @@ defmodule EstimateWeb.MCP.Tools.UpdateEstimationRole do
     field :id, :string, required: true, description: "Estimation role UUID"
     field :name, :string
     field :abbreviation, :string
-    field :hourly_rate, :float
-    field :pm_overhead, :float
-    field :qa_overhead, :float
-    field :risk_buffer, :float
+    field :hourly_rate, {:either, {:float, :integer}}
+    field :pm_overhead, {:either, {:float, :integer}}
+    field :qa_overhead, {:either, {:float, :integer}}
+    field :risk_buffer, {:either, {:float, :integer}}
   end
 
   @impl true
