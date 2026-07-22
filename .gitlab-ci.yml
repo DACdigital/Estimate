@@ -3,7 +3,10 @@ include:
     ref: master
     file:
       - 'templates/docker/.docker-build.yml'
-      
+
+variables:
+  DOCKER_BUILD_ARGS: "--build-arg GIT_SHA=$CI_COMMIT_SHORT_SHA"
+
 trigger_job:
   stage: deploy
   when: manual
