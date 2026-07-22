@@ -44,6 +44,30 @@ defmodule Estimate.AccountsTest do
     end
   end
 
+  describe "seed_default_role_templates/1" do
+    test "seeded templates carry the intended pm/qa/risk overheads, not the schema zeros" do
+      %{organization: org} = user_with_organization_fixture()
+
+      seeded = Map.new(Accounts.list_role_templates(org.id), &{&1.abbreviation, &1})
+      # Literal anchor so this can't pass vacuously if default_templates/0
+      # itself were ever zeroed.
+      ba = seeded["BA"]
+      assert Decimal.equal?(ba.pm_overhead, Decimal.new(15))
+      assert Decimal.equal?(ba.qa_overhead, Decimal.new(10))
+      assert Decimal.equal?(ba.risk_buffer, Decimal.new(10))
+
+      for defaults <- Estimate.Accounts.RoleTemplate.default_templates() do
+        row = Map.fetch!(seeded, defaults.abbreviation)
+
+        for field <- [:pm_overhead, :qa_overhead, :risk_buffer] do
+          assert Decimal.equal?(Map.fetch!(row, field), Decimal.new(Map.fetch!(defaults, field))),
+                 "#{defaults.abbreviation} #{field}: seeded #{Map.fetch!(row, field)}, " <>
+                   "default_templates says #{Map.fetch!(defaults, field)}"
+        end
+      end
+    end
+  end
+
   describe "register_user_and_accept_invite/2 (atomic)" do
     setup do
       %{user: inviter, organization: org} = user_with_organization_fixture()

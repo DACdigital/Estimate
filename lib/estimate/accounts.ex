@@ -484,6 +484,9 @@ defmodule Estimate.Accounts do
                name: attrs.name,
                abbreviation: attrs.abbreviation,
                position: attrs.position,
+               pm_overhead: attrs.pm_overhead,
+               qa_overhead: attrs.qa_overhead,
+               risk_buffer: attrs.risk_buffer,
                organization_id: org_id
              })
              |> Repo.insert(),
