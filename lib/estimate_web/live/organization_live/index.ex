@@ -168,6 +168,7 @@ defmodule EstimateWeb.OrganizationLive.Index do
     {:noreply, assign(socket, form: to_form(changeset))}
   end
 
+  @impl true
   def handle_event("join_with_code", %{"code" => code}, socket) do
     user = socket.assigns.current_user
 
@@ -186,15 +187,22 @@ defmodule EstimateWeb.OrganizationLive.Index do
              |> put_flash(:info, "Joined #{invite.organization.name}!")
              |> push_navigate(to: ~p"/org/#{invite.organization_id}")}
 
+          {:error, :already_member} ->
+            {:noreply,
+             socket
+             |> put_flash(:info, "You're already a member of #{invite.organization.name}.")
+             |> push_navigate(to: ~p"/org/#{invite.organization_id}")}
+
           {:error, _} ->
             {:noreply,
              socket
-             |> put_flash(:error, "Could not join — you may already be a member")
+             |> put_flash(:error, "Could not join with this code")
              |> assign(:invite_code, code)}
         end
     end
   end
 
+  @impl true
   def handle_event("save", %{"organization" => org_params}, socket) do
     user = socket.assigns.current_user
 

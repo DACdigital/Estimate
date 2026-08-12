@@ -147,9 +147,14 @@ defmodule EstimateWeb.InviteLive.Accept do
         {:noreply,
          put_flash(socket, :error, "This invitation was sent to a different email address.")}
 
-      {:error, _} ->
+      {:error, :already_member} ->
         {:noreply,
-         put_flash(socket, :error, "Could not accept invitation. You may already be a member.")}
+         socket
+         |> put_flash(:info, "You're already a member of #{invite.organization.name}.")
+         |> redirect(to: ~p"/org/#{invite.organization_id}")}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Could not accept invitation.")}
     end
   end
 

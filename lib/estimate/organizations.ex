@@ -382,6 +382,7 @@ defmodule Estimate.Organizations do
       cond do
         not Invite.valid?(invite) -> {:error, :expired}
         invite.email != nil and invite.email != user.email -> {:error, :email_mismatch}
+        get_user_membership(user.id, invite.organization_id) -> {:error, :already_member}
         true -> {:ok, user}
       end
     end)
@@ -405,6 +406,25 @@ defmodule Estimate.Organizations do
         role: invite.role
       })
     end)
+    |> Ecto.Multi.update_all(
+      :resolve_join_requests,
+      fn %{check_invite: user} ->
+        from(jr in JoinRequest,
+          where:
+            jr.user_id == ^user.id and jr.organization_id == ^invite.organization_id and
+              jr.status == "pending"
+        )
+      end,
+      # An admin's invite is a pre-approval: resolve any pending join request
+      # so it can't linger and make approve_join_request collide with the
+      # membership created here.
+      set: [
+        status: "approved",
+        reviewed_by_id: invite.invited_by_id,
+        reviewed_at: DateTime.utc_now() |> DateTime.truncate(:second),
+        updated_at: DateTime.utc_now() |> DateTime.truncate(:second)
+      ]
+    )
   end
 
   def accept_invite(%Invite{} = invite, %{id: _, email: _} = user) do
@@ -481,18 +501,33 @@ defmodule Estimate.Organizations do
   def approve_join_request(%JoinRequest{} = request, reviewer_id) do
     Ecto.Multi.new()
     |> Ecto.Multi.update(:request, JoinRequest.review_changeset(request, "approved", reviewer_id))
-    |> Ecto.Multi.insert(:membership, fn _ ->
-      Membership.changeset(%Membership{}, %{
-        user_id: request.user_id,
-        organization_id: request.organization_id,
-        role: "member"
-      })
+    |> Ecto.Multi.run(:existing_membership, fn _repo, _ ->
+      # The requester may have become a member since requesting (e.g. redeemed
+      # an invite code) — approving must resolve the request, not fail on the
+      # memberships unique index.
+      {:ok, get_user_membership(request.user_id, request.organization_id)}
+    end)
+    |> Ecto.Multi.run(:membership, fn _repo, %{existing_membership: existing} ->
+      case existing do
+        nil ->
+          create_membership(%{
+            user_id: request.user_id,
+            organization_id: request.organization_id,
+            role: "member"
+          })
+
+        %Membership{} = membership ->
+          {:ok, membership}
+      end
     end)
     |> Repo.transaction()
     |> case do
-      {:ok, result} ->
+      {:ok, %{existing_membership: nil} = result} ->
         org = get_organization!(request.organization_id)
         set_2fa_deadline_if_needed(result.membership, org)
+        {:ok, result}
+
+      {:ok, result} ->
         {:ok, result}
 
       {:error, _op, changeset, _} ->

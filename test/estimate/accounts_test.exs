@@ -181,6 +181,36 @@ defmodule Estimate.AccountsTest do
       assert membership.user_id == new_user.id
       assert membership.organization_id == org.id
     end
+
+    test "accepting an invite resolves the user's pending join request" do
+      %{user: inviter, organization: org} = user_with_organization_fixture()
+      new_user = user_fixture()
+
+      {:ok, request} = Organizations.create_join_request(new_user.id, org.id)
+      {:ok, invite} = Organizations.create_invite_code(org.id, "member", inviter.id)
+
+      {:ok, %{membership: _}} = Organizations.accept_invite(invite, new_user)
+
+      assert Organizations.list_pending_join_requests(org.id) == []
+
+      resolved = Organizations.get_join_request!(request.id)
+      assert resolved.status == "approved"
+      assert resolved.reviewed_by_id == inviter.id
+      assert resolved.reviewed_at
+    end
+
+    test "accepting an invite while already a member returns :already_member without burning the invite" do
+      %{user: inviter, organization: org} = user_with_organization_fixture()
+      member = user_fixture()
+      membership_fixture(member, org)
+
+      {:ok, invite} = Organizations.create_invite_code(org.id, "member", inviter.id)
+
+      assert {:error, :already_member} = Organizations.accept_invite(invite, member)
+
+      # invite must stay redeemable by someone else
+      assert Organizations.get_valid_invite_by_code(invite.code)
+    end
   end
 
   describe "join requests workflow" do
@@ -203,6 +233,51 @@ defmodule Estimate.AccountsTest do
       {:ok, request} = Organizations.create_join_request(requester.id, org.id)
       {:ok, rejected} = Organizations.reject_join_request(request, admin.id)
       assert rejected.status == "rejected"
+    end
+
+    test "approve reuses existing membership when requester already joined another way" do
+      %{user: admin, organization: org} = user_with_organization_fixture()
+      requester = user_fixture()
+
+      {:ok, request} = Organizations.create_join_request(requester.id, org.id)
+      # requester became a member meanwhile (e.g. redeemed an invite code) —
+      # with an elevated role that approve must not clobber
+      existing = membership_fixture(requester, org, "admin")
+
+      assert {:ok, %{membership: membership}} =
+               Organizations.approve_join_request(request, admin.id)
+
+      assert membership.id == existing.id
+      assert membership.role == "admin"
+      assert Organizations.get_join_request!(request.id).status == "approved"
+
+      assert [_only_one] =
+               Organizations.list_organization_members(org.id)
+               |> Enum.filter(&(&1.user_id == requester.id))
+    end
+
+    test "approve of an already-member does not reset their existing 2FA deadline" do
+      %{user: admin, organization: org} = user_with_organization_fixture()
+      requester = user_fixture()
+
+      {:ok, request} = Organizations.create_join_request(requester.id, org.id)
+      existing = membership_fixture(requester, org)
+
+      {:ok, org} =
+        Organizations.update_organization(org, %{
+          enforce_2fa: true,
+          enforce_2fa_grace_period_days: 30
+        })
+
+      sentinel = DateTime.utc_now() |> DateTime.add(2 * 86_400) |> DateTime.truncate(:second)
+
+      {:ok, existing} =
+        existing |> Ecto.Changeset.change(totp_required_by: sentinel) |> Estimate.Repo.update()
+
+      {:ok, %{membership: membership}} = Organizations.approve_join_request(request, admin.id)
+
+      assert membership.id == existing.id
+      assert Organizations.get_user_membership(requester.id, org.id).totp_required_by == sentinel
     end
   end
 

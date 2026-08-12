@@ -59,6 +59,39 @@ defmodule EstimateWeb.OnboardingTest do
       {:ok, _lv, html} = live(conn, ~p"/invites/nonexistent-token")
       assert html =~ "Invalid" or html =~ "invalid"
     end
+
+    test "signed-in existing member is sent to the org with a friendly notice", %{conn: conn} do
+      %{user: inviter, organization: org} = user_with_organization_fixture()
+      member = user_fixture()
+      membership_fixture(member, org)
+      invite = invite_fixture(org, inviter, %{email: member.email, role: "member"})
+      conn = log_in_user(conn, member)
+
+      {:ok, lv, _html} = live(conn, ~p"/invites/#{invite.token}")
+      lv |> element("button", "Accept Invitation") |> render_click()
+
+      flash = assert_redirect(lv, ~p"/org/#{org.id}")
+      assert flash["info"] =~ "already a member"
+    end
+  end
+
+  describe "join with code" do
+    test "code for an org you're already in redirects with a friendly notice", %{conn: conn} do
+      %{user: inviter, organization: org} = user_with_organization_fixture()
+      member = user_fixture()
+      membership_fixture(member, org)
+      {:ok, invite} = Estimate.Organizations.create_invite_code(org.id, "member", inviter.id)
+      conn = log_in_user(conn, member)
+
+      {:ok, lv, _html} = live(conn, ~p"/organizations")
+
+      lv
+      |> form(~s(form[phx-submit="join_with_code"]), %{code: invite.code})
+      |> render_submit()
+
+      flash = assert_redirect(lv, ~p"/org/#{org.id}")
+      assert flash["info"] =~ "already a member"
+    end
   end
 
   describe "registration invite-code path (atomic)" do
