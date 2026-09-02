@@ -56,6 +56,23 @@ defmodule EstimateWeb.UserSessionControllerTest do
     end
   end
 
+  describe "POST /users/log_in throttling" do
+    test "11th attempt for the same email within a minute is refused", %{conn: conn} do
+      user = user_fixture()
+      params = %{"user" => %{"email" => user.email, "password" => "wrong"}}
+      for _ <- 1..10, do: post(build_conn(), ~p"/users/log_in", params)
+
+      conn =
+        post(conn, ~p"/users/log_in", %{
+          "user" => %{"email" => user.email, "password" => @password}
+        })
+
+      refute get_session(conn, :user_token)
+      assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "Too many attempts"
+      assert redirected_to(conn) == ~p"/users/log_in"
+    end
+  end
+
   describe "POST /users/two-factor/verify" do
     setup %{conn: conn} do
       %{user: user, secret: secret} = user_with_totp_fixture()

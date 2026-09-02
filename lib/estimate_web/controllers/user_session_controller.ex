@@ -3,7 +3,8 @@ defmodule EstimateWeb.UserSessionController do
 
   alias Estimate.Accounts
   alias Estimate.Accounts.{User, Totp}
-  alias EstimateWeb.UserAuth
+  alias Estimate.RateLimit
+  alias EstimateWeb.{ClientIP, UserAuth}
 
   def redirect_to_login(conn, _params) do
     redirect(conn, to: ~p"/users/log_in")
@@ -13,6 +14,21 @@ defmodule EstimateWeb.UserSessionController do
     %{"email" => email, "password" => password} = user_params
     return_to = UserAuth.safe_return_to(params["return_to"])
 
+    with {:allow, _} <- RateLimit.check(:login_ip, ClientIP.get(conn)),
+         {:allow, _} <- RateLimit.check(:login_email, email) do
+      do_create(conn, email, password, user_params, return_to)
+    else
+      {:deny, retry_ms} ->
+        conn
+        |> put_flash(
+          :error,
+          "Too many attempts. Try again in #{RateLimit.retry_seconds(retry_ms)} seconds."
+        )
+        |> redirect(to: login_path(return_to))
+    end
+  end
+
+  defp do_create(conn, email, password, user_params, return_to) do
     if user = Accounts.get_user_by_email_and_password(email, password) do
       conn = if return_to, do: put_session(conn, :user_return_to, return_to), else: conn
 
@@ -26,14 +42,14 @@ defmodule EstimateWeb.UserSessionController do
         |> UserAuth.log_in_user(user, user_params)
       end
     else
-      login_path =
-        if return_to, do: ~p"/users/log_in?#{%{return_to: return_to}}", else: ~p"/users/log_in"
-
       conn
       |> put_flash(:error, "Invalid email or password")
-      |> redirect(to: login_path)
+      |> redirect(to: login_path(return_to))
     end
   end
+
+  defp login_path(nil), do: ~p"/users/log_in"
+  defp login_path(return_to), do: ~p"/users/log_in?#{%{return_to: return_to}}"
 
   def verify_totp(conn, %{"code" => code}) do
     if UserAuth.too_many_2fa_attempts?(conn) do
