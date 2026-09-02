@@ -238,7 +238,7 @@ defmodule EstimateWeb.EstimatorLive.Index do
           not_found(socket)
 
         epic ->
-          changeset = EstimationEngine.Epic.changeset(epic, %{})
+          changeset = EstimationEngine.Epic.update_changeset(epic, %{})
 
           {:noreply,
            socket
@@ -330,7 +330,7 @@ defmodule EstimateWeb.EstimatorLive.Index do
           not_found(socket)
 
         task ->
-          changeset = EstimationEngine.Task.changeset(task, %{})
+          changeset = EstimationEngine.Task.update_changeset(task, %{})
 
           {:noreply,
            socket
@@ -343,8 +343,13 @@ defmodule EstimateWeb.EstimatorLive.Index do
 
   def handle_event("validate_task", %{"task" => task_params}, socket) do
     task = socket.assigns.task_form.data
-    changeset = EstimationEngine.Task.changeset(task, task_params) |> Map.put(:action, :validate)
-    {:noreply, assign(socket, :task_form, to_form(changeset))}
+
+    changeset =
+      if task.id,
+        do: EstimationEngine.Task.update_changeset(task, task_params),
+        else: EstimationEngine.Task.changeset(task, task_params)
+
+    {:noreply, assign(socket, :task_form, changeset |> Map.put(:action, :validate) |> to_form())}
   end
 
   def handle_event("save_task", %{"task" => task_params}, socket) do

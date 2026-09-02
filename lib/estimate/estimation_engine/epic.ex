@@ -19,4 +19,11 @@ defmodule Estimate.EstimationEngine.Epic do
     |> validate_required([:name, :estimation_id])
     |> validate_length(:name, min: 1, max: 200)
   end
+
+  def update_changeset(epic, attrs) do
+    epic
+    |> cast(attrs, [:name, :description, :position])
+    |> validate_required([:name])
+    |> validate_length(:name, min: 1, max: 200)
+  end
 end

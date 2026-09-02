@@ -118,7 +118,7 @@ defmodule Estimate.EstimationEngine.Estimations do
     Repo.ensure_org_context(fn ->
       result =
         estimation
-        |> Estimation.changeset(attrs)
+        |> Estimation.update_changeset(attrs)
         |> Repo.update()
 
       case result do

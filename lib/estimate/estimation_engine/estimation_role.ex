@@ -39,6 +39,25 @@ defmodule Estimate.EstimationEngine.EstimationRole do
     |> validate_number(:risk_buffer, greater_than_or_equal_to: 0, less_than_or_equal_to: 100)
   end
 
+  def update_changeset(role, attrs) do
+    role
+    |> cast(attrs, [
+      :name,
+      :abbreviation,
+      :hourly_rate,
+      :position,
+      :pm_overhead,
+      :qa_overhead,
+      :risk_buffer
+    ])
+    |> validate_required([:name, :abbreviation])
+    |> validate_length(:abbreviation, min: 1, max: 5)
+    |> validate_number(:hourly_rate, greater_than_or_equal_to: 0)
+    |> validate_number(:pm_overhead, greater_than_or_equal_to: 0, less_than_or_equal_to: 100)
+    |> validate_number(:qa_overhead, greater_than_or_equal_to: 0, less_than_or_equal_to: 100)
+    |> validate_number(:risk_buffer, greater_than_or_equal_to: 0, less_than_or_equal_to: 100)
+  end
+
   def default_roles do
     Estimate.Accounts.RoleTemplate.default_templates()
     |> Enum.map(fn t ->

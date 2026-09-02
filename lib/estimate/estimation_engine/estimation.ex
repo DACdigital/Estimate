@@ -25,6 +25,14 @@ defmodule Estimate.EstimationEngine.Estimation do
     |> foreign_key_constraint(:currency_id)
   end
 
+  def update_changeset(estimation, attrs) do
+    estimation
+    |> cast(attrs, [:name, :description, :currency_id])
+    |> validate_required([:name])
+    |> validate_length(:name, min: 1, max: 200)
+    |> foreign_key_constraint(:currency_id)
+  end
+
   def soft_delete_changeset(estimation) do
     now = DateTime.utc_now() |> DateTime.truncate(:second)
     change(estimation, deleted_at: now, is_current: false)

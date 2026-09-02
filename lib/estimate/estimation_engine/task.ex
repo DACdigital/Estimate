@@ -24,5 +24,13 @@ defmodule Estimate.EstimationEngine.Task do
     |> validate_inclusion(:priority, @priorities)
   end
 
+  def update_changeset(task, attrs) do
+    task
+    |> cast(attrs, [:name, :description, :position, :priority])
+    |> validate_required([:name])
+    |> validate_length(:name, min: 1, max: 500)
+    |> validate_inclusion(:priority, @priorities)
+  end
+
   def priorities, do: @priorities
 end

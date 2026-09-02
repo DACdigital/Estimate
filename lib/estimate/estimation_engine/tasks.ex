@@ -68,7 +68,7 @@ defmodule Estimate.EstimationEngine.Tasks do
     Repo.ensure_org_context(fn ->
       result =
         task
-        |> Task.changeset(attrs)
+        |> Task.update_changeset(attrs)
         |> Repo.update()
 
       case result do

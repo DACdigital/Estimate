@@ -18,4 +18,10 @@ defmodule Estimate.EstimationEngine.TaskEstimate do
     |> validate_number(:hours, greater_than_or_equal_to: 0)
     |> unique_constraint([:task_id, :estimation_role_id])
   end
+
+  def update_changeset(estimate, attrs) do
+    estimate
+    |> cast(attrs, [:hours])
+    |> validate_number(:hours, greater_than_or_equal_to: 0)
+  end
 end

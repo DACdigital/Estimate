@@ -24,7 +24,7 @@ defmodule Estimate.EstimationEngine.Epics do
   def update_epic(%Epic{} = epic, attrs) do
     Repo.ensure_org_context(fn ->
       epic
-      |> Epic.changeset(attrs)
+      |> Epic.update_changeset(attrs)
       |> Repo.update()
       |> Helpers.with_broadcast(epic.estimation_id, &{:epic_updated, &1})
     end)

@@ -40,7 +40,7 @@ defmodule Estimate.EstimationEngine.Estimates do
   defp update_task_estimate(%TaskEstimate{} = estimate, attrs, estimation_id) do
     result =
       estimate
-      |> TaskEstimate.changeset(attrs)
+      |> TaskEstimate.update_changeset(attrs)
       |> Repo.update()
 
     case result do

@@ -24,7 +24,7 @@ defmodule Estimate.EstimationEngine.Roles do
   def update_role(%EstimationRole{} = role, attrs) do
     Repo.ensure_org_context(fn ->
       role
-      |> EstimationRole.changeset(attrs)
+      |> EstimationRole.update_changeset(attrs)
       |> Repo.update()
       |> Helpers.with_broadcast(role.estimation_id, &{:role_updated, &1})
     end)
