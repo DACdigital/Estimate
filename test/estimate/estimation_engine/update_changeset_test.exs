@@ -40,6 +40,35 @@ defmodule Estimate.EstimationEngine.UpdateChangesetTest do
     assert role2.estimation_id == est_a.id
   end
 
+  test "upsert_task_estimate update path ignores forged task_id and estimation_role_id", %{
+    est_a: est_a,
+    epic_b: epic_b,
+    task_a: task_a
+  } do
+    [role | _] = est_a.roles
+    task_b = task_fixture(epic_b)
+
+    {:ok, est} = EstimationEngine.upsert_task_estimate(task_a.id, role.id, %{hours: 2}, est_a.id)
+
+    {:ok, updated} =
+      EstimationEngine.upsert_task_estimate(
+        task_a.id,
+        role.id,
+        %{"hours" => "5", "task_id" => task_b.id, "estimation_role_id" => Ecto.UUID.generate()},
+        est_a.id
+      )
+
+    assert updated.id == est.id
+    assert Decimal.equal?(updated.hours, Decimal.new(5))
+    assert updated.task_id == task_a.id
+    assert updated.estimation_role_id == role.id
+
+    persisted = Repo.get!(TaskEstimate, updated.id)
+    assert Decimal.equal?(persisted.hours, Decimal.new(5))
+    assert persisted.task_id == task_a.id
+    assert persisted.estimation_role_id == role.id
+  end
+
   test "schema update_changesets never cast parent keys" do
     refute Map.has_key?(Epic.update_changeset(%Epic{}, %{"estimation_id" => Ecto.UUID.generate()}).changes, :estimation_id)
     refute Map.has_key?(Task.update_changeset(%Task{}, %{"epic_id" => Ecto.UUID.generate()}).changes, :epic_id)
