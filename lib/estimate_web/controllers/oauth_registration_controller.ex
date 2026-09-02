@@ -3,6 +3,8 @@ defmodule EstimateWeb.OAuthRegistrationController do
 
   alias Estimate.MCP.OAuth
 
+  plug EstimateWeb.Plugs.RateLimit, bucket: :oauth_ip
+
   def create(conn, params) do
     case OAuth.register_client(params) do
       {:ok, client} ->

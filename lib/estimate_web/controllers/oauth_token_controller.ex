@@ -3,6 +3,7 @@ defmodule EstimateWeb.OAuthTokenController do
 
   alias Estimate.MCP.OAuth
 
+  plug EstimateWeb.Plugs.RateLimit, bucket: :oauth_ip
   plug :no_store
 
   def create(conn, %{"grant_type" => "authorization_code"} = params) do
