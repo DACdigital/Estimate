@@ -233,13 +233,18 @@ defmodule EstimateWeb.EstimatorLive.Index do
 
   def handle_event("edit_epic", %{"id" => id}, socket) do
     with_edit_auth(socket, fn socket ->
-      epic = EstimationEngine.get_epic!(id, socket.assigns.org_id)
-      changeset = EstimationEngine.Epic.changeset(epic, %{})
+      case find_epic(socket.assigns.estimation, id) do
+        nil ->
+          not_found(socket)
 
-      {:noreply,
-       socket
-       |> assign(:modal, :epic)
-       |> assign(:epic_form, to_form(changeset))}
+        epic ->
+          changeset = EstimationEngine.Epic.changeset(epic, %{})
+
+          {:noreply,
+           socket
+           |> assign(:modal, :epic)
+           |> assign(:epic_form, to_form(changeset))}
+      end
     end)
   end
 
@@ -271,8 +276,12 @@ defmodule EstimateWeb.EstimatorLive.Index do
   end
 
   def handle_event("confirm_delete_epic", %{"id" => id}, socket) do
-    epic = EstimationEngine.get_epic!(id, socket.assigns.org_id)
-    {:noreply, assign(socket, :deleting_epic, epic)}
+    with_edit_auth(socket, fn socket ->
+      case find_epic(socket.assigns.estimation, id) do
+        nil -> not_found(socket)
+        epic -> {:noreply, assign(socket, :deleting_epic, epic)}
+      end
+    end)
   end
 
   def handle_event("cancel_delete_epic", _params, socket) do
@@ -281,37 +290,54 @@ defmodule EstimateWeb.EstimatorLive.Index do
 
   def handle_event("delete_epic", _params, socket) do
     with_edit_auth(socket, fn socket ->
-      {:ok, _} = EstimationEngine.delete_epic(socket.assigns.deleting_epic)
+      case socket.assigns.deleting_epic do
+        nil ->
+          {:noreply, socket}
 
-      {:noreply,
-       socket
-       |> reload_estimation()
-       |> assign(:deleting_epic, nil)}
+        epic ->
+          {:ok, _} = EstimationEngine.delete_epic(epic)
+
+          {:noreply,
+           socket
+           |> reload_estimation()
+           |> assign(:deleting_epic, nil)}
+      end
     end)
   end
 
   def handle_event("add_task", %{"epic-id" => epic_id}, socket) do
     with_edit_auth(socket, fn socket ->
-      changeset = EstimationEngine.Task.changeset(%EstimationEngine.Task{}, %{})
+      case find_epic(socket.assigns.estimation, epic_id) do
+        nil ->
+          not_found(socket)
 
-      {:noreply,
-       socket
-       |> assign(:modal, :task)
-       |> assign(:task_form, to_form(changeset))
-       |> assign(:current_epic_id, epic_id)}
+        epic ->
+          changeset = EstimationEngine.Task.changeset(%EstimationEngine.Task{}, %{})
+
+          {:noreply,
+           socket
+           |> assign(:modal, :task)
+           |> assign(:task_form, to_form(changeset))
+           |> assign(:current_epic_id, epic.id)}
+      end
     end)
   end
 
   def handle_event("edit_task", %{"id" => id}, socket) do
     with_edit_auth(socket, fn socket ->
-      task = EstimationEngine.get_task!(id, socket.assigns.org_id)
-      changeset = EstimationEngine.Task.changeset(task, %{})
+      case find_task(socket.assigns.estimation, id) do
+        nil ->
+          not_found(socket)
 
-      {:noreply,
-       socket
-       |> assign(:modal, :task)
-       |> assign(:task_form, to_form(changeset))
-       |> assign(:current_epic_id, task.epic_id)}
+        task ->
+          changeset = EstimationEngine.Task.changeset(task, %{})
+
+          {:noreply,
+           socket
+           |> assign(:modal, :task)
+           |> assign(:task_form, to_form(changeset))
+           |> assign(:current_epic_id, task.epic_id)}
+      end
     end)
   end
 
@@ -323,35 +349,48 @@ defmodule EstimateWeb.EstimatorLive.Index do
 
   def handle_event("save_task", %{"task" => task_params}, socket) do
     with_edit_auth(socket, fn socket ->
-      task = socket.assigns.task_form.data
+      task = socket.assigns.task_form && socket.assigns.task_form.data
       epic_id = socket.assigns.current_epic_id
 
-      result =
-        if task.id do
-          EstimationEngine.update_task(task, task_params)
-        else
-          attrs = Map.put(task_params, "epic_id", epic_id)
-          EstimationEngine.create_task(attrs)
-        end
+      cond do
+        is_nil(task) ->
+          not_found(socket)
 
-      case result do
-        {:ok, _task} ->
-          {:noreply,
-           socket
-           |> reload_estimation()
-           |> assign(:modal, nil)
-           |> assign(:task_form, nil)
-           |> assign(:current_epic_id, nil)}
+        is_nil(task.id) and is_nil(epic_id) ->
+          not_found(socket)
 
-        {:error, changeset} ->
-          {:noreply, assign(socket, :task_form, to_form(changeset))}
+        true ->
+          result =
+            if task.id do
+              EstimationEngine.update_task(task, task_params)
+            else
+              attrs = Map.put(task_params, "epic_id", epic_id)
+              EstimationEngine.create_task(attrs)
+            end
+
+          case result do
+            {:ok, _task} ->
+              {:noreply,
+               socket
+               |> reload_estimation()
+               |> assign(:modal, nil)
+               |> assign(:task_form, nil)
+               |> assign(:current_epic_id, nil)}
+
+            {:error, changeset} ->
+              {:noreply, assign(socket, :task_form, to_form(changeset))}
+          end
       end
     end)
   end
 
   def handle_event("confirm_delete_task", %{"id" => id}, socket) do
-    task = EstimationEngine.get_task!(id, socket.assigns.org_id)
-    {:noreply, assign(socket, :deleting_task, task)}
+    with_edit_auth(socket, fn socket ->
+      case find_task(socket.assigns.estimation, id) do
+        nil -> not_found(socket)
+        task -> {:noreply, assign(socket, :deleting_task, task)}
+      end
+    end)
   end
 
   def handle_event("cancel_delete_task", _params, socket) do
@@ -360,12 +399,18 @@ defmodule EstimateWeb.EstimatorLive.Index do
 
   def handle_event("delete_task", _params, socket) do
     with_edit_auth(socket, fn socket ->
-      {:ok, _} = EstimationEngine.delete_task(socket.assigns.deleting_task)
+      case socket.assigns.deleting_task do
+        nil ->
+          {:noreply, socket}
 
-      {:noreply,
-       socket
-       |> reload_estimation()
-       |> assign(:deleting_task, nil)}
+        task ->
+          {:ok, _} = EstimationEngine.delete_task(task)
+
+          {:noreply,
+           socket
+           |> reload_estimation()
+           |> assign(:deleting_task, nil)}
+      end
     end)
   end
 
@@ -679,25 +724,27 @@ defmodule EstimateWeb.EstimatorLive.Index do
         %{"description" => desc, "name" => name, "target" => target},
         socket
       ) do
-    org = socket.assigns.current_organization
-    api_key = Organizations.get_decrypted_api_key(org)
+    with_edit_auth(socket, fn socket ->
+      org = socket.assigns.current_organization
+      api_key = Organizations.get_decrypted_api_key(org)
 
-    if api_key do
-      pid = self()
-      model = org.openrouter_model || "openai/gpt-4o-mini"
-      system_prompt = org.openrouter_system_prompt
+      if api_key do
+        pid = self()
+        model = org.openrouter_model || "openai/gpt-4o-mini"
+        system_prompt = org.openrouter_system_prompt
 
-      Task.start(fn ->
-        result =
-          Estimate.AI.OpenRouter.enhance_description(api_key, model, system_prompt, name, desc)
+        Task.start(fn ->
+          result =
+            Estimate.AI.OpenRouter.enhance_description(api_key, model, system_prompt, name, desc)
 
-        send(pid, {:ai_result, target, result})
-      end)
+          send(pid, {:ai_result, target, result})
+        end)
 
-      {:noreply, assign(socket, :ai_loading, target)}
-    else
-      {:noreply, put_flash(socket, :error, "AI not configured")}
-    end
+        {:noreply, assign(socket, :ai_loading, target)}
+      else
+        {:noreply, put_flash(socket, :error, "AI not configured")}
+      end
+    end)
   end
 
   @impl true
@@ -776,6 +823,13 @@ defmodule EstimateWeb.EstimatorLive.Index do
 
     assign(socket, :estimation, estimation)
   end
+
+  defp find_epic(%{epics: epics}, id), do: Enum.find(epics, &(&1.id == id))
+
+  defp find_task(%{epics: epics}, id),
+    do: Enum.find_value(epics, fn epic -> Enum.find(epic.tasks, &(&1.id == id)) end)
+
+  defp not_found(socket), do: {:noreply, put_flash(socket, :error, "Not found")}
 
   defp belongs_to_estimation?(estimation, :task, id),
     do: Enum.any?(estimation.epics, fn ep -> Enum.any?(ep.tasks, &(&1.id == id)) end)
