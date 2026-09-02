@@ -11,7 +11,15 @@ defmodule Estimate.OrgReferenceTest do
     customer_b = customer_fixture(org_b)
     [currency_b | _] = Currencies.list_currencies(org_b.id)
     project_a = project_fixture(nil, owner_a)
-    %{org_a: org_a, org_b: org_b, owner_a: owner_a, customer_b: customer_b, currency_b: currency_b, project_a: project_a}
+
+    %{
+      org_a: org_a,
+      org_b: org_b,
+      owner_a: owner_a,
+      customer_b: customer_b,
+      currency_b: currency_b,
+      project_a: project_a
+    }
   end
 
   test "update_project rejects a customer from another org", ctx do

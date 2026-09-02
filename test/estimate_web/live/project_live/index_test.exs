@@ -76,7 +76,10 @@ defmodule EstimateWeb.ProjectLive.IndexTest do
 
     test "editor collaborator can save project edits", %{conn: conn} = ctx do
       {:ok, lv, _} =
-        live(log_in_user(conn, ctx.editor), ~p"/org/#{ctx.org.id}/projects/#{ctx.project.id}/edit")
+        live(
+          log_in_user(conn, ctx.editor),
+          ~p"/org/#{ctx.org.id}/projects/#{ctx.project.id}/edit"
+        )
 
       render_submit(lv, "save", %{"project" => %{"name" => "EDITOR-RENAMED"}})
       assert Repo.get!(Estimate.Portfolio.Project, ctx.project.id).name == "EDITOR-RENAMED"

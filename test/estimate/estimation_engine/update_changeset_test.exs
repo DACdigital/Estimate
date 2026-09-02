@@ -18,25 +18,37 @@ defmodule Estimate.EstimationEngine.UpdateChangesetTest do
   end
 
   test "update_epic ignores estimation_id", %{epic_a: epic_a, est_b: est_b} do
-    {:ok, epic} = EstimationEngine.update_epic(epic_a, %{"name" => "renamed", "estimation_id" => est_b.id})
+    {:ok, epic} =
+      EstimationEngine.update_epic(epic_a, %{"name" => "renamed", "estimation_id" => est_b.id})
+
     assert epic.name == "renamed"
     assert epic.estimation_id == epic_a.estimation_id
   end
 
   test "update_task ignores epic_id", %{task_a: task_a, epic_b: epic_b} do
-    {:ok, task} = EstimationEngine.update_task(task_a, %{"name" => "renamed", "epic_id" => epic_b.id})
+    {:ok, task} =
+      EstimationEngine.update_task(task_a, %{"name" => "renamed", "epic_id" => epic_b.id})
+
     assert task.epic_id == task_a.epic_id
   end
 
   test "update_estimation ignores project_id and is_current", %{est_a: est_a} do
-    {:ok, est} = EstimationEngine.update_estimation(est_a, %{"is_current" => true, "project_id" => Ecto.UUID.generate()})
+    {:ok, est} =
+      EstimationEngine.update_estimation(est_a, %{
+        "is_current" => true,
+        "project_id" => Ecto.UUID.generate()
+      })
+
     assert est.project_id == est_a.project_id
     assert est.is_current == est_a.is_current
   end
 
   test "update_role ignores estimation_id", %{est_a: est_a, est_b: est_b} do
     [role | _] = est_a.roles
-    {:ok, role2} = EstimationEngine.update_role(role, %{"hourly_rate" => "10", "estimation_id" => est_b.id})
+
+    {:ok, role2} =
+      EstimationEngine.update_role(role, %{"hourly_rate" => "10", "estimation_id" => est_b.id})
+
     assert role2.estimation_id == est_a.id
   end
 
@@ -70,10 +82,34 @@ defmodule Estimate.EstimationEngine.UpdateChangesetTest do
   end
 
   test "schema update_changesets never cast parent keys" do
-    refute Map.has_key?(Epic.update_changeset(%Epic{}, %{"estimation_id" => Ecto.UUID.generate()}).changes, :estimation_id)
-    refute Map.has_key?(Task.update_changeset(%Task{}, %{"epic_id" => Ecto.UUID.generate()}).changes, :epic_id)
-    refute Map.has_key?(Estimation.update_changeset(%Estimation{}, %{"project_id" => Ecto.UUID.generate(), "is_current" => true}).changes, :project_id)
-    refute Map.has_key?(EstimationRole.update_changeset(%EstimationRole{}, %{"project_role_id" => Ecto.UUID.generate()}).changes, :project_role_id)
-    refute Map.has_key?(TaskEstimate.update_changeset(%TaskEstimate{}, %{"task_id" => Ecto.UUID.generate()}).changes, :task_id)
+    refute Map.has_key?(
+             Epic.update_changeset(%Epic{}, %{"estimation_id" => Ecto.UUID.generate()}).changes,
+             :estimation_id
+           )
+
+    refute Map.has_key?(
+             Task.update_changeset(%Task{}, %{"epic_id" => Ecto.UUID.generate()}).changes,
+             :epic_id
+           )
+
+    refute Map.has_key?(
+             Estimation.update_changeset(%Estimation{}, %{
+               "project_id" => Ecto.UUID.generate(),
+               "is_current" => true
+             }).changes,
+             :project_id
+           )
+
+    refute Map.has_key?(
+             EstimationRole.update_changeset(%EstimationRole{}, %{
+               "project_role_id" => Ecto.UUID.generate()
+             }).changes,
+             :project_role_id
+           )
+
+    refute Map.has_key?(
+             TaskEstimate.update_changeset(%TaskEstimate{}, %{"task_id" => Ecto.UUID.generate()}).changes,
+             :task_id
+           )
   end
 end

@@ -15,7 +15,10 @@ defmodule EstimateWeb.OAuthRateLimitTest do
       conn
       |> put_req_header("content-type", "application/json")
       |> put_req_header("x-forwarded-for", ip)
-      |> post(~p"/oauth/register", Jason.encode!(%{client_name: "X", redirect_uris: ["https://claude.ai/cb"]}))
+      |> post(
+        ~p"/oauth/register",
+        Jason.encode!(%{client_name: "X", redirect_uris: ["https://claude.ai/cb"]})
+      )
     end
 
     for _ <- 1..3, do: assert(post_reg.().status in [201, 400])
@@ -27,10 +30,16 @@ defmodule EstimateWeb.OAuthRateLimitTest do
 
   test "token endpoint shares the bucket", %{conn: conn, ip: ip} do
     for _ <- 1..3 do
-      conn |> put_req_header("x-forwarded-for", ip) |> post(~p"/oauth/token", %{"grant_type" => "nope"})
+      conn
+      |> put_req_header("x-forwarded-for", ip)
+      |> post(~p"/oauth/token", %{"grant_type" => "nope"})
     end
 
-    conn = conn |> put_req_header("x-forwarded-for", ip) |> post(~p"/oauth/token", %{"grant_type" => "nope"})
+    conn =
+      conn
+      |> put_req_header("x-forwarded-for", ip)
+      |> post(~p"/oauth/token", %{"grant_type" => "nope"})
+
     assert json_response(conn, 429)["error"] == "too_many_requests"
   end
 end
