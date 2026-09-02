@@ -182,7 +182,7 @@ defmodule EstimateWeb.EstimatorLive.Index do
       end
 
       currencies = Currencies.list_currencies(org_id)
-      can_edit = can_edit?(collaborator, socket.assigns.current_membership)
+      can_edit = can_edit_project?(socket.assigns.current_membership, collaborator)
 
       if connected?(socket) do
         EstimationEngine.subscribe(id)
@@ -753,11 +753,6 @@ defmodule EstimateWeb.EstimatorLive.Index do
       end)
       |> Enum.reject(&Enum.empty?(&1.tasks))
     end
-  end
-
-  defp can_edit?(collaborator, membership) do
-    collab_role = if collaborator, do: collaborator.role, else: nil
-    collab_role in ["owner", "editor"] or admin?(membership)
   end
 
   defp authorize_edit(socket) do

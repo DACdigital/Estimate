@@ -233,7 +233,7 @@ defmodule EstimateWeb.ProjectLive.Show do
 
     socket
     |> assign(:current_collaborator, current_collaborator)
-    |> assign(:can_edit_project, is_org_admin || collab_role in ["owner", "editor"])
+    |> assign(:can_edit_project, can_edit_project?(membership, current_collaborator))
     |> assign(:can_delete_project, is_org_admin || collab_role == "owner")
     |> assign(
       :can_manage_collaborators,

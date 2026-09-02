@@ -317,15 +317,9 @@ defmodule EstimateWeb.ProjectLive.Index do
   end
 
   defp apply_action(socket, :edit, %{"id" => id}) do
-    user_id = socket.assigns.current_user.id
-    is_admin = admin?(socket.assigns.current_membership)
-    is_collaborator = is_admin || Portfolio.get_collaborator(id, user_id) != nil
+    collaborator = Portfolio.get_collaborator(id, socket.assigns.current_user.id)
 
-    unless is_collaborator do
-      socket
-      |> put_flash(:error, "Not authorized")
-      |> push_patch(to: ~p"/org/#{socket.assigns.org_id}/projects")
-    else
+    if can_edit_project?(socket.assigns.current_membership, collaborator) do
       project = Portfolio.get_project!(id, socket.assigns.org_id)
       changeset = Portfolio.change_project(project)
       customer_key = if project.customer, do: project.customer.key
@@ -335,6 +329,10 @@ defmodule EstimateWeb.ProjectLive.Index do
       |> assign(:project, project)
       |> assign(:customer_key, customer_key)
       |> assign(:form, to_form(changeset))
+    else
+      socket
+      |> put_flash(:error, "Not authorized")
+      |> push_patch(to: ~p"/org/#{socket.assigns.org_id}/projects")
     end
   end
 
@@ -421,6 +419,11 @@ defmodule EstimateWeb.ProjectLive.Index do
     save_project(socket, socket.assigns.live_action, project_params)
   end
 
+  # Guards forged "save" events fired with no editable project in scope (e.g. from
+  # the index view itself, or after a viewer's :edit mount got bounced back to it).
+  defp save_project(%{assigns: %{project: nil}} = socket, _live_action, _params),
+    do: {:noreply, put_flash(socket, :error, "Not authorized")}
+
   defp save_project(socket, :new, project_params) do
     customer_id = project_params["customer_id"]
     user_id = socket.assigns.current_user.id
@@ -439,15 +442,11 @@ defmodule EstimateWeb.ProjectLive.Index do
   end
 
   defp save_project(socket, :edit, project_params) do
-    user_id = socket.assigns.current_user.id
-    project_id = socket.assigns.project.id
-    is_admin = admin?(socket.assigns.current_membership)
-    is_collaborator = is_admin || Portfolio.get_collaborator(project_id, user_id) != nil
+    project = socket.assigns.project
+    collaborator = Portfolio.get_collaborator(project.id, socket.assigns.current_user.id)
 
-    unless is_collaborator do
-      {:noreply, put_flash(socket, :error, "Not authorized")}
-    else
-      case Portfolio.update_project(socket.assigns.project, project_params) do
+    if can_edit_project?(socket.assigns.current_membership, collaborator) do
+      case Portfolio.update_project(project, project_params) do
         {:ok, project} ->
           {:noreply,
            socket
@@ -457,6 +456,8 @@ defmodule EstimateWeb.ProjectLive.Index do
         {:error, changeset} ->
           {:noreply, assign(socket, form: to_form(changeset))}
       end
+    else
+      {:noreply, put_flash(socket, :error, "Not authorized")}
     end
   end
 
