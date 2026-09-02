@@ -269,12 +269,19 @@ defmodule EstimateWeb.ProjectLive.ShowTest do
   end
 
   describe "authorization denial resets the pending confirm-state (behavior-identical guard)" do
-    # The delete-family handlers set a "confirming" assign via an UNGATED confirm_* event,
-    # then commit via a GATED delete event. The OLD compound outer gate reset that assign on
-    # its unauthorized else-branch; consolidating into require_can_* must preserve that reset
-    # (Show.Authz.gate/4's deny_assigns). These 3 pin it: a viewer sets the confirm-state,
-    # then the gated commit must BOTH flash "Not authorized" AND clear the assign. Without the
+    # The delete-family handlers set a "confirming" assign via a confirm_* event, then commit
+    # via a GATED delete event. The OLD compound outer gate reset that assign on its
+    # unauthorized else-branch; consolidating into require_can_* must preserve that reset
+    # (Show.Authz.gate/4's deny_assigns). These 3 pin it: a viewer sets the confirm-state (or,
+    # for delete_project, attempts to bypass it by sending the commit event directly), then the
+    # gated commit must BOTH flash "Not authorized" AND clear the assign. Without the
     # deny_assigns the assign would stick at its confirmed value -- so each is discriminating.
+    #
+    # NOTE: confirm_delete_project is itself gated by require_can_delete/3 (Task 3, security
+    # audit) -- a viewer can no longer flip deleting_project to true via the confirm event at
+    # all (see "danger zone / delete project" describe block). So the delete_project case below
+    # exercises the defense-in-depth path instead: a viewer sending the commit event directly,
+    # skipping confirm, still gets denied and deleting_project stays false.
     setup :setup_project
 
     setup %{conn: conn, org: org, project: project} do
@@ -283,11 +290,10 @@ defmodule EstimateWeb.ProjectLive.ShowTest do
       %{lv: lv}
     end
 
-    test "delete_project denial resets deleting_project to false", %{lv: lv} do
-      # confirm_delete_project is ungated, so a viewer can flip deleting_project true first.
-      render_click(lv, "confirm_delete_project", %{})
-      assert assigns(lv).deleting_project == true
-
+    test "delete_project denial (sent directly, bypassing confirm) leaves deleting_project false",
+         %{
+           lv: lv
+         } do
       html = render_click(lv, "delete_project", %{})
 
       assert html =~ "Not authorized"
@@ -439,6 +445,19 @@ defmodule EstimateWeb.ProjectLive.ShowTest do
       render_click(lv, "cancel_delete_project", %{})
       assert assigns(lv).deleting_project == false
       assert assigns(lv).delete_confirmation_input == ""
+    end
+
+    test "viewer cannot open the delete-project confirmation", %{
+      conn: conn,
+      org: org,
+      project: project
+    } do
+      %{user: viewer} = add_collab(project, org, "viewer")
+      {:ok, lv, _} = live(log_in_user(conn, viewer), project_path(org, project))
+
+      render_click(lv, "confirm_delete_project", %{})
+      refute assigns(lv).deleting_project
+      assert render(lv) =~ "Not authorized"
     end
   end
 

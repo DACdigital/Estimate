@@ -12,13 +12,15 @@ defmodule EstimateWeb.ProjectLive.Show.DangerZone do
   alias Estimate.Portfolio
 
   def confirm_delete_project(socket, _params) do
-    impact = Portfolio.deletion_impact(socket.assigns.project)
+    require_can_delete(socket, [deleting_project: false], fn ->
+      impact = Portfolio.deletion_impact(socket.assigns.project)
 
-    {:noreply,
-     socket
-     |> assign(:deleting_project, true)
-     |> assign(:delete_impact, impact)
-     |> assign(:delete_confirmation_input, "")}
+      {:noreply,
+       socket
+       |> assign(:deleting_project, true)
+       |> assign(:delete_impact, impact)
+       |> assign(:delete_confirmation_input, "")}
+    end)
   end
 
   def cancel_delete_project(socket, _params) do

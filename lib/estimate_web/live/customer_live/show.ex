@@ -193,13 +193,15 @@ defmodule EstimateWeb.CustomerLive.Show do
 
   @impl true
   def handle_event("confirm_delete", _params, socket) do
-    impact = CRM.deletion_impact(socket.assigns.customer)
+    require_admin(socket, fn ->
+      impact = CRM.deletion_impact(socket.assigns.customer)
 
-    {:noreply,
-     socket
-     |> assign(:deleting_customer, true)
-     |> assign(:delete_impact, impact)
-     |> assign(:delete_confirmation_input, "")}
+      {:noreply,
+       socket
+       |> assign(:deleting_customer, true)
+       |> assign(:delete_impact, impact)
+       |> assign(:delete_confirmation_input, "")}
+    end)
   end
 
   def handle_event("cancel_delete", _params, socket) do
