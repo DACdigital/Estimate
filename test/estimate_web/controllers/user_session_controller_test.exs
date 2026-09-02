@@ -101,6 +101,38 @@ defmodule EstimateWeb.UserSessionControllerTest do
       assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "Invalid verification code"
       assert redirected_to(conn) == ~p"/users/two-factor"
     end
+
+    test "five wrong codes lock the pending session even when the cookie is replayed", %{
+      conn: conn,
+      secret: secret
+    } do
+      # replay the SAME pre-attempt cookie every time: a client-side counter would never trip
+      for _ <- 1..5 do
+        c = post(conn, ~p"/users/two-factor/verify", %{"code" => "000000"})
+        refute get_session(c, :user_token)
+      end
+
+      locked = post(conn, ~p"/users/two-factor/verify", %{"code" => valid_totp_code(secret)})
+      refute get_session(locked, :user_token)
+      refute get_session(locked, :pending_2fa_user_id)
+      assert Phoenix.Flash.get(locked.assigns.flash, :error) =~ "Too many failed attempts"
+      assert redirected_to(locked) == ~p"/users/log_in"
+    end
+
+    test "a valid TOTP code cannot be replayed", %{conn: conn, user: user, secret: secret} do
+      code = valid_totp_code(secret)
+      first = post(conn, ~p"/users/two-factor/verify", %{"code" => code})
+      assert get_session(first, :user_token)
+
+      again =
+        post(build_conn(), ~p"/users/log_in", %{
+          "user" => %{"email" => user.email, "password" => @password}
+        })
+        |> post(~p"/users/two-factor/verify", %{"code" => code})
+
+      refute get_session(again, :user_token)
+      assert Phoenix.Flash.get(again.assigns.flash, :error) =~ "Invalid verification code"
+    end
   end
 
   describe "POST /users/two-factor/verify without pending session" do

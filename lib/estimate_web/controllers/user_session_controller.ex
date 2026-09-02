@@ -52,48 +52,59 @@ defmodule EstimateWeb.UserSessionController do
   defp login_path(return_to), do: ~p"/users/log_in?#{%{return_to: return_to}}"
 
   def verify_totp(conn, %{"code" => code}) do
-    if UserAuth.too_many_2fa_attempts?(conn) do
-      conn
-      |> UserAuth.clear_pending_2fa()
-      |> put_flash(:error, "Too many failed attempts. Please log in again.")
-      |> redirect(to: ~p"/users/log_in")
-    else
-      do_verify_totp(conn, code)
-    end
-  end
-
-  defp do_verify_totp(conn, code) do
-    user = UserAuth.get_pending_2fa_user(conn)
-
-    if user do
-      with {:ok, secret} <- Totp.get_decrypted_secret(user),
-           true <- Totp.valid_code_or_backup?(user, secret, String.trim(code)) do
-        remember_params = UserAuth.pending_2fa_remember_me_params(conn)
-
+    case UserAuth.get_pending_2fa_user(conn) do
+      nil ->
         conn
-        |> UserAuth.clear_pending_2fa()
-        |> put_flash(:info, "Welcome back!")
-        |> UserAuth.log_in_user(user, remember_params)
-      else
-        _ ->
-          conn = UserAuth.increment_2fa_attempts(conn)
+        |> put_flash(:error, "Session expired. Please log in again.")
+        |> redirect(to: ~p"/users/log_in")
 
-          if UserAuth.too_many_2fa_attempts?(conn) do
-            conn
-            |> UserAuth.clear_pending_2fa()
-            |> put_flash(:error, "Too many failed attempts. Please log in again.")
-            |> redirect(to: ~p"/users/log_in")
-          else
+      user ->
+        code = String.trim(code)
+
+        with :ok <- attempt_allowed(user),
+             {:ok, secret} <- Totp.get_decrypted_secret(user),
+             true <- Totp.valid_code_or_backup?(user, secret, code),
+             :ok <- replay_allowed(user, code) do
+          remember_params = UserAuth.pending_2fa_remember_me_params(conn)
+
+          conn
+          |> UserAuth.clear_pending_2fa()
+          |> put_flash(:info, "Welcome back!")
+          |> UserAuth.log_in_user(user, remember_params)
+        else
+          :locked ->
+            lock_out(conn)
+
+          _invalid_or_replayed ->
             conn
             |> put_flash(:error, "Invalid verification code")
             |> redirect(to: ~p"/users/two-factor")
-          end
-      end
-    else
-      conn
-      |> put_flash(:error, "Session expired. Please log in again.")
-      |> redirect(to: ~p"/users/log_in")
+        end
     end
+  end
+
+  # The attempt bucket is hit on every submission (valid or not): 5 submissions per
+  # 15 minutes per pending user, counted server-side so cookie replay cannot reset it.
+  defp attempt_allowed(user) do
+    case RateLimit.check(:totp_attempt, user.id) do
+      {:allow, _} -> :ok
+      {:deny, _} -> :locked
+    end
+  end
+
+  # A valid code is accepted once per 90 s window; a replay reads as an invalid code.
+  defp replay_allowed(user, code) do
+    case RateLimit.check(:totp_replay, {user.id, code}) do
+      {:allow, _} -> :ok
+      {:deny, _} -> :replayed
+    end
+  end
+
+  defp lock_out(conn) do
+    conn
+    |> UserAuth.clear_pending_2fa()
+    |> put_flash(:error, "Too many failed attempts. Please log in again.")
+    |> redirect(to: ~p"/users/log_in")
   end
 
   def delete(conn, _params) do
