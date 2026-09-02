@@ -2,6 +2,7 @@ defmodule Estimate.EstimationEngine.Estimations do
   @moduledoc false
 
   import Ecto.Query
+  alias Estimate.ChangesetHelpers
   alias Estimate.Repo
   alias Estimate.EstimationEngine.{Estimation, EstimationRole}
   alias Estimate.Search
@@ -119,6 +120,11 @@ defmodule Estimate.EstimationEngine.Estimations do
       result =
         estimation
         |> Estimation.update_changeset(attrs)
+        |> ChangesetHelpers.validate_org_reference(
+          :currency_id,
+          Estimate.Accounts.Currency,
+          estimation.organization_id
+        )
         |> Repo.update()
 
       case result do

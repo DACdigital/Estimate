@@ -4,6 +4,8 @@ defmodule Estimate.CRM do
   """
 
   import Ecto.Query
+  alias Estimate.Accounts.Currency
+  alias Estimate.ChangesetHelpers
   alias Estimate.Repo
   alias Estimate.CRM.Customer
   alias Estimate.Search
@@ -53,6 +55,7 @@ defmodule Estimate.CRM do
         %Customer{}
         |> Customer.changeset(attrs)
         |> Ecto.Changeset.put_change(:organization_id, org_id)
+        |> ChangesetHelpers.validate_org_reference(:default_currency_id, Currency, org_id)
         |> Repo.insert()
 
       case result do
@@ -71,6 +74,11 @@ defmodule Estimate.CRM do
       result =
         customer
         |> Customer.changeset(attrs)
+        |> ChangesetHelpers.validate_org_reference(
+          :default_currency_id,
+          Currency,
+          customer.organization_id
+        )
         |> Repo.update()
 
       case result do

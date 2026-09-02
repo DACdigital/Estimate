@@ -7,7 +7,10 @@ defmodule Estimate.Portfolio do
   alias Estimate.Repo
   alias Estimate.Portfolio.{Project, ProjectCollaborator, ProjectRole}
   alias Estimate.Accounts
+  alias Estimate.Accounts.Currency
+  alias Estimate.ChangesetHelpers
   alias Estimate.CRM
+  alias Estimate.CRM.Customer
   alias Estimate.Search
 
   @dialyzer :no_opaque
@@ -169,7 +172,10 @@ defmodule Estimate.Portfolio do
 
       Ecto.Multi.new()
       |> Ecto.Multi.insert(:project, fn _ ->
-        Project.changeset(%Project{}, Map.put(attrs, "customer_id", customer_id))
+        %Project{}
+        |> Project.changeset(Map.put(attrs, "customer_id", customer_id))
+        |> ChangesetHelpers.validate_org_reference(:customer_id, Customer, org_id)
+        |> ChangesetHelpers.validate_org_reference(:currency_id, Currency, org_id)
       end)
       |> Ecto.Multi.insert(:collaborator, fn %{project: project} ->
         ProjectCollaborator.changeset(%ProjectCollaborator{}, %{
@@ -220,6 +226,8 @@ defmodule Estimate.Portfolio do
     Repo.ensure_org_context(fn ->
       project
       |> Project.changeset(attrs)
+      |> ChangesetHelpers.validate_org_reference(:customer_id, Customer, project.organization_id)
+      |> ChangesetHelpers.validate_org_reference(:currency_id, Currency, project.organization_id)
       |> Repo.update()
       |> case do
         {:ok, project} ->
