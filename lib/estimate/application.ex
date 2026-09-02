@@ -13,6 +13,7 @@ defmodule Estimate.Application do
       {DNSCluster, query: Application.get_env(:estimate, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Estimate.PubSub},
       {Task.Supervisor, name: Estimate.TaskSupervisor},
+      {Estimate.RateLimit, [clean_period: :timer.minutes(1)]},
       EstimateWeb.Endpoint,
       {EstimateWeb.MCPServer,
        transport: :streamable_http, authorization: EstimateWeb.MCPServer.runtime_authorization()}

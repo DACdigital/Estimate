@@ -43,3 +43,6 @@ config :phoenix_live_view,
 # Sort query params output of verified routes for robust url comparisons
 config :phoenix,
   sort_verified_routes_query_params: true
+
+# All tests share 127.0.0.1; only per-identity buckets are meaningful here.
+config :estimate, Estimate.RateLimit, login_ip: 100_000, oauth_ip: 100_000

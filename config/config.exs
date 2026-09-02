@@ -31,6 +31,14 @@ config :estimate, EstimateWeb.Endpoint,
 # at the `config/runtime.exs`.
 config :estimate, Estimate.Mailer, adapter: Swoosh.Adapters.Local
 
+# Configure rate limits for auth-sensitive endpoints (see Estimate.RateLimit)
+config :estimate, Estimate.RateLimit,
+  login_email: 10,
+  login_ip: 60,
+  totp_attempt: 5,
+  totp_replay: 1,
+  oauth_ip: 20
+
 # Configure esbuild (the version is required)
 config :esbuild,
   version: "0.25.4",
