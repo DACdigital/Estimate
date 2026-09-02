@@ -87,6 +87,27 @@ defmodule EstimateWeb.EstimatorLive.IndexAuthzTest do
     end
   end
 
+  describe "nil-form guards (no modal open)" do
+    test "save_epic with no modal open does not crash the LV", %{lv: lv} do
+      assert assigns(lv).epic_form == nil
+
+      render_submit(lv, "save_epic", %{"epic" => %{"name" => "INJECTED"}})
+
+      assert Process.alive?(lv.pid)
+      assert render(lv) =~ "Not found"
+      refute Repo.get_by(Epic, name: "INJECTED")
+    end
+
+    test "validate_task with no modal open does not crash the LV", %{lv: lv} do
+      assert assigns(lv).task_form == nil
+
+      render_change(lv, "validate_task", %{"task" => %{"name" => "x"}})
+
+      assert Process.alive?(lv.pid)
+      assert render(lv) =~ "Not found"
+    end
+  end
+
   describe "own estimation still works" do
     test "confirm_delete_epic on own epic sets the assign", %{lv: lv, est_a: est_a} do
       epic_a = epic_fixture(est_a, %{name: "A-EPIC"})

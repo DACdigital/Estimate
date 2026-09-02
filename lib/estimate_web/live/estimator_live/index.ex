@@ -250,27 +250,33 @@ defmodule EstimateWeb.EstimatorLive.Index do
 
   def handle_event("save_epic", %{"epic" => epic_params}, socket) do
     with_edit_auth(socket, fn socket ->
-      epic = socket.assigns.epic_form.data
-      estimation = socket.assigns.estimation
+      case socket.assigns.epic_form do
+        nil ->
+          not_found(socket)
 
-      result =
-        if epic.id do
-          EstimationEngine.update_epic(epic, epic_params)
-        else
-          attrs = Map.put(epic_params, "estimation_id", estimation.id)
-          EstimationEngine.create_epic(attrs)
-        end
+        epic_form ->
+          epic = epic_form.data
+          estimation = socket.assigns.estimation
 
-      case result do
-        {:ok, _epic} ->
-          {:noreply,
-           socket
-           |> reload_estimation()
-           |> assign(:modal, nil)
-           |> assign(:epic_form, nil)}
+          result =
+            if epic.id do
+              EstimationEngine.update_epic(epic, epic_params)
+            else
+              attrs = Map.put(epic_params, "estimation_id", estimation.id)
+              EstimationEngine.create_epic(attrs)
+            end
 
-        {:error, changeset} ->
-          {:noreply, assign(socket, :epic_form, to_form(changeset))}
+          case result do
+            {:ok, _epic} ->
+              {:noreply,
+               socket
+               |> reload_estimation()
+               |> assign(:modal, nil)
+               |> assign(:epic_form, nil)}
+
+            {:error, changeset} ->
+              {:noreply, assign(socket, :epic_form, to_form(changeset))}
+          end
       end
     end)
   end
@@ -342,14 +348,21 @@ defmodule EstimateWeb.EstimatorLive.Index do
   end
 
   def handle_event("validate_task", %{"task" => task_params}, socket) do
-    task = socket.assigns.task_form.data
+    case socket.assigns.task_form do
+      nil ->
+        not_found(socket)
 
-    changeset =
-      if task.id,
-        do: EstimationEngine.Task.update_changeset(task, task_params),
-        else: EstimationEngine.Task.changeset(task, task_params)
+      task_form ->
+        task = task_form.data
 
-    {:noreply, assign(socket, :task_form, changeset |> Map.put(:action, :validate) |> to_form())}
+        changeset =
+          if task.id,
+            do: EstimationEngine.Task.update_changeset(task, task_params),
+            else: EstimationEngine.Task.changeset(task, task_params)
+
+        {:noreply,
+         assign(socket, :task_form, changeset |> Map.put(:action, :validate) |> to_form())}
+    end
   end
 
   def handle_event("save_task", %{"task" => task_params}, socket) do

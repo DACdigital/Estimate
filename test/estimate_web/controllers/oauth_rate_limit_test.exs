@@ -3,11 +3,12 @@ defmodule EstimateWeb.OAuthRateLimitTest do
   use EstimateWeb.ConnCase, async: false
 
   setup do
-    prev = Application.get_env(:estimate, Estimate.RateLimit)
+    prev = Application.get_env(:estimate, Estimate.RateLimit, [])
     Application.put_env(:estimate, Estimate.RateLimit, Keyword.put(prev, :oauth_ip, 3))
     on_exit(fn -> Application.put_env(:estimate, Estimate.RateLimit, prev) end)
-    # unique forwarded ip so other suites' hits on 127.0.0.1 don't interfere
-    %{ip: "198.51.100.#{:rand.uniform(250)}"}
+    # deterministic, unique-per-test forwarded ip so other suites' hits on 127.0.0.1
+    # don't interfere and so two tests never collide with the same octet
+    %{ip: "198.51.100.#{rem(System.unique_integer([:positive]), 250) + 1}"}
   end
 
   test "4th request from one ip within a minute gets 429", %{conn: conn, ip: ip} do

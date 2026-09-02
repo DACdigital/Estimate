@@ -19,4 +19,14 @@ defmodule EstimateWeb.CustomerLive.ShowAuthzTest do
     refute assigns(lv).deleting_customer
     assert render(lv) =~ "Not authorized"
   end
+
+  test "org admin CAN open the delete confirmation (positive control)", %{conn: conn} do
+    %{user: owner, organization: org} = user_with_organization_fixture()
+    customer = customer_fixture(org)
+
+    {:ok, lv, _} = live(log_in_user(conn, owner), ~p"/org/#{org.id}/customers/#{customer.id}")
+    render_click(lv, "confirm_delete", %{})
+
+    assert assigns(lv).deleting_customer == true
+  end
 end

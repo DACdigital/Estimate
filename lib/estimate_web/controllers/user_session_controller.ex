@@ -66,6 +66,7 @@ defmodule EstimateWeb.UserSessionController do
              true <- Totp.valid_code_or_backup?(user, secret, code),
              :ok <- replay_allowed(user, code) do
           remember_params = UserAuth.pending_2fa_remember_me_params(conn)
+          RateLimit.reset(:totp_attempt, user.id)
 
           conn
           |> UserAuth.clear_pending_2fa()
@@ -83,8 +84,9 @@ defmodule EstimateWeb.UserSessionController do
     end
   end
 
-  # The attempt bucket is hit on every submission (valid or not): 5 submissions per
-  # 15 minutes per pending user, counted server-side so cookie replay cannot reset it.
+  # The attempt bucket is hit on every submission (valid or not): 5 failed submissions
+  # per 15 minutes per pending user, counted server-side so cookie replay cannot reset
+  # it; a successful login resets the counter (see RateLimit.reset/2 call above).
   defp attempt_allowed(user) do
     case RateLimit.check(:totp_attempt, user.id) do
       {:allow, _} -> :ok

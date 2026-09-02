@@ -39,6 +39,10 @@ config :estimate, Estimate.RateLimit,
   totp_replay: 1,
   oauth_ip: 20
 
+# How many x-forwarded-for hops to trust (see EstimateWeb.ClientIP moduledoc).
+# Default assumes the documented deployment: a single k8s ingress hop.
+config :estimate, EstimateWeb.ClientIP, trusted_proxy_hops: 1
+
 # Configure esbuild (the version is required)
 config :esbuild,
   version: "0.25.4",

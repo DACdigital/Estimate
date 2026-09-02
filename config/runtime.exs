@@ -72,6 +72,20 @@ if config_env() == :prod do
 
   config :estimate, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
+  # How many x-forwarded-for hops to trust (see EstimateWeb.ClientIP moduledoc).
+  # Set to 0 when the app is exposed directly, with no reverse proxy in front of it.
+  config :estimate, EstimateWeb.ClientIP,
+    trusted_proxy_hops: String.to_integer(System.get_env("TRUSTED_PROXY_HOPS", "1"))
+
+  # Rate limits for auth-sensitive endpoints (see Estimate.RateLimit). Defaults match
+  # config/config.exs; override per-deployment via env if traffic patterns warrant it.
+  config :estimate, Estimate.RateLimit,
+    login_email: String.to_integer(System.get_env("RATE_LIMIT_LOGIN_EMAIL", "10")),
+    login_ip: String.to_integer(System.get_env("RATE_LIMIT_LOGIN_IP", "60")),
+    totp_attempt: String.to_integer(System.get_env("RATE_LIMIT_TOTP_ATTEMPT", "5")),
+    totp_replay: String.to_integer(System.get_env("RATE_LIMIT_TOTP_REPLAY", "1")),
+    oauth_ip: String.to_integer(System.get_env("RATE_LIMIT_OAUTH_IP", "20"))
+
   config :estimate, EstimateWeb.Endpoint,
     url: [host: host, port: 443, scheme: "https"],
     http: [

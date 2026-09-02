@@ -5,7 +5,17 @@ defmodule EstimateWeb.Plugs.RateLimit do
   alias Estimate.RateLimit
   alias EstimateWeb.ClientIP
 
-  def init(opts), do: Keyword.fetch!(opts, :bucket)
+  def init(opts) do
+    bucket = Keyword.fetch!(opts, :bucket)
+
+    if bucket not in RateLimit.buckets() do
+      raise ArgumentError,
+            "unknown Estimate.RateLimit bucket #{inspect(bucket)}; " <>
+              "expected one of #{inspect(RateLimit.buckets())}"
+    end
+
+    bucket
+  end
 
   def call(conn, bucket) do
     case RateLimit.check(bucket, ClientIP.get(conn)) do

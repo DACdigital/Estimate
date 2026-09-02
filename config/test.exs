@@ -46,3 +46,6 @@ config :phoenix,
 
 # All tests share 127.0.0.1; only per-identity buckets are meaningful here.
 config :estimate, Estimate.RateLimit, login_ip: 100_000, oauth_ip: 100_000
+
+# 1 hop so tests that set a single x-forwarded-for value keep working.
+config :estimate, EstimateWeb.ClientIP, trusted_proxy_hops: 1

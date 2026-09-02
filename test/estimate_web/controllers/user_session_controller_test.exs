@@ -119,6 +119,36 @@ defmodule EstimateWeb.UserSessionControllerTest do
       assert redirected_to(locked) == ~p"/users/log_in"
     end
 
+    test "a successful login resets the attempt counter for the next pending session", %{
+      conn: conn,
+      user: user,
+      secret: secret
+    } do
+      for _ <- 1..4 do
+        c = post(conn, ~p"/users/two-factor/verify", %{"code" => "000000"})
+        refute get_session(c, :user_token)
+      end
+
+      valid = post(conn, ~p"/users/two-factor/verify", %{"code" => valid_totp_code(secret)})
+      assert get_session(valid, :user_token)
+
+      # a fresh pending 2FA session for the same user, after the reset above
+      conn2 =
+        post(build_conn(), ~p"/users/log_in", %{
+          "user" => %{"email" => user.email, "password" => @password}
+        })
+
+      for _ <- 1..4 do
+        c = post(conn2, ~p"/users/two-factor/verify", %{"code" => "000000"})
+        refute get_session(c, :user_token)
+      end
+
+      fifth = post(conn2, ~p"/users/two-factor/verify", %{"code" => "000000"})
+      refute get_session(fifth, :user_token)
+      assert get_session(fifth, :pending_2fa_user_id)
+      assert Phoenix.Flash.get(fifth.assigns.flash, :error) =~ "Invalid verification code"
+    end
+
     test "a valid TOTP code cannot be replayed", %{conn: conn, user: user, secret: secret} do
       code = valid_totp_code(secret)
       first = post(conn, ~p"/users/two-factor/verify", %{"code" => code})

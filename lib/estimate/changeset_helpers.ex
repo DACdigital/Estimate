@@ -12,6 +12,8 @@ defmodule Estimate.ChangesetHelpers do
   `schema` owned by `org_id`. Skips when the field is unchanged or nil.
   Runs inside the caller's RLS context: a row hidden by RLS also fails.
   """
+  @spec validate_org_reference(Ecto.Changeset.t(), atom(), module(), Ecto.UUID.t()) ::
+          Ecto.Changeset.t()
   def validate_org_reference(changeset, field, schema, org_id) do
     validate_change(changeset, field, fn ^field, id ->
       exists? =
