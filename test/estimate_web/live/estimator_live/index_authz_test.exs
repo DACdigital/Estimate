@@ -97,6 +97,45 @@ defmodule EstimateWeb.EstimatorLive.IndexAuthzTest do
       render_click(lv, "confirm_delete_epic", %{"id" => epic_a.id})
       assert assigns(lv).deleting_epic.id == epic_a.id
     end
+
+    test "edit_epic on own epic populates the form", %{lv: lv, est_a: est_a} do
+      epic_a = epic_fixture(est_a, %{name: "A-EPIC"})
+      send(lv.pid, {:epic_created, epic_a})
+      render(lv)
+
+      render_click(lv, "edit_epic", %{"id" => epic_a.id})
+      assert assigns(lv).modal == :epic
+      assert assigns(lv).epic_form.data.id == epic_a.id
+    end
+
+    test "add_task on own epic opens the form and save_task creates the row",
+         %{lv: lv, est_a: est_a} do
+      epic_a = epic_fixture(est_a, %{name: "A-EPIC"})
+      send(lv.pid, {:epic_created, epic_a})
+      render(lv)
+
+      render_click(lv, "add_task", %{"epic-id" => epic_a.id})
+      assert assigns(lv).modal == :task
+      assert assigns(lv).current_epic_id == epic_a.id
+
+      render_submit(lv, "save_task", %{"task" => %{"name" => "NEW"}})
+      assert Repo.get_by(Task, epic_id: epic_a.id, name: "NEW")
+    end
+
+    test "edit_task on own task populates the form", %{lv: lv, est_a: est_a} do
+      epic_a = epic_fixture(est_a, %{name: "A-EPIC"})
+      send(lv.pid, {:epic_created, epic_a})
+      render(lv)
+
+      task_a = task_fixture(epic_a, %{name: "A-TASK"})
+      send(lv.pid, {:task_created, task_a})
+      render(lv)
+
+      render_click(lv, "edit_task", %{"id" => task_a.id})
+      assert assigns(lv).modal == :task
+      assert assigns(lv).task_form.data.id == task_a.id
+      assert assigns(lv).current_epic_id == epic_a.id
+    end
   end
 
   describe "viewer on this project" do
