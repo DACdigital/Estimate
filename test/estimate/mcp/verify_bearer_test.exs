@@ -78,4 +78,34 @@ defmodule Estimate.MCP.VerifyBearerTest do
     assert claims["org_id"] == org.id
     assert claims["aud"] == "urn:r"
   end
+
+  test "api keys carry full scope; oauth access tokens carry their granted scope", %{
+    api_key: key,
+    user: user,
+    org: org
+  } do
+    {:ok, client} =
+      OAuth.register_client(%{"redirect_uris" => ["https://claude.ai/api/mcp/auth_callback"]})
+
+    {:ok, code} =
+      OAuth.create_code(%{
+        client_id: client.id,
+        user_id: user.id,
+        organization_id: org.id,
+        redirect_uri: "https://claude.ai/api/mcp/auth_callback",
+        code_challenge: "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
+        resource: "http://localhost:4000/mcp"
+      })
+
+    {:ok, %{access_token: at}} =
+      OAuth.exchange_code(code, %{
+        client_id: client.id,
+        redirect_uri: "https://claude.ai/api/mcp/auth_callback",
+        code_verifier: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
+        resource: "http://localhost:4000/mcp"
+      })
+
+    assert {:ok, %{scope: "mcp:read mcp:write"}} = MCP.verify_bearer(key)
+    assert {:ok, %{scope: "mcp:read"}} = MCP.verify_bearer(at)
+  end
 end

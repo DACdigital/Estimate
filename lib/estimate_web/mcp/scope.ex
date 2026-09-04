@@ -19,9 +19,14 @@ defmodule EstimateWeb.MCP.Scope do
     %{
       user_id: auth.sub,
       org_id: auth.raw_claims["org_id"],
-      role: auth.raw_claims["role"]
+      role: auth.raw_claims["role"],
+      scopes: parse_scopes(auth.raw_claims["scope"])
     }
   end
+
+  # Fail closed: a claim set without scope is read-only.
+  defp parse_scopes(nil), do: ["mcp:read"]
+  defp parse_scopes(scope) when is_binary(scope), do: String.split(scope, " ", trim: true)
 
   def with_scope(%Frame{} = frame, fun) when is_function(fun, 1) do
     %{user_id: user_id, org_id: org_id} = c = claims(frame)

@@ -18,13 +18,13 @@ defmodule Estimate.MCPFixtures do
     org
   end
 
-  @doc "A frame shaped like anubis builds after successful authorization."
-  def mcp_frame(user, organization, role \\ "owner") do
+  @doc "A frame shaped like anubis builds after successful authorization. Defaults to full scope (API-key parity)."
+  def mcp_frame(user, organization, role \\ "owner", scope \\ Estimate.MCP.OAuth.Scopes.full()) do
     %Frame{
       context: %Anubis.Server.Context{
         auth: %{
           sub: user.id,
-          raw_claims: %{"org_id" => organization.id, "role" => role}
+          raw_claims: %{"org_id" => organization.id, "role" => role, "scope" => scope}
         }
       }
     }

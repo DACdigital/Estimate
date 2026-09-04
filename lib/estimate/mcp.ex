@@ -86,7 +86,13 @@ defmodule Estimate.MCP do
 
   defp authorize(%APIKey{} = key, role) do
     maybe_touch_last_used(key)
-    %{user_id: key.user_id, organization_id: key.organization_id, role: role}
+
+    %{
+      user_id: key.user_id,
+      organization_id: key.organization_id,
+      role: role,
+      scope: Estimate.MCP.OAuth.Scopes.full()
+    }
   end
 
   defp maybe_touch_last_used(%APIKey{} = key) do

@@ -13,8 +13,15 @@ defmodule Estimate.MCP.KeyValidator do
   @impl true
   def validate_token(token, config) do
     case Estimate.MCP.verify_bearer(token) do
-      {:ok, %{user_id: user_id, organization_id: org_id, role: role}} ->
-        {:ok, %{"sub" => user_id, "org_id" => org_id, "role" => role, "aud" => config.resource}}
+      {:ok, %{user_id: user_id, organization_id: org_id, role: role, scope: scope}} ->
+        {:ok,
+         %{
+           "sub" => user_id,
+           "org_id" => org_id,
+           "role" => role,
+           "scope" => scope,
+           "aud" => config.resource
+         }}
 
       {:error, reason} ->
         {:error, reason}

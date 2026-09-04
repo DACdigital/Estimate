@@ -31,4 +31,9 @@ defmodule Estimate.MCP.KeyValidatorTest do
     {:ok, _} = Estimate.Organizations.update_mcp_settings(org, %{mcp_enabled: false})
     assert {:error, :mcp_disabled} = KeyValidator.validate_token(key, @config)
   end
+
+  test "claims include scope", %{key: key} do
+    assert {:ok, %{"scope" => "mcp:read mcp:write"}} =
+             KeyValidator.validate_token(key, %{resource: "urn:x"})
+  end
 end

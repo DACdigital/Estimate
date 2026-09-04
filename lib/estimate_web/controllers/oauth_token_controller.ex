@@ -42,7 +42,7 @@ defmodule EstimateWeb.OAuthTokenController do
       token_type: "Bearer",
       expires_in: tokens.expires_in,
       refresh_token: tokens.refresh_token,
-      scope: "mcp:read"
+      scope: tokens.scope
     })
   end
 

@@ -36,6 +36,25 @@ defmodule Estimate.MCP.OAuthFlowTest do
     code
   end
 
+  defp mint_code(ctx, extra) do
+    {:ok, code} =
+      OAuth.create_code(
+        Map.merge(
+          %{
+            client_id: ctx.client.id,
+            user_id: ctx.user.id,
+            organization_id: ctx.org.id,
+            redirect_uri: @redirect,
+            code_challenge: @challenge,
+            resource: @resource
+          },
+          extra
+        )
+      )
+
+    code
+  end
+
   defp exchange(ctx, code, overrides \\ %{}) do
     OAuth.exchange_code(
       code,
@@ -280,6 +299,28 @@ defmodule Estimate.MCP.OAuthFlowTest do
 
       assert {:ok, %{user_id: uid2}} = OAuth.verify_access_token(at2)
       assert uid2 == user2.id
+    end
+  end
+
+  describe "scope" do
+    test "defaults to mcp:read and survives exchange and refresh", ctx do
+      code = mint_code(ctx)
+      assert {:ok, %{scope: "mcp:read", refresh_token: rt}} = exchange(ctx, code)
+      assert {:ok, %{scope: "mcp:read"}} = OAuth.refresh_tokens(rt, ctx.client.id)
+    end
+
+    test "write scope is persisted on code and token and verified on the access token", ctx do
+      code = mint_code(ctx, %{scope: "mcp:read mcp:write"})
+
+      assert {:ok, %{scope: "mcp:read mcp:write", access_token: at, refresh_token: rt}} =
+               exchange(ctx, code)
+
+      assert {:ok, %{scope: "mcp:read mcp:write"}} = OAuth.verify_access_token(at)
+
+      assert {:ok, %{scope: "mcp:read mcp:write", access_token: at2}} =
+               OAuth.refresh_tokens(rt, ctx.client.id)
+
+      assert {:ok, %{scope: "mcp:read mcp:write"}} = OAuth.verify_access_token(at2)
     end
   end
 end

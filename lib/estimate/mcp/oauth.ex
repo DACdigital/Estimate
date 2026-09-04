@@ -10,7 +10,7 @@ defmodule Estimate.MCP.OAuth do
   import Ecto.Query
 
   alias Estimate.Accounts.{Membership, Organization}
-  alias Estimate.MCP.OAuth.{Client, Code, PKCE, Token}
+  alias Estimate.MCP.OAuth.{Client, Code, PKCE, Scopes, Token}
   alias Estimate.Repo
 
   @code_prefix "est_ac_"
@@ -41,6 +41,7 @@ defmodule Estimate.MCP.OAuth do
       redirect_uri: attrs.redirect_uri,
       code_challenge: attrs.code_challenge,
       resource: attrs.resource,
+      scope: Map.get(attrs, :scope, Scopes.read_only()),
       expires_at: expires_in(@code_ttl_seconds),
       client_id: attrs.client_id,
       user_id: attrs.user_id,
@@ -135,10 +136,16 @@ defmodule Estimate.MCP.OAuth do
         client_id: code.client_id,
         code_id: code.id,
         user_id: code.user_id,
-        organization_id: code.organization_id
+        organization_id: code.organization_id,
+        scope: code.scope
       })
 
-    %{access_token: access, refresh_token: refresh, expires_in: @access_ttl_seconds}
+    %{
+      access_token: access,
+      refresh_token: refresh,
+      expires_in: @access_ttl_seconds,
+      scope: code.scope
+    }
   end
 
   def refresh_tokens(plaintext, client_id) do
@@ -229,10 +236,16 @@ defmodule Estimate.MCP.OAuth do
                 client_id: locked.client_id,
                 code_id: locked.code_id,
                 user_id: locked.user_id,
-                organization_id: locked.organization_id
+                organization_id: locked.organization_id,
+                scope: locked.scope
               })
 
-            %{access_token: access, refresh_token: refresh, expires_in: @access_ttl_seconds}
+            %{
+              access_token: access,
+              refresh_token: refresh,
+              expires_in: @access_ttl_seconds,
+              scope: locked.scope
+            }
 
           true ->
             # Lost the race: another concurrent refresh of this exact token
@@ -312,7 +325,14 @@ defmodule Estimate.MCP.OAuth do
 
       true ->
         maybe_touch_last_used(token)
-        {:ok, %{user_id: token.user_id, organization_id: token.organization_id, role: hit.role}}
+
+        {:ok,
+         %{
+           user_id: token.user_id,
+           organization_id: token.organization_id,
+           role: hit.role,
+           scope: token.scope
+         }}
     end
   end
 
