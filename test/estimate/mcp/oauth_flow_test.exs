@@ -322,6 +322,11 @@ defmodule Estimate.MCP.OAuthFlowTest do
 
       assert {:ok, %{scope: "mcp:read mcp:write"}} = OAuth.verify_access_token(at2)
     end
+
+    test "create_code raises on an unvalidated scope -- callers must run Scopes.parse/1 first",
+         ctx do
+      assert_raise ArgumentError, fn -> mint_code(ctx, %{scope: "mcp:admin"}) end
+    end
   end
 
   describe "absolute lifetime" do
@@ -342,6 +347,35 @@ defmodule Estimate.MCP.OAuthFlowTest do
       {:ok, %{refresh_token: rt}} = exchange(ctx, code)
       old = DateTime.utc_now() |> DateTime.add(-89, :day) |> DateTime.truncate(:second)
       Repo.update_all(Estimate.MCP.OAuth.Code, set: [inserted_at: old])
+      assert {:ok, _} = OAuth.refresh_tokens(rt, ctx.client.id)
+    end
+
+    test "with no originating code row (code_id nil, e.g. janitor-pruned), the family's own inserted_at is the fallback anchor",
+         ctx do
+      code = mint_code(ctx)
+      {:ok, %{refresh_token: rt}} = exchange(ctx, code)
+
+      # Simulate what a code row's absence looks like once the janitor has
+      # pruned it: code_id nilified on the family's token(s) (nilify_all,
+      # same effect a real code delete has via the FK).
+      Repo.update_all(Token, set: [code_id: nil])
+
+      old = DateTime.utc_now() |> DateTime.add(-91, :day) |> DateTime.truncate(:second)
+      Repo.update_all(Token, set: [inserted_at: old])
+
+      assert {:error, :invalid_grant} = OAuth.refresh_tokens(rt, ctx.client.id)
+    end
+
+    test "with no originating code row, refresh still works within 89 days of the token's own inserted_at",
+         ctx do
+      code = mint_code(ctx)
+      {:ok, %{refresh_token: rt}} = exchange(ctx, code)
+
+      Repo.update_all(Token, set: [code_id: nil])
+
+      old = DateTime.utc_now() |> DateTime.add(-89, :day) |> DateTime.truncate(:second)
+      Repo.update_all(Token, set: [inserted_at: old])
+
       assert {:ok, _} = OAuth.refresh_tokens(rt, ctx.client.id)
     end
   end

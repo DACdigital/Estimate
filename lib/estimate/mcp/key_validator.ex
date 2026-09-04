@@ -10,16 +10,18 @@ defmodule Estimate.MCP.KeyValidator do
 
   @behaviour Anubis.Server.Authorization.Validator
 
+  alias Estimate.MCP.OAuth.Scopes
+
   @impl true
   def validate_token(token, config) do
     case Estimate.MCP.verify_bearer(token) do
-      {:ok, %{user_id: user_id, organization_id: org_id, role: role, scope: scope}} ->
+      {:ok, auth} ->
         {:ok,
          %{
-           "sub" => user_id,
-           "org_id" => org_id,
-           "role" => role,
-           "scope" => scope,
+           "sub" => auth.user_id,
+           "org_id" => auth.organization_id,
+           "role" => auth.role,
+           "scope" => Map.get(auth, :scope, Scopes.read_only()),
            "aud" => config.resource
          }}
 

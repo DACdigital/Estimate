@@ -34,17 +34,31 @@ defmodule Estimate.MCP.OAuth do
     Ecto.Query.CastError -> nil
   end
 
-  # attrs.scope, if present, is stored as-is (no validation); callers must
-  # run it through Scopes.parse/1 first.
+  # Canonicalizes (and validates) attrs.scope through Scopes.parse/1 itself,
+  # rather than trusting a pre-validated string from the caller -- callers
+  # (the authorize controller) already validate via Scopes.parse/1 before
+  # getting here, but re-validating removes create_code/1 as a trust
+  # boundary: any future caller that skips validation gets a loud
+  # ArgumentError instead of an unvalidated scope silently reaching a code
+  # row (and from there, a token).
   def create_code(attrs) do
     plaintext = @code_prefix <> random_token()
+
+    scope =
+      case Scopes.parse(Map.get(attrs, :scope)) do
+        {:ok, scopes} ->
+          Scopes.join(scopes)
+
+        {:error, :invalid_scope} ->
+          raise ArgumentError, "invalid scope: #{inspect(Map.get(attrs, :scope))}"
+      end
 
     row = %Code{
       code_hash: hash(plaintext),
       redirect_uri: attrs.redirect_uri,
       code_challenge: attrs.code_challenge,
       resource: attrs.resource,
-      scope: Map.get(attrs, :scope, Scopes.read_only()),
+      scope: scope,
       expires_at: expires_in(@code_ttl_seconds),
       client_id: attrs.client_id,
       user_id: attrs.user_id,
@@ -187,11 +201,23 @@ defmodule Estimate.MCP.OAuth do
     end)
   end
 
-  defp past_absolute_lifetime?(%Token{code_id: nil}), do: false
-
-  defp past_absolute_lifetime?(%Token{code_id: code_id}) do
-    case Repo.one(from(c in Code, where: c.id == ^code_id, select: c.inserted_at)) do
+  # The 90-day clock anchors on the *original* consent (the code's
+  # inserted_at), not the token's own -- a token can be rotated many times
+  # over that window. When the originating code row is gone (nilified
+  # code_id: the janitor prunes codes once no live token references them
+  # anymore, or the row was otherwise never found), fall back to the oldest
+  # inserted_at across the family's own tokens as the best remaining anchor,
+  # rather than treating the family as exempt from the cap.
+  defp past_absolute_lifetime?(%Token{code_id: nil, family_id: family_id}) do
+    case Repo.one(from(t in Token, where: t.family_id == ^family_id, select: min(t.inserted_at))) do
       nil -> false
+      granted_at -> DateTime.diff(now(), granted_at) > @absolute_ttl_seconds
+    end
+  end
+
+  defp past_absolute_lifetime?(%Token{code_id: code_id} = token) do
+    case Repo.one(from(c in Code, where: c.id == ^code_id, select: c.inserted_at)) do
+      nil -> past_absolute_lifetime?(%Token{token | code_id: nil})
       granted_at -> DateTime.diff(now(), granted_at) > @absolute_ttl_seconds
     end
   end
@@ -289,20 +315,29 @@ defmodule Estimate.MCP.OAuth do
     end
   end
 
-  @doc """
-  Always-commit family revoke; see the note above exchange_code/2 for the
-  invariant this preserves. Returns the number of rows revoked (the
-  update_all count) — callers that only need the side effect (exchange_code's
-  replay branch, refresh_tokens, rotate/1) discard it.
-  """
+  # Kept public (called from every module above plus revoke_grant/2 and
+  # revoke_all_for_user/1 below) but not part of the module's public API --
+  # @doc false keeps it out of generated docs while every call site still
+  # says "see revoke_family/1" in its own comment.
+  #
+  # Always-commit family revoke; see the note above exchange_code/2 for the
+  # invariant this preserves. Returns the number of rows revoked (the
+  # update_all count) — callers that only need the side effect (exchange_code's
+  # replay branch, refresh_tokens, rotate/1) discard it.
+  #
+  # Always commits — never rolls back — so the revoke-must-persist rule
+  # holds despite using a transaction. The transaction exists only to hold
+  # the advisory lock for its duration: taking the same family-scoped lock
+  # as rotate/1 serializes the two, so whichever of a racing rotate/kill
+  # pair runs second sees the other's fully-committed effect (either the
+  # new child row is visible to this UPDATE, or this revocation is visible
+  # to rotate/1's FOR UPDATE re-check) — no snapshot-miss window. Because
+  # this transaction body has no Repo.rollback/1 call anywhere in it,
+  # Repo.transaction/1 can only ever return {:ok, _} here — the hard match
+  # below is intentional, not an oversight; a change that adds a rollback
+  # path to this function must also stop matching it as infallible.
+  @doc false
   def revoke_family(family_id) do
-    # Always commits — never rolls back — so the revoke-must-persist rule
-    # holds despite using a transaction. The transaction exists only to hold
-    # the advisory lock for its duration: taking the same family-scoped lock
-    # as rotate/1 serializes the two, so whichever of a racing rotate/kill
-    # pair runs second sees the other's fully-committed effect (either the
-    # new child row is visible to this UPDATE, or this revocation is visible
-    # to rotate/1's FOR UPDATE re-check) — no snapshot-miss window.
     {:ok, {count, _}} =
       Repo.transaction(fn ->
         Repo.query!("SELECT pg_advisory_xact_lock(hashtext($1))", [family_id])
@@ -383,6 +418,14 @@ defmodule Estimate.MCP.OAuth do
         left_join: code in Code,
         on: code.id == t.code_id,
         where: t.user_id == ^user_id and is_nil(t.revoked_at) and t.refresh_expires_at > ^now(),
+        # A family stays refresh-eligible on its sliding window but still
+        # dies at the 90-day absolute cap (refresh_tokens/2's
+        # past_absolute_lifetime?/1) -- don't list it as an active grant past
+        # that point, or the settings page would offer a "revoke" on a grant
+        # no refresh can actually resurrect.
+        where:
+          coalesce(code.inserted_at, t.inserted_at) >
+            ^DateTime.add(now(), -@absolute_ttl_seconds),
         group_by: [t.family_id, c.name, o.name, t.scope],
         select: %{
           family_id: t.family_id,
@@ -398,16 +441,29 @@ defmodule Estimate.MCP.OAuth do
     end)
   end
 
-  @doc "Revokes a family only if it belongs to `user_id`. Routes through revoke_family/1 for the advisory-locked, race-safe revoke (see its doc)."
+  @doc """
+  Revokes a family only if it belongs to `user_id`. Routes through
+  revoke_family/1 for the advisory-locked, race-safe revoke (see its doc).
+
+  Looks up the DB-canonical (lowercase) `family_id` first and passes THAT to
+  revoke_family/1, rather than the caller-supplied string verbatim.
+  revoke_family/1's advisory lock is `hashtext(family_id)` via a plain SQL
+  param — no UUID cast/normalization — so a differently-cased-but-equal
+  family_id would hash to a different lock key than a concurrent rotate/1
+  (which always works from the canonical lowercase form loaded from the
+  DB), silently defeating the serialization between the two.
+  """
   def revoke_grant(user_id, family_id) do
     Repo.without_rls(fn ->
-      owned? =
-        Repo.exists?(from(t in Token, where: t.family_id == ^family_id and t.user_id == ^user_id))
+      query =
+        from t in Token,
+          where: t.family_id == ^family_id and t.user_id == ^user_id,
+          select: t.family_id,
+          limit: 1
 
-      if owned? do
-        {:ok, revoke_family(family_id)}
-      else
-        {:error, :not_found}
+      case Repo.one(query) do
+        nil -> {:error, :not_found}
+        canonical_family_id -> {:ok, revoke_family(canonical_family_id)}
       end
     end)
   rescue

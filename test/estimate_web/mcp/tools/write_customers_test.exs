@@ -94,6 +94,6 @@ defmodule EstimateWeb.MCP.Tools.WriteCustomersTest do
              )
 
     assert json_error(resp) =~ "authorized read-only"
-    refute Estimate.Repo.get_by(Estimate.CRM.Customer, key: "ACME")
+    refute Estimate.Repo.get_by(Estimate.CRM.Customer, key: "ACME", organization_id: org.id)
   end
 end

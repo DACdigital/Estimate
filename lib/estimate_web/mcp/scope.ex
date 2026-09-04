@@ -11,6 +11,7 @@ defmodule EstimateWeb.MCP.Scope do
   require Logger
 
   alias Anubis.Server.Frame
+  alias Estimate.MCP.OAuth.Scopes
   alias Estimate.Repo
 
   def claims(%Frame{} = frame) do
@@ -26,9 +27,9 @@ defmodule EstimateWeb.MCP.Scope do
 
   # Fail closed: a claim set without scope, or with a malformed (non-binary)
   # scope claim, is read-only.
-  defp parse_scopes(nil), do: ["mcp:read"]
+  defp parse_scopes(nil), do: [Scopes.read_only()]
   defp parse_scopes(scope) when is_binary(scope), do: String.split(scope, " ", trim: true)
-  defp parse_scopes(_), do: ["mcp:read"]
+  defp parse_scopes(_), do: [Scopes.read_only()]
 
   def with_scope(%Frame{} = frame, fun) when is_function(fun, 1) do
     %{user_id: user_id, org_id: org_id} = c = claims(frame)

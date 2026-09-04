@@ -55,6 +55,17 @@ defmodule Estimate.MCP.OAuthGrantsTest do
     assert %DateTime{} = g.granted_at
   end
 
+  test "list_grants excludes families past the 90-day absolute cap even with a live refresh window",
+       ctx do
+    grant(ctx.user, ctx.org, ctx.client)
+    assert [_] = OAuth.list_grants(ctx.user.id)
+
+    old = DateTime.utc_now() |> DateTime.add(-91, :day) |> DateTime.truncate(:second)
+    Repo.update_all(Estimate.MCP.OAuth.Code, set: [inserted_at: old])
+
+    assert OAuth.list_grants(ctx.user.id) == []
+  end
+
   test "revoke_grant kills the family; other users cannot revoke it", ctx do
     t = grant(ctx.user, ctx.org, ctx.client)
     [g] = OAuth.list_grants(ctx.user.id)
@@ -83,6 +94,21 @@ defmodule Estimate.MCP.OAuthGrantsTest do
     assert {:ok, 1} = OAuth.revoke_grant(ctx.user.id, g.family_id)
     assert {:error, :invalid_grant} = OAuth.refresh_tokens(rotated.refresh_token, ctx.client.id)
     assert {:error, :invalid_key} = OAuth.verify_access_token(rotated.access_token)
+  end
+
+  test "revoke_grant accepts an upper-cased family id and revokes via the DB-canonical id", ctx do
+    t = grant(ctx.user, ctx.org, ctx.client)
+    [g] = OAuth.list_grants(ctx.user.id)
+
+    # Same UUID, different casing: revoke_grant/2 must look up the
+    # DB-canonical (lowercase) family_id and revoke through *that* value, not
+    # the raw param -- revoke_family/1's advisory lock is keyed by
+    # hashtext(family_id) via a plain SQL param (no UUID cast/normalization),
+    # so passing the caller's casing straight through would take a different
+    # lock than a concurrent rotate/1 (which always loads the canonical
+    # lowercase form from the DB), defeating the serialization between them.
+    assert {:ok, 1} = OAuth.revoke_grant(ctx.user.id, String.upcase(g.family_id))
+    assert {:error, :invalid_key} = OAuth.verify_access_token(t.access_token)
   end
 
   test "revoke_all_for_user revokes every family of that user only", ctx do
