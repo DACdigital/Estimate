@@ -289,6 +289,7 @@ Runtime config follows the standard Phoenix split: compile-time in `config/*.exs
 | `SKIP_RLS_ROLE` | ops | no | Skips `SET ROLE` on connect — used by the release migration wrapper |
 | `TRUSTED_PROXY_HOPS` | prod | no | Default `1`. `x-forwarded-for` hops trusted by `EstimateWeb.ClientIP`; set `0` when not behind a proxy |
 | `RATE_LIMIT_LOGIN_EMAIL` / `RATE_LIMIT_LOGIN_IP` / `RATE_LIMIT_TOTP_ATTEMPT` / `RATE_LIMIT_TOTP_REPLAY` / `RATE_LIMIT_OAUTH_IP` | prod | no | Overrides for `Estimate.RateLimit` bucket limits; defaults `10` / `60` / `5` / `1` / `20` |
+| `OAUTH_JANITOR_INTERVAL_MS` | prod | no | Sweep interval (ms) for `Estimate.MCP.OAuth.Janitor`; default `3600000` (1 hour) |
 
 Per-organization settings (SMTP relay, AI key/model/prompt, currencies, 2FA policy) live in the database, not the environment — this is a multi-tenant app; tenants configure themselves.
 

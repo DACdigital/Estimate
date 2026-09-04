@@ -14,10 +14,14 @@ defmodule Estimate.MCP.OAuth.Janitor do
   alias Estimate.Repo
 
   @default_interval :timer.hours(1)
+  @default_initial_delay :timer.seconds(30)
   @code_grace_seconds 3600
   @token_grace_seconds 7 * 24 * 3600
 
-  def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
+  def start_link(opts) do
+    name = Keyword.get(opts, :name, __MODULE__)
+    GenServer.start_link(__MODULE__, opts, name: name)
+  end
 
   @impl true
   def init(opts) do
@@ -27,15 +31,46 @@ defmodule Estimate.MCP.OAuth.Janitor do
     interval =
       Keyword.get(opts, :interval_ms, Keyword.get(config, :interval_ms, @default_interval))
 
-    if enabled, do: send(self(), :run)
-    {:ok, %{interval: interval, enabled: enabled}}
+    initial_delay =
+      Keyword.get(
+        opts,
+        :initial_delay_ms,
+        Keyword.get(config, :initial_delay_ms, @default_initial_delay)
+      )
+
+    run_fun = Keyword.get(opts, :run_fun, &__MODULE__.run/0)
+
+    # Boot never blocks on the DB: the first run is scheduled `initial_delay`
+    # (default 30s) after supervision start, not fired synchronously with an
+    # immediate `send/2`, so a slow/unavailable Repo at boot can't hold up
+    # startup or the rest of the supervision tree.
+    if enabled, do: Process.send_after(self(), :run, initial_delay)
+    {:ok, %{interval: interval, enabled: enabled, run_fun: run_fun}}
   end
 
+  # Disabled: never run, never reschedule. Only reachable in tests that send
+  # :run directly (init/1 above never schedules a first run when disabled).
+  @impl true
+  def handle_info(:run, %{enabled: false} = state), do: {:noreply, state}
+
+  # The janitor must never take the node down: a DB error, a bug in run/0, or
+  # any other raise here must not crash this GenServer (it's a permanent
+  # child of Estimate.Supervisor) or the caller await it via handle_info.
+  # rescue + always-reschedule (placed after the try, so both the success and
+  # rescue paths reach it) keeps the periodic sweep alive across failures.
   @impl true
   def handle_info(:run, state) do
-    counts = run()
-    # Logs only aggregate counts (integers), never token/code values or hashes.
-    Logger.info("oauth janitor: pruned #{counts.codes} codes, #{counts.tokens} tokens")
+    try do
+      counts = state.run_fun.()
+      # Logs only aggregate counts (integers), never token/code values or hashes.
+      Logger.info("oauth janitor: pruned #{counts.codes} codes, #{counts.tokens} tokens")
+    rescue
+      # Exception.message/1 is the exception's own description text (e.g. an
+      # Ecto/Postgrex error message), never a raw token/code plaintext or
+      # hash -- the janitor's queries never bind those into an exception.
+      e -> Logger.warning("oauth janitor: run failed: #{Exception.message(e)}")
+    end
+
     Process.send_after(self(), :run, state.interval)
     {:noreply, state}
   end

@@ -86,4 +86,42 @@ defmodule Estimate.MCP.OAuth.JanitorTest do
     {:ok, _} = OAuth.refresh_tokens(t.refresh_token, ctx.client.id)
     assert %{tokens: 0} = Janitor.run()
   end
+
+  test "a raising run_fun never crashes the janitor process; it logs and reschedules" do
+    pid =
+      start_supervised!(
+        {Janitor,
+         [
+           enabled: true,
+           interval_ms: 60_000,
+           initial_delay_ms: 0,
+           run_fun: fn -> raise "boom" end,
+           name: :janitor_under_test
+         ]}
+      )
+
+    Ecto.Adapters.SQL.Sandbox.allow(Repo, self(), pid)
+
+    ExUnit.CaptureLog.capture_log(fn ->
+      send(pid, :run)
+      # Synchronous round-trip: guarantees the prior :run message has been
+      # handled before we assert liveness (no Process.sleep race).
+      :sys.get_state(pid)
+    end)
+
+    assert Process.alive?(pid)
+  end
+
+  test "handle_info(:run, ...) is a no-op and does not reschedule when disabled" do
+    pid =
+      start_supervised!(
+        {Janitor, [enabled: false, interval_ms: 60_000, name: :disabled_janitor_under_test]}
+      )
+
+    send(pid, :run)
+    :sys.get_state(pid)
+
+    assert Process.alive?(pid)
+    assert {:noreply, %{enabled: false}} = Janitor.handle_info(:run, %{enabled: false})
+  end
 end

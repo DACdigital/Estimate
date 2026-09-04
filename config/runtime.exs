@@ -86,6 +86,10 @@ if config_env() == :prod do
     totp_replay: String.to_integer(System.get_env("RATE_LIMIT_TOTP_REPLAY", "1")),
     oauth_ip: String.to_integer(System.get_env("RATE_LIMIT_OAUTH_IP", "20"))
 
+  # Sweep interval for Estimate.MCP.OAuth.Janitor (see its moduledoc).
+  config :estimate, Estimate.MCP.OAuth.Janitor,
+    interval_ms: String.to_integer(System.get_env("OAUTH_JANITOR_INTERVAL_MS", "3600000"))
+
   config :estimate, EstimateWeb.Endpoint,
     url: [host: host, port: 443, scheme: "https"],
     http: [
