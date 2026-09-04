@@ -17,11 +17,17 @@ defmodule Estimate.MCP.OAuth.Client do
     |> cast(normalize(attrs), [:name, :redirect_uris])
     |> put_default_name()
     |> validate_required([:name, :redirect_uris])
-    |> validate_length(:redirect_uris, min: 1)
+    |> validate_length(:name, max: 100)
+    |> validate_length(:redirect_uris, min: 1, max: 5)
     |> validate_change(:redirect_uris, fn :redirect_uris, uris ->
       if Enum.all?(uris, &Redirect.valid_for_registration?/1),
         do: [],
         else: [redirect_uris: "must be https or loopback http URIs"]
+    end)
+    |> validate_change(:redirect_uris, fn :redirect_uris, uris ->
+      if Enum.all?(uris, &(String.length(&1) <= 2048)),
+        do: [],
+        else: [redirect_uris: "URIs must be at most 2048 characters"]
     end)
   end
 

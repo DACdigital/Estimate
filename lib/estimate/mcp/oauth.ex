@@ -20,6 +20,7 @@ defmodule Estimate.MCP.OAuth do
   @code_ttl_seconds 120
   @access_ttl_seconds 3600
   @refresh_ttl_seconds 60 * 60 * 24 * 30
+  @absolute_ttl_seconds 60 * 60 * 24 * 90
   @last_used_resolution_seconds 300
 
   def register_client(attrs) when is_map(attrs) do
@@ -168,6 +169,11 @@ defmodule Estimate.MCP.OAuth do
         DateTime.compare(row.refresh_expires_at, now()) != :gt ->
           {:error, :invalid_grant}
 
+        past_absolute_lifetime?(row) ->
+          # 90 days after the original consent the family dies regardless of
+          # the sliding refresh window; the user must consent again.
+          {:error, :invalid_grant}
+
         not org_enabled_and_member?(row) ->
           # Settings page promises "disabling instantly rejects every key" --
           # verify_access_token/1 already gates on this; refresh must too, or
@@ -179,6 +185,15 @@ defmodule Estimate.MCP.OAuth do
           rotate(row)
       end
     end)
+  end
+
+  defp past_absolute_lifetime?(%Token{code_id: nil}), do: false
+
+  defp past_absolute_lifetime?(%Token{code_id: code_id}) do
+    case Repo.one(from(c in Code, where: c.id == ^code_id, select: c.inserted_at)) do
+      nil -> false
+      granted_at -> DateTime.diff(now(), granted_at) > @absolute_ttl_seconds
+    end
   end
 
   # Same join taxonomy as verify_access_token/1's query: org must exist with

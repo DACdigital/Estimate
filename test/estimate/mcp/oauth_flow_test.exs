@@ -323,4 +323,26 @@ defmodule Estimate.MCP.OAuthFlowTest do
       assert {:ok, %{scope: "mcp:read mcp:write"}} = OAuth.verify_access_token(at2)
     end
   end
+
+  describe "absolute lifetime" do
+    test "refresh is refused 90 days after the original consent even if the sliding window is open",
+         ctx do
+      code = mint_code(ctx)
+      {:ok, %{refresh_token: rt}} = exchange(ctx, code)
+
+      # backdate the originating code to 91 days ago
+      old = DateTime.utc_now() |> DateTime.add(-91, :day) |> DateTime.truncate(:second)
+      Repo.update_all(Estimate.MCP.OAuth.Code, set: [inserted_at: old])
+
+      assert {:error, :invalid_grant} = OAuth.refresh_tokens(rt, ctx.client.id)
+    end
+
+    test "refresh still works at 89 days", ctx do
+      code = mint_code(ctx)
+      {:ok, %{refresh_token: rt}} = exchange(ctx, code)
+      old = DateTime.utc_now() |> DateTime.add(-89, :day) |> DateTime.truncate(:second)
+      Repo.update_all(Estimate.MCP.OAuth.Code, set: [inserted_at: old])
+      assert {:ok, _} = OAuth.refresh_tokens(rt, ctx.client.id)
+    end
+  end
 end

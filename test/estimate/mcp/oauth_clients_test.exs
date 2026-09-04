@@ -35,5 +35,31 @@ defmodule Estimate.MCP.OAuthClientsTest do
       assert OAuth.get_client("not-a-uuid") == nil
       assert OAuth.get_client(Ecto.UUID.generate()) == nil
     end
+
+    test "client_name longer than 100 chars is rejected" do
+      assert {:error, cs} =
+               OAuth.register_client(%{
+                 "client_name" => String.duplicate("x", 101),
+                 "redirect_uris" => ["https://claude.ai/cb"]
+               })
+
+      assert %{name: [_]} = errors_on(cs)
+    end
+
+    test "more than 5 redirect uris or a uri over 2048 chars is rejected" do
+      many = for i <- 1..6, do: "https://claude.ai/cb#{i}"
+
+      assert {:error, cs} =
+               OAuth.register_client(%{"client_name" => "C", "redirect_uris" => many})
+
+      assert %{redirect_uris: [_ | _]} = errors_on(cs)
+
+      long = "https://claude.ai/" <> String.duplicate("a", 2048)
+
+      assert {:error, cs} =
+               OAuth.register_client(%{"client_name" => "C", "redirect_uris" => [long]})
+
+      assert %{redirect_uris: [_ | _]} = errors_on(cs)
+    end
   end
 end
