@@ -483,4 +483,32 @@ defmodule EstimateWeb.SettingsLive.MembersTest do
       assert assigns(lv).disabling_2fa_user == nil
     end
   end
+
+  describe "transfer ownership" do
+    setup :setup_org
+
+    test "owner transfers to a member; roles swap; flash", %{conn: conn, org: org, owner: owner} do
+      %{user: member, membership: m} = add_member(org, "member")
+      {:ok, lv, _} = live(log_in_user(conn, owner), path_for(org.id))
+
+      render_click(lv, "confirm_transfer_ownership", %{"id" => m.id})
+      assert assigns(lv).transferring_to.id == m.id
+      html = render_click(lv, "transfer_ownership", %{})
+      assert html =~ "Ownership transferred"
+      assert Organizations.get_user_membership(member.id, org.id).role == "owner"
+      assert Organizations.get_user_membership(owner.id, org.id).role == "admin"
+      assert assigns(lv).current_membership.role == "admin"
+    end
+
+    test "admin cannot transfer ownership", %{conn: conn, org: org} do
+      %{user: admin} = add_member(org, "admin")
+      %{membership: m} = add_member(org, "member")
+      {:ok, lv, _} = live(log_in_user(conn, admin), path_for(org.id))
+      render_click(lv, "confirm_transfer_ownership", %{"id" => m.id})
+      assert assigns(lv).transferring_to == nil
+      html = render_click(lv, "transfer_ownership", %{})
+      assert html =~ "Not authorized"
+      assert Organizations.get_user_membership(m.user_id, org.id).role == "member"
+    end
+  end
 end

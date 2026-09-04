@@ -190,6 +190,16 @@ defmodule EstimateWeb.SettingsLive.Components.MemberComponents do
               <.icon name="hero-shield-exclamation" class="w-5 h-5" />
             </button>
             <button
+              :if={@current_membership.role == "owner"}
+              phx-click="confirm_transfer_ownership"
+              phx-value-id={membership.id}
+              title="Make owner"
+              aria-label="Make owner"
+              class="text-base-content/40 hover:text-base-content/70 transition-colors"
+            >
+              <.icon name="hero-key" class="w-4 h-4" />
+            </button>
+            <button
               phx-click="confirm_remove_member"
               phx-value-id={membership.id}
               class="flex items-center text-base-content/40 hover:text-error transition-colors"

@@ -34,4 +34,55 @@ defmodule EstimateWeb.SettingsLive.Members.Roster do
       end
     end)
   end
+
+  def confirm_transfer_ownership(socket, %{"id" => id}) do
+    require_owner(socket, fn ->
+      case Enum.find(
+             socket.assigns.members,
+             &(&1.id == id and &1.user_id != socket.assigns.current_user.id)
+           ) do
+        nil -> {:noreply, put_flash(socket, :error, "Member not found")}
+        m -> {:noreply, assign(socket, :transferring_to, m)}
+      end
+    end)
+  end
+
+  def cancel_transfer_ownership(socket, _), do: {:noreply, assign(socket, :transferring_to, nil)}
+
+  def transfer_ownership(socket, _params) do
+    require_owner(socket, fn ->
+      case socket.assigns.transferring_to do
+        nil ->
+          {:noreply, socket}
+
+        target ->
+          case Organizations.transfer_ownership(
+                 socket.assigns.org_id,
+                 socket.assigns.current_user.id,
+                 target.user_id
+               ) do
+            {:ok, %{previous_owner: me}} ->
+              {:noreply,
+               socket
+               |> put_flash(:info, "Ownership transferred")
+               |> assign(:transferring_to, nil)
+               |> assign(:current_membership, me)
+               |> assign(:is_admin, true)
+               |> assign(:members, Organizations.list_organization_members(socket.assigns.org_id))}
+
+            {:error, _} ->
+              {:noreply,
+               socket
+               |> put_flash(:error, "Could not transfer ownership")
+               |> assign(:transferring_to, nil)}
+          end
+      end
+    end)
+  end
+
+  defp require_owner(socket, fun) do
+    if socket.assigns.current_membership.role == "owner",
+      do: fun.(),
+      else: {:noreply, put_flash(socket, :error, "Not authorized")}
+  end
 end

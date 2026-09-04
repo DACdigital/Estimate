@@ -128,6 +128,35 @@ defmodule EstimateWeb.SettingsLive.Index do
             </div>
           </.form>
         </div>
+
+        <%!-- Leave organization Card --%>
+        <div class="bg-base-100 border border-base-300 rounded-xl overflow-hidden" id="leave-org">
+          <div class="p-6">
+            <h2 class="text-xl font-semibold text-base-content">Leave organization</h2>
+            <p :if={@sole_owner} class="mt-1 text-sm text-base-content/60">
+              Transfer ownership to another member before leaving.
+            </p>
+            <p :if={!@sole_owner} class="mt-1 text-sm text-base-content/60">
+              You will lose access to this organization's data immediately.
+            </p>
+            <button
+              :if={!@sole_owner}
+              phx-click="confirm_leave"
+              class="mt-4 px-4 py-1.5 text-sm font-medium text-error border border-error/30 rounded-md hover:bg-error/10 transition-colors"
+            >
+              Leave organization
+            </button>
+          </div>
+        </div>
+        <.confirm_modal
+          :if={@leaving}
+          id="leave-org-modal"
+          title="Leave organization?"
+          message="You will lose access immediately."
+          confirm_text="Leave"
+          confirm_event="leave_organization"
+          cancel_event="cancel_leave"
+        />
       </div>
     </div>
     """
@@ -157,7 +186,13 @@ defmodule EstimateWeb.SettingsLive.Index do
      |> assign(:enforce_2fa, org.enforce_2fa)
      |> assign(:grace_days, org.enforce_2fa_grace_period_days)
      |> assign(:members_without_2fa, members_without_2fa)
-     |> assign(:security_form, to_form(%{}, as: :security))}
+     |> assign(:security_form, to_form(%{}, as: :security))
+     |> assign(:leaving, false)
+     |> assign(
+       :sole_owner,
+       socket.assigns.current_membership.role == "owner" and
+         Organizations.count_owners(socket.assigns.org_id) == 1
+     )}
   end
 
   @impl true
@@ -214,5 +249,36 @@ defmodule EstimateWeb.SettingsLive.Index do
           {:noreply, put_flash(socket, :error, "Could not save settings")}
       end
     end)
+  end
+
+  def handle_event("confirm_leave", _, socket), do: {:noreply, assign(socket, :leaving, true)}
+  def handle_event("cancel_leave", _, socket), do: {:noreply, assign(socket, :leaving, false)}
+
+  def handle_event("leave_organization", _, socket) do
+    case Organizations.leave_organization(socket.assigns.current_user.id, socket.assigns.org_id) do
+      {:ok, _} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "You left the organization")
+         |> push_navigate(to: ~p"/organizations")}
+
+      {:error, :sole_owner} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "Transfer ownership before leaving.")
+         |> assign(:leaving, false)}
+
+      {:error, :sole_project_owner} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "Transfer your projects before leaving.")
+         |> assign(:leaving, false)}
+
+      {:error, _} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "Could not leave organization")
+         |> assign(:leaving, false)}
+    end
   end
 end

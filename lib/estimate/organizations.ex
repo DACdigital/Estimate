@@ -353,7 +353,8 @@ defmodule Estimate.Organizations do
     end
   end
 
-  defp count_owners(org_id) do
+  @doc "Number of owners in `org_id`."
+  def count_owners(org_id) do
     from(m in Membership, where: m.organization_id == ^org_id and m.role == "owner")
     |> Repo.aggregate(:count)
   end

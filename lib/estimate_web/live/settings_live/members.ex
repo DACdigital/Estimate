@@ -126,6 +126,15 @@ defmodule EstimateWeb.SettingsLive.Members do
         confirm_event="disable_user_2fa"
         cancel_event="cancel_disable_2fa"
       />
+      <.confirm_modal
+        :if={@transferring_to}
+        id="transfer-ownership-modal"
+        title="Transfer ownership"
+        message={"#{@transferring_to.user.name || @transferring_to.user.email} will become the owner and you will become an admin."}
+        confirm_text="Transfer"
+        confirm_event="transfer_ownership"
+        cancel_event="cancel_transfer_ownership"
+      />
     </div>
     """
   end
@@ -147,6 +156,7 @@ defmodule EstimateWeb.SettingsLive.Members do
        join_requests: Organizations.list_pending_join_requests(org_id),
        canceling_invite: nil,
        disabling_2fa_user: nil,
+       transferring_to: nil,
        is_admin: is_admin,
        generated_code: nil,
        join_url: url(~p"/organizations/#{org_id}/join"),
@@ -221,6 +231,15 @@ defmodule EstimateWeb.SettingsLive.Members do
 
   def handle_event("reject_request", params, socket),
     do: JoinRequests.reject_request(socket, params)
+
+  def handle_event("confirm_transfer_ownership", params, socket),
+    do: Roster.confirm_transfer_ownership(socket, params)
+
+  def handle_event("cancel_transfer_ownership", params, socket),
+    do: Roster.cancel_transfer_ownership(socket, params)
+
+  def handle_event("transfer_ownership", params, socket),
+    do: Roster.transfer_ownership(socket, params)
 
   # Catch-all for invalid tab values
   def handle_event("switch_tab", _params, socket), do: {:noreply, socket}
