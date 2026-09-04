@@ -24,10 +24,13 @@ defmodule Estimate.MCP.OAuth.Client do
         do: [],
         else: [redirect_uris: "must be https or loopback http URIs"]
     end)
+    # Column is varchar(255)[] (migration 20260717112041); cap here so an
+    # oversized URI is rejected with a 422, not a Postgrex "value too long"
+    # crash on insert.
     |> validate_change(:redirect_uris, fn :redirect_uris, uris ->
-      if Enum.all?(uris, &(String.length(&1) <= 2048)),
+      if Enum.all?(uris, &(String.length(&1) <= 255)),
         do: [],
-        else: [redirect_uris: "URIs must be at most 2048 characters"]
+        else: [redirect_uris: "URIs must be at most 255 characters"]
     end)
   end
 

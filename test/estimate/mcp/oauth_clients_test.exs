@@ -46,7 +46,7 @@ defmodule Estimate.MCP.OAuthClientsTest do
       assert %{name: [_]} = errors_on(cs)
     end
 
-    test "more than 5 redirect uris or a uri over 2048 chars is rejected" do
+    test "more than 5 redirect uris or a uri over 255 chars is rejected" do
       many = for i <- 1..6, do: "https://claude.ai/cb#{i}"
 
       assert {:error, cs} =
@@ -54,12 +54,20 @@ defmodule Estimate.MCP.OAuthClientsTest do
 
       assert %{redirect_uris: [_ | _]} = errors_on(cs)
 
-      long = "https://claude.ai/" <> String.duplicate("a", 2048)
+      # 256 chars total: one over the varchar(255) column width.
+      long = "https://claude.ai/" <> String.duplicate("a", 238)
 
       assert {:error, cs} =
                OAuth.register_client(%{"client_name" => "C", "redirect_uris" => [long]})
 
       assert %{redirect_uris: [_ | _]} = errors_on(cs)
+    end
+
+    test "a redirect uri at exactly 255 chars is accepted" do
+      at_limit = "https://claude.ai/" <> String.duplicate("a", 237)
+
+      assert {:ok, _client} =
+               OAuth.register_client(%{"client_name" => "C", "redirect_uris" => [at_limit]})
     end
   end
 end
