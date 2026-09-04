@@ -83,7 +83,6 @@ if config_env() == :prod do
     login_email: String.to_integer(System.get_env("RATE_LIMIT_LOGIN_EMAIL", "10")),
     login_ip: String.to_integer(System.get_env("RATE_LIMIT_LOGIN_IP", "60")),
     totp_attempt: String.to_integer(System.get_env("RATE_LIMIT_TOTP_ATTEMPT", "5")),
-    totp_replay: String.to_integer(System.get_env("RATE_LIMIT_TOTP_REPLAY", "1")),
     oauth_ip: String.to_integer(System.get_env("RATE_LIMIT_OAUTH_IP", "20"))
 
   # Sweep interval for Estimate.MCP.OAuth.Janitor (see its moduledoc).

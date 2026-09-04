@@ -16,6 +16,7 @@ defmodule Estimate.Accounts.User do
     field :totp_secret_nonce, :binary, redact: true
     field :totp_enabled_at, :utc_datetime
     field :totp_backup_codes, :binary, redact: true
+    field :totp_last_used_at, :utc_datetime
     field :totp_secret, :string, virtual: true, redact: true
 
     has_many :memberships, Estimate.Accounts.Membership

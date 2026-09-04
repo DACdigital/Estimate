@@ -288,7 +288,7 @@ Runtime config follows the standard Phoenix split: compile-time in `config/*.exs
 | `DATABASE_ROLE_PASSWORD` | migrations | no | **No longer usable for connecting.** `estimate_app` is `NOLOGIN` (see the `HardenAppRole` migration) and is only ever reached via `SET ROLE` on a connection already authenticated as the `DATABASE_URL` role — this var only sets a password on the (now unloginable) role at `CREATE ROLE` time. `bin/migrate` must always run as the `DATABASE_URL` role — an owner/`CREATEROLE` account — never as `estimate_app`; that's what `SKIP_RLS_ROLE=true` in `migrate_and_server` ensures. |
 | `SKIP_RLS_ROLE` | ops | no | Skips `SET ROLE` on connect — used by the release migration wrapper |
 | `TRUSTED_PROXY_HOPS` | prod | no | Default `1`. `x-forwarded-for` hops trusted by `EstimateWeb.ClientIP`; set `0` when not behind a proxy |
-| `RATE_LIMIT_LOGIN_EMAIL` / `RATE_LIMIT_LOGIN_IP` / `RATE_LIMIT_TOTP_ATTEMPT` / `RATE_LIMIT_TOTP_REPLAY` / `RATE_LIMIT_OAUTH_IP` | prod | no | Overrides for `Estimate.RateLimit` bucket limits; defaults `10` / `60` / `5` / `1` / `20` |
+| `RATE_LIMIT_LOGIN_EMAIL` / `RATE_LIMIT_LOGIN_IP` / `RATE_LIMIT_TOTP_ATTEMPT` / `RATE_LIMIT_OAUTH_IP` | prod | no | Overrides for `Estimate.RateLimit` bucket limits; defaults `10` / `60` / `5` / `20` |
 | `OAUTH_JANITOR_INTERVAL_MS` | prod | no | Sweep interval (ms) for `Estimate.MCP.OAuth.Janitor`; default `3600000` (1 hour) |
 
 Per-organization settings (SMTP relay, AI key/model/prompt, currencies, 2FA policy) live in the database, not the environment — this is a multi-tenant app; tenants configure themselves.
@@ -354,7 +354,7 @@ Operational notes:
 - **TLS** — `force_ssl` expects an `x-forwarded-proto`-setting ingress; `/health*` paths are exempt so plain-HTTP probes work.
 - **Database TLS** — not enabled yet on the Repo (tracked in `runtime.exs`); terminate inside a trusted network or enable `ssl:` when your Postgres has certs.
 - **`TRUSTED_PROXY_HOPS`** (default `1`) — how many `x-forwarded-for` hops `EstimateWeb.ClientIP` trusts for rate-limiting; set `0` if the app is ever exposed directly, without a reverse proxy in front of it.
-- **Rate limiting is per-node, in-memory ETS state** (`Estimate.RateLimit`, and the TOTP replay guard with it): with more than one replica each pod enforces its own limits/replay window independently, and all counters reset on every deploy. A batch-2 follow-up adds a DB-backed TOTP replay check (`totp_last_used_at` + `NimbleTOTP` `:since`) that is consistent across replicas and survives deploys; the in-memory rate limits remain per-node until then.
+- **Rate limiting is per-node, in-memory ETS state** (`Estimate.RateLimit`): with more than one replica each pod enforces its own limits independently, and all counters reset on every deploy. The TOTP replay guard is DB-backed (`users.totp_last_used_at` + `NimbleTOTP` `:since`), so it is consistent across replicas and survives deploys; the in-memory rate limits remain per-node.
 
 ### Health endpoints
 

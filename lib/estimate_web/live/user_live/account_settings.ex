@@ -377,7 +377,7 @@ defmodule EstimateWeb.UserLive.AccountSettings do
     user = socket.assigns.current_user
 
     with {:ok, secret} <- Totp.get_decrypted_secret(user),
-         true <- Totp.valid_code_or_backup?(user, secret, String.trim(code)) do
+         {:ok, _user} <- Totp.verify_code_or_backup(user, secret, String.trim(code)) do
       case Totp.disable_totp(user) do
         {:ok, updated_user} ->
           {:noreply,

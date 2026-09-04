@@ -36,7 +36,6 @@ config :estimate, Estimate.RateLimit,
   login_email: 10,
   login_ip: 60,
   totp_attempt: 5,
-  totp_replay: 1,
   oauth_ip: 20
 
 # Hourly janitor for expired OAuth codes/tokens (see Estimate.MCP.OAuth.Janitor)

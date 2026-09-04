@@ -109,8 +109,25 @@ defmodule Estimate.Accounts.Totp do
     end
   end
 
-  def valid_code_or_backup?(%User{} = user, secret, code) do
-    valid_code?(secret, code) or match?({:ok, _}, consume_backup_code(user, code))
+  @doc """
+  Verifies a TOTP code for an enrolled user. A code is accepted only if it is
+  newer than the last accepted one (`since:`), so a captured code cannot be
+  replayed on any node; the acceptance timestamp is persisted.
+  """
+  def verify_code(%User{} = user, secret, code) do
+    if NimbleTOTP.valid?(secret, code, since: user.totp_last_used_at) do
+      now = DateTime.utc_now() |> DateTime.truncate(:second)
+      user |> change(%{totp_last_used_at: now}) |> Repo.update()
+    else
+      :error
+    end
+  end
+
+  def verify_code_or_backup(%User{} = user, secret, code) do
+    case verify_code(user, secret, code) do
+      {:ok, user} -> {:ok, user}
+      :error -> consume_backup_code(user, code)
+    end
   end
 
   defp hash_code(code) do

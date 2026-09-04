@@ -63,8 +63,7 @@ defmodule EstimateWeb.UserSessionController do
 
         with :ok <- attempt_allowed(user),
              {:ok, secret} <- Totp.get_decrypted_secret(user),
-             true <- Totp.valid_code_or_backup?(user, secret, code),
-             :ok <- replay_allowed(user, code) do
+             {:ok, user} <- Totp.verify_code_or_backup(user, secret, code) do
           remember_params = UserAuth.pending_2fa_remember_me_params(conn)
           RateLimit.reset(:totp_attempt, user.id)
 
@@ -76,7 +75,7 @@ defmodule EstimateWeb.UserSessionController do
           :locked ->
             lock_out(conn)
 
-          _invalid_or_replayed ->
+          _invalid ->
             conn
             |> put_flash(:error, "Invalid verification code")
             |> redirect(to: ~p"/users/two-factor")
@@ -91,14 +90,6 @@ defmodule EstimateWeb.UserSessionController do
     case RateLimit.check(:totp_attempt, user.id) do
       {:allow, _} -> :ok
       {:deny, _} -> :locked
-    end
-  end
-
-  # A valid code is accepted once per 90 s window; a replay reads as an invalid code.
-  defp replay_allowed(user, code) do
-    case RateLimit.check(:totp_replay, {user.id, code}) do
-      {:allow, _} -> :ok
-      {:deny, _} -> :replayed
     end
   end
 

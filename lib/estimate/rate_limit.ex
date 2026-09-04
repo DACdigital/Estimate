@@ -11,22 +11,12 @@ defmodule Estimate.RateLimit do
     login_email: :timer.minutes(1),
     login_ip: :timer.minutes(1),
     totp_attempt: :timer.minutes(15),
-    # Load-bearing invariant: this window is safe ONLY because 90s is a whole
-    # multiple of the 30s TOTP period. Hammer's fixed windows are epoch-aligned
-    # (window = div(now, scale)), and NimbleTOTP.valid?/2 accepts a single period
-    # with no drift tolerance -- so a code is valid for at most one 30s period,
-    # and a 90s (= 3 x 30s) window can never let two DIFFERENT periods that
-    # both validate the same raw `code` string collide across a window boundary
-    # in a way that reopens the replay guard early. Shrinking this below a whole
-    # multiple of 30s (or changing the TOTP period without updating this) breaks
-    # the guarantee.
-    totp_replay: :timer.seconds(90),
     oauth_ip: :timer.minutes(1)
   }
 
-  @defaults %{login_email: 10, login_ip: 60, totp_attempt: 5, totp_replay: 1, oauth_ip: 20}
+  @defaults %{login_email: 10, login_ip: 60, totp_attempt: 5, oauth_ip: 20}
 
-  @type bucket :: :login_email | :login_ip | :totp_attempt | :totp_replay | :oauth_ip
+  @type bucket :: :login_email | :login_ip | :totp_attempt | :oauth_ip
 
   @spec buckets() :: [bucket()]
   def buckets, do: Map.keys(@windows)
