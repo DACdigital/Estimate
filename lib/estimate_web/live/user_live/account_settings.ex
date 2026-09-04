@@ -3,6 +3,7 @@ defmodule EstimateWeb.UserLive.AccountSettings do
 
   alias Estimate.Accounts
   alias Estimate.Accounts.{User, Totp}
+  alias Estimate.MCP.OAuth
 
   @impl true
   def render(assigns) do
@@ -21,6 +22,7 @@ defmodule EstimateWeb.UserLive.AccountSettings do
           show_disable_form={@show_disable_form}
           current_user={@current_user}
         />
+        <.connected_apps_card grants={@grants} revoking_family_id={@revoking_family_id} />
       </div>
     </div>
     """
@@ -224,6 +226,61 @@ defmodule EstimateWeb.UserLive.AccountSettings do
     """
   end
 
+  attr :grants, :list, required: true
+  attr :revoking_family_id, :string, default: nil
+
+  defp connected_apps_card(assigns) do
+    ~H"""
+    <div class="bg-base-100 border border-base-300 rounded-xl overflow-hidden" id="connected-apps">
+      <div class="p-6">
+        <h2 class="text-xl font-semibold text-base-content">Connected apps</h2>
+        <p class="mt-1 text-sm text-base-content/60">
+          MCP clients you authorized with OAuth. Revoking signs the app out immediately.
+        </p>
+
+        <p :if={@grants == []} class="mt-4 text-sm text-base-content/60">No connected apps.</p>
+
+        <ul :if={@grants != []} class="mt-4 divide-y divide-base-200">
+          <li :for={g <- @grants} class="flex items-center gap-4 py-3">
+            <div class="min-w-0 flex-1">
+              <div class="text-sm font-medium text-base-content truncate">{g.client_name}</div>
+              <div class="text-xs text-base-content/60 font-mono truncate">
+                {g.organization_name} · {scope_label(g.scope)} · granted {Calendar.strftime(
+                  g.granted_at,
+                  "%b %d, %Y"
+                )}
+              </div>
+            </div>
+            <button
+              type="button"
+              phx-click="confirm_revoke_grant"
+              phx-value-family-id={g.family_id}
+              class="text-base-content/40 hover:text-error transition-colors"
+              aria-label={"Revoke #{g.client_name}"}
+            >
+              <.icon name="hero-x-circle" class="w-4 h-4" />
+            </button>
+          </li>
+        </ul>
+      </div>
+
+      <.confirm_modal
+        :if={@revoking_family_id}
+        id="revoke-grant-modal"
+        title="Revoke access?"
+        message="The app will lose access immediately and must be connected again."
+        confirm_event="revoke_grant"
+        cancel_event="cancel_revoke_grant"
+        confirm_text="Revoke"
+      />
+    </div>
+    """
+  end
+
+  defp scope_label(scope) do
+    if OAuth.Scopes.write?(scope), do: "Read and write", else: "Read-only"
+  end
+
   @impl true
   def mount(_params, _session, socket) do
     user = socket.assigns.current_user
@@ -240,7 +297,9 @@ defmodule EstimateWeb.UserLive.AccountSettings do
      |> assign(:totp_enabled, User.totp_enabled?(user))
      |> assign(:show_disable_form, false)
      |> assign(:name_form, to_form(name_changeset))
-     |> assign(:password_form, to_form(password_changeset, as: "password"))}
+     |> assign(:password_form, to_form(password_changeset, as: "password"))
+     |> assign(:grants, OAuth.list_grants(user.id))
+     |> assign(:revoking_family_id, nil)}
   end
 
   ## Name events
@@ -335,5 +394,34 @@ defmodule EstimateWeb.UserLive.AccountSettings do
       _ ->
         {:noreply, put_flash(socket, :error, "Invalid code")}
     end
+  end
+
+  ## Connected apps events
+
+  def handle_event("confirm_revoke_grant", %{"family-id" => id}, socket),
+    do: {:noreply, assign(socket, :revoking_family_id, id)}
+
+  def handle_event("cancel_revoke_grant", _params, socket),
+    do: {:noreply, assign(socket, :revoking_family_id, nil)}
+
+  def handle_event("revoke_grant", _params, socket) do
+    user_id = socket.assigns.current_user.id
+
+    socket =
+      case socket.assigns.revoking_family_id do
+        nil ->
+          socket
+
+        family_id ->
+          case OAuth.revoke_grant(user_id, family_id) do
+            {:ok, _} -> put_flash(socket, :info, "Access revoked")
+            {:error, :not_found} -> put_flash(socket, :error, "Not found")
+          end
+      end
+
+    {:noreply,
+     socket
+     |> assign(:revoking_family_id, nil)
+     |> assign(:grants, OAuth.list_grants(user_id))}
   end
 end
