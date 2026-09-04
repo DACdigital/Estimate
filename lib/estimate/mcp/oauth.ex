@@ -274,7 +274,12 @@ defmodule Estimate.MCP.OAuth do
     end
   end
 
-  @doc "Always-commit family revoke; see the note above exchange_code/2 for the invariant this preserves."
+  @doc """
+  Always-commit family revoke; see the note above exchange_code/2 for the
+  invariant this preserves. Returns the number of rows revoked (the
+  update_all count) — callers that only need the side effect (exchange_code's
+  replay branch, refresh_tokens, rotate/1) discard it.
+  """
   def revoke_family(family_id) do
     # Always commits — never rolls back — so the revoke-must-persist rule
     # holds despite using a transaction. The transaction exists only to hold
@@ -283,16 +288,17 @@ defmodule Estimate.MCP.OAuth do
     # pair runs second sees the other's fully-committed effect (either the
     # new child row is visible to this UPDATE, or this revocation is visible
     # to rotate/1's FOR UPDATE re-check) — no snapshot-miss window.
-    Repo.transaction(fn ->
-      Repo.query!("SELECT pg_advisory_xact_lock(hashtext($1))", [family_id])
+    {:ok, {count, _}} =
+      Repo.transaction(fn ->
+        Repo.query!("SELECT pg_advisory_xact_lock(hashtext($1))", [family_id])
 
-      Repo.update_all(
-        from(t in Token, where: t.family_id == ^family_id and is_nil(t.revoked_at)),
-        set: [revoked_at: now()]
-      )
-    end)
+        Repo.update_all(
+          from(t in Token, where: t.family_id == ^family_id and is_nil(t.revoked_at)),
+          set: [revoked_at: now()]
+        )
+      end)
 
-    :ok
+    count
   end
 
   def verify_access_token(@access_prefix <> _ = plaintext) do
@@ -377,20 +383,14 @@ defmodule Estimate.MCP.OAuth do
     end)
   end
 
-  @doc "Revokes a family only if it belongs to `user_id`."
+  @doc "Revokes a family only if it belongs to `user_id`. Routes through revoke_family/1 for the advisory-locked, race-safe revoke (see its doc)."
   def revoke_grant(user_id, family_id) do
     Repo.without_rls(fn ->
       owned? =
         Repo.exists?(from(t in Token, where: t.family_id == ^family_id and t.user_id == ^user_id))
 
       if owned? do
-        {count, _} =
-          Repo.update_all(
-            from(t in Token, where: t.family_id == ^family_id and is_nil(t.revoked_at)),
-            set: [revoked_at: now()]
-          )
-
-        {:ok, count}
+        {:ok, revoke_family(family_id)}
       else
         {:error, :not_found}
       end
@@ -399,13 +399,16 @@ defmodule Estimate.MCP.OAuth do
     Ecto.Query.CastError -> {:error, :not_found}
   end
 
-  @doc "Revokes every live token of the user (all orgs). Called on password change."
+  @doc "Revokes every live token of the user (all orgs), one family at a time through revoke_family/1's advisory lock. Called on password change."
   def revoke_all_for_user(user_id) do
     Repo.without_rls(fn ->
-      Repo.update_all(
-        from(t in Token, where: t.user_id == ^user_id and is_nil(t.revoked_at)),
-        set: [revoked_at: now()]
+      from(t in Token,
+        where: t.user_id == ^user_id and is_nil(t.revoked_at),
+        distinct: true,
+        select: t.family_id
       )
+      |> Repo.all()
+      |> Enum.each(&revoke_family/1)
     end)
 
     :ok

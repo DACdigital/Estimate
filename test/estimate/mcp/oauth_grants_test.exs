@@ -69,6 +69,22 @@ defmodule Estimate.MCP.OAuthGrantsTest do
     assert OAuth.list_grants(ctx.user.id) == []
   end
 
+  test "revoke_grant after a rotation only counts the live child, and kills it", ctx do
+    t = grant(ctx.user, ctx.org, ctx.client)
+    [g] = OAuth.list_grants(ctx.user.id)
+
+    # rotate: parent token is now revoked_at != nil, child is the only live
+    # row in the family. revoke_grant/2 must route through revoke_family/1
+    # (advisory-locked update_all) rather than a plain update_all racing the
+    # rotation's own transaction — asserting {:ok, 1} here (not 0 or 2) is
+    # the signal that the live child was actually seen and revoked.
+    {:ok, rotated} = OAuth.refresh_tokens(t.refresh_token, ctx.client.id)
+
+    assert {:ok, 1} = OAuth.revoke_grant(ctx.user.id, g.family_id)
+    assert {:error, :invalid_grant} = OAuth.refresh_tokens(rotated.refresh_token, ctx.client.id)
+    assert {:error, :invalid_key} = OAuth.verify_access_token(rotated.access_token)
+  end
+
   test "revoke_all_for_user revokes every family of that user only", ctx do
     t1 = grant(ctx.user, ctx.org, ctx.client)
     %{user: other, organization: org2} = user_with_organization_fixture()
