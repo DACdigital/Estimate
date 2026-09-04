@@ -6,6 +6,7 @@ defmodule Estimate.MCP.OAuth.Code do
     field :redirect_uri, :string
     field :code_challenge, :string
     field :resource, :string
+    field :scope, :string, default: "mcp:read"
     field :expires_at, :utc_datetime
     field :used_at, :utc_datetime
 

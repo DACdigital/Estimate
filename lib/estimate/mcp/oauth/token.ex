@@ -9,6 +9,7 @@ defmodule Estimate.MCP.OAuth.Token do
     field :refresh_expires_at, :utc_datetime
     field :revoked_at, :utc_datetime
     field :last_used_at, :utc_datetime
+    field :scope, :string, default: "mcp:read"
 
     belongs_to :client, Estimate.MCP.OAuth.Client
     belongs_to :code, Estimate.MCP.OAuth.Code
