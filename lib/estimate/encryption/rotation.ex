@@ -31,7 +31,11 @@ defmodule Estimate.Encryption.Rotation do
 
   defp rotate_user(user, current) do
     with {:ok, pt} <-
-           Encryption.decrypt(user.totp_secret_nonce, user.encrypted_totp_secret, user.totp_key_version),
+           Encryption.decrypt(
+             user.totp_secret_nonce,
+             user.encrypted_totp_secret,
+             user.totp_key_version
+           ),
          {:ok, n, ct, ^current} <- Encryption.encrypt(pt),
          {1, _} <-
            Repo.update_all(from(u in User, where: u.id == ^user.id),
@@ -54,7 +58,13 @@ defmodule Estimate.Encryption.Rotation do
       )
 
     smtp =
-      rotate_field(org, :smtp_password_nonce, :encrypted_smtp_password, :smtp_key_version, current)
+      rotate_field(
+        org,
+        :smtp_password_nonce,
+        :encrypted_smtp_password,
+        :smtp_key_version,
+        current
+      )
 
     api or smtp
   end
