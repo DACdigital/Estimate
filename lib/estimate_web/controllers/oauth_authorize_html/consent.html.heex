@@ -1,9 +1,18 @@
 <div class="max-w-md mx-auto">
   <h1 class="text-xl font-semibold text-base-content mb-1">Connect {@client.name}</h1>
-  <p class="text-sm text-base-content/60 mb-4">
+  <p class="text-sm text-base-content/60 mb-3">
     <span class="font-mono">{@redirect_host}</span>
-    is asking for read-only MCP access to your estimation data, acting as you.
+    is asking to access your estimation data, acting as you:
   </p>
+  <ul class="mb-4 space-y-1.5 text-sm">
+    <li class="flex items-center gap-2 text-base-content">
+      <.icon name="hero-eye" class="w-4 h-4 text-base-content/50" /> Read your estimation data
+    </li>
+    <li :if={"mcp:write" in @scopes} class="flex items-center gap-2 text-warning">
+      <.icon name="hero-pencil-square" class="w-4 h-4" />
+      Create and edit customers, projects and estimations as you
+    </li>
+  </ul>
 
   <div
     :if={@loopback_warning}
@@ -18,7 +27,7 @@
         {k, v} <-
           Map.take(
             @params,
-            ~w(client_id redirect_uri state code_challenge code_challenge_method response_type resource)
+            ~w(client_id redirect_uri state code_challenge code_challenge_method response_type resource scope)
           )
       }
       type="hidden"

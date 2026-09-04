@@ -11,7 +11,7 @@ defmodule EstimateWeb.SettingsLive.Mcp do
       <div class="mb-8">
         <h1 class="text-2xl font-bold text-base-content">MCP Server</h1>
         <p class="mt-1 text-base-content/60">
-          Expose read-only org data to MCP clients (Claude Code, Claude Desktop, Cursor…)
+          Expose org data to MCP clients (Claude Code, Claude Desktop, Cursor…). Personal API keys have full access; OAuth connectors get the scopes you approve.
         </p>
       </div>
 

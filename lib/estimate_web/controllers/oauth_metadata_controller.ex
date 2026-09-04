@@ -15,7 +15,7 @@ defmodule EstimateWeb.OAuthMetadataController do
       grant_types_supported: ["authorization_code", "refresh_token"],
       code_challenge_methods_supported: ["S256"],
       token_endpoint_auth_methods_supported: ["none"],
-      scopes_supported: ["mcp:read", "offline_access"]
+      scopes_supported: ["mcp:read", "mcp:write", "offline_access"]
     })
   end
 
@@ -23,7 +23,7 @@ defmodule EstimateWeb.OAuthMetadataController do
     json(conn, %{
       resource: MCPServer.mcp_url(),
       authorization_servers: [MCPServer.base_url()],
-      scopes_supported: ["mcp:read"],
+      scopes_supported: ["mcp:read", "mcp:write"],
       bearer_methods_supported: ["header"]
     })
   end

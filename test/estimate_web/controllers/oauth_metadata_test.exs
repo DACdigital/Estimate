@@ -13,7 +13,7 @@ defmodule EstimateWeb.OAuthMetadataTest do
     assert body["grant_types_supported"] == ["authorization_code", "refresh_token"]
     assert body["code_challenge_methods_supported"] == ["S256"]
     assert body["token_endpoint_auth_methods_supported"] == ["none"]
-    assert "offline_access" in body["scopes_supported"]
+    assert body["scopes_supported"] == ["mcp:read", "mcp:write", "offline_access"]
   end
 
   test "protected resource metadata matches the MCP URL exactly on both paths", %{conn: conn} do
@@ -24,6 +24,7 @@ defmodule EstimateWeb.OAuthMetadataTest do
       body = conn |> get(path) |> json_response(200)
       assert body["resource"] == EstimateWeb.MCPServer.mcp_url()
       assert body["authorization_servers"] == [EstimateWeb.MCPServer.base_url()]
+      assert body["scopes_supported"] == ["mcp:read", "mcp:write"]
       assert body["bearer_methods_supported"] == ["header"]
     end
   end

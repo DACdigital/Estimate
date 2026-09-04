@@ -77,6 +77,15 @@ defmodule EstimateWeb.MCP.AuthzTest do
     end
   end
 
+  describe "require_write_scope" do
+    test "write scope passes, read-only fails", %{owner: owner, org: org} do
+      full = Scope.claims(mcp_frame(owner, org, "owner"))
+      assert Authz.require_write_scope(full) == :ok
+      ro = Scope.claims(mcp_frame(owner, org, "owner", "mcp:read"))
+      assert Authz.require_write_scope(ro) == {:error, :insufficient_scope}
+    end
+  end
+
   # Adds a second user as an org member (role "member") and returns %{user: user}.
   defp build_member(org) do
     user = user_fixture()

@@ -1,8 +1,10 @@
 defmodule EstimateWeb.MCPServer do
   @moduledoc """
-  Read-only MCP server. Auth: per-user org-scoped API keys (Bearer),
-  validated by `Estimate.MCP.KeyValidator`. Every tool runs inside the
-  caller's RLS context via `EstimateWeb.MCP.Scope.with_scope/2`.
+  MCP server for estimation data. Auth: per-user org-scoped API keys or
+  OAuth access tokens (Bearer), validated by `Estimate.MCP.KeyValidator`;
+  write tools additionally require the `mcp:write` scope and the org write
+  toggle. Every tool runs inside the caller's RLS context via
+  `EstimateWeb.MCP.Scope.with_scope/2`.
   """
 
   use Anubis.Server,

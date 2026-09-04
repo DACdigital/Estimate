@@ -14,7 +14,8 @@ defmodule EstimateWeb.MCP.Write do
       when is_function(gate_fun, 1) and is_function(run_fun, 1) do
     result =
       Scope.with_scope(frame, fn claims ->
-        with :ok <- Authz.require_write_enabled(claims),
+        with :ok <- Authz.require_write_scope(claims),
+             :ok <- Authz.require_write_enabled(claims),
              :ok <- gate_fun.(claims) do
           safe_run(run_fun, claims)
         end
@@ -46,6 +47,13 @@ defmodule EstimateWeb.MCP.Write do
 
   defp render({:error, :write_disabled}),
     do: Response.error(Response.tool(), "MCP writes are disabled for this organization")
+
+  defp render({:error, :insufficient_scope}),
+    do:
+      Response.error(
+        Response.tool(),
+        "this connection was authorized read-only; reconnect it and grant write access"
+      )
 
   defp render({:error, :unauthorized}), do: Response.error(Response.tool(), "not authorized")
   defp render({:error, :not_found}), do: Response.error(Response.tool(), "not found")

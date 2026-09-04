@@ -85,4 +85,15 @@ defmodule EstimateWeb.MCP.Tools.WriteCustomersTest do
 
     assert json_error(resp) =~ "not found"
   end
+
+  test "read-only oauth scope cannot write even with the toggle on", %{owner: owner, org: org} do
+    assert {:reply, %Response{isError: true} = resp, _} =
+             CreateCustomer.execute(
+               %{key: "ACME", name: "Acme"},
+               mcp_frame(owner, org, "owner", "mcp:read")
+             )
+
+    assert json_error(resp) =~ "authorized read-only"
+    refute Estimate.Repo.get_by(Estimate.CRM.Customer, key: "ACME")
+  end
 end

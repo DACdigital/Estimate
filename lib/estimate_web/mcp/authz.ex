@@ -6,12 +6,17 @@ defmodule EstimateWeb.MCP.Authz do
   """
 
   alias Estimate.{Organizations, Portfolio, EstimationEngine}
+  alias Estimate.MCP.OAuth.Scopes
 
   @admin_roles ~w(owner admin)
   @editor_collab_roles ~w(owner editor)
 
   def require_write_enabled(%{org_id: org_id}) do
     if Organizations.mcp_write_enabled?(org_id), do: :ok, else: {:error, :write_disabled}
+  end
+
+  def require_write_scope(%{scopes: scopes}) do
+    if Scopes.write?(scopes), do: :ok, else: {:error, :insufficient_scope}
   end
 
   def require_org_admin(%{role: role}) when role in @admin_roles, do: :ok

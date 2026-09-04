@@ -287,4 +287,40 @@ defmodule EstimateWeb.OAuthAuthorizeTest do
 
     assert html_response(conn, 200) =~ "Claude"
   end
+
+  test "consent lists read scope only by default", %{conn: conn, client: client} do
+    html = conn |> get(~p"/oauth/authorize?#{authorize_params(client)}") |> html_response(200)
+    assert html =~ "Read your estimation data"
+    refute html =~ "Create and edit customers"
+    refute html =~ "read-only"
+  end
+
+  test "consent lists write scope when requested and the code carries it", %{
+    conn: conn,
+    client: client,
+    org: org
+  } do
+    params = authorize_params(client, %{"scope" => "mcp:read mcp:write"})
+    html = conn |> get(~p"/oauth/authorize?#{params}") |> html_response(200)
+    assert html =~ "Create and edit customers, projects and estimations as you"
+    assert html =~ ~s(name="scope")
+
+    conn =
+      post(
+        conn,
+        ~p"/oauth/authorize",
+        Map.merge(params, %{"decision" => "approve", "organization_id" => org.id})
+      )
+
+    assert redirected_to(conn) =~ "code=est_ac_"
+
+    assert %Estimate.MCP.OAuth.Code{scope: "mcp:read mcp:write"} =
+             Estimate.Repo.one!(Estimate.MCP.OAuth.Code)
+  end
+
+  test "unknown scope is an invalid_scope error redirect", %{conn: conn, client: client} do
+    conn = get(conn, ~p"/oauth/authorize?#{authorize_params(client, %{"scope" => "mcp:admin"})}")
+    assert redirected_to(conn) =~ "error=invalid_scope"
+    assert redirected_to(conn) =~ "state=xyz"
+  end
 end

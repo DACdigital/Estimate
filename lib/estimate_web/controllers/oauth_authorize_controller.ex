@@ -2,7 +2,7 @@ defmodule EstimateWeb.OAuthAuthorizeController do
   use EstimateWeb, :controller
 
   alias Estimate.MCP.OAuth
-  alias Estimate.MCP.OAuth.{PKCE, Redirect}
+  alias Estimate.MCP.OAuth.{PKCE, Redirect, Scopes}
   alias Estimate.Organizations
   alias EstimateWeb.MCPServer
 
@@ -10,7 +10,8 @@ defmodule EstimateWeb.OAuthAuthorizeController do
 
   def show(conn, params) do
     with {:ok, client, redirect_uri} <- resolve_client(params),
-         :ok <- validate_request(params) do
+         :ok <- validate_request(params),
+         {:ok, scopes} <- parse_scope(params) do
       case mcp_orgs(conn.assigns.current_user.id) do
         [] ->
           conn
@@ -27,6 +28,7 @@ defmodule EstimateWeb.OAuthAuthorizeController do
             redirect_host: URI.parse(redirect_uri).host,
             loopback_warning: Redirect.loopback_only?(client.redirect_uris),
             orgs: orgs,
+            scopes: scopes,
             params: sanitize_state(params)
           )
       end
@@ -41,6 +43,9 @@ defmodule EstimateWeb.OAuthAuthorizeController do
 
       {:error, :invalid_request, redirect_uri} ->
         deny_redirect(conn, redirect_uri, "invalid_request", params["state"])
+
+      {:error, :invalid_scope, redirect_uri} ->
+        deny_redirect(conn, redirect_uri, "invalid_scope", params["state"])
     end
   end
 
@@ -52,6 +57,7 @@ defmodule EstimateWeb.OAuthAuthorizeController do
 
     with {:ok, client, redirect_uri} <- resolve_client(params),
          :ok <- validate_request(params),
+         {:ok, scopes} <- parse_scope(params),
          {:ok, org_id} <- validate_org(params["organization_id"], user.id) do
       {:ok, code} =
         OAuth.create_code(%{
@@ -60,7 +66,8 @@ defmodule EstimateWeb.OAuthAuthorizeController do
           organization_id: org_id,
           redirect_uri: redirect_uri,
           code_challenge: params["code_challenge"],
-          resource: params["resource"]
+          resource: params["resource"],
+          scope: Scopes.join(scopes)
         })
 
       redirect(conn, external: append_params(redirect_uri, code: code, state: params["state"]))
@@ -70,6 +77,9 @@ defmodule EstimateWeb.OAuthAuthorizeController do
 
       {:error, :invalid_request, redirect_uri} ->
         deny_redirect(conn, redirect_uri, "invalid_request", params["state"])
+
+      {:error, :invalid_scope, redirect_uri} ->
+        deny_redirect(conn, redirect_uri, "invalid_scope", params["state"])
 
       {:error, :bad_org} ->
         # Invariant: resolve_client/1 above already validated params["redirect_uri"]
@@ -110,6 +120,13 @@ defmodule EstimateWeb.OAuthAuthorizeController do
         params["resource"] == MCPServer.mcp_url()
 
     if valid?, do: :ok, else: {:error, :invalid_request, params["redirect_uri"]}
+  end
+
+  defp parse_scope(params) do
+    case Scopes.parse(params["scope"]) do
+      {:ok, scopes} -> {:ok, scopes}
+      {:error, :invalid_scope} -> {:error, :invalid_scope, params["redirect_uri"]}
+    end
   end
 
   defp validate_org(org_id, user_id) when is_binary(org_id) do
