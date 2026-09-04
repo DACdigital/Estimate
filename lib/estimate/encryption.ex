@@ -12,6 +12,8 @@ defmodule Estimate.Encryption do
   `mix estimate.rotate_encryption` re-encrypts everything eagerly.
   """
 
+  require Logger
+
   @aad "estimate-encryption"
   @term {__MODULE__, :ring}
 
@@ -50,6 +52,7 @@ defmodule Estimate.Encryption do
       when is_binary(nonce) and is_binary(ct_with_tag) and is_integer(version) do
     case Map.fetch(ring(), version) do
       :error ->
+        log_decrypt_failure(:unknown_key_version, version)
         {:error, :unknown_key_version}
 
       {:ok, key} ->
@@ -57,13 +60,21 @@ defmodule Estimate.Encryption do
         <<ct::binary-size(size), tag::binary-size(16)>> = ct_with_tag
 
         case :crypto.crypto_one_time_aead(:aes_256_gcm, key, nonce, ct, @aad, tag, false) do
-          pt when is_binary(pt) -> {:ok, pt}
-          :error -> {:error, :decrypt_failed}
+          pt when is_binary(pt) ->
+            {:ok, pt}
+
+          :error ->
+            log_decrypt_failure(:decrypt_failed, version)
+            {:error, :decrypt_failed}
         end
     end
   end
 
   def decrypt(_, _, _), do: {:error, :decrypt_failed}
+
+  defp log_decrypt_failure(reason, version) do
+    Logger.error("encryption: decrypt failed (#{reason}) for key v#{version}")
+  end
 
   defp ring do
     case :persistent_term.get(@term, nil) do
@@ -77,7 +88,7 @@ defmodule Estimate.Encryption do
   end
 
   defp decode_key!(b64) do
-    case Base.decode64(b64) do
+    case b64 |> String.trim() |> Base.decode64() do
       {:ok, <<key::binary-size(32)>>} -> key
       _ -> raise ArgumentError, "ENCRYPTION_KEY must be base64 of exactly 32 bytes"
     end

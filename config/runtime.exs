@@ -33,6 +33,14 @@ if google_client_id = System.get_env("GOOGLE_CLIENT_ID") do
     client_secret: System.get_env("GOOGLE_CLIENT_SECRET")
 end
 
+# Versioned encryption key ring (see Estimate.Encryption moduledoc). Not
+# prod-only so dev can exercise v2 too; only set when the env var is present
+# so config/test.exs's `key: nil` (an explicit "no v2 key" test fixture) is
+# never silently overridden by a stray ENCRYPTION_KEY in the environment.
+if key = System.get_env("ENCRYPTION_KEY") do
+  config :estimate, Estimate.Encryption, key: key
+end
+
 if config_env() == :prod do
   database_url =
     System.get_env("DATABASE_URL") ||
@@ -88,10 +96,6 @@ if config_env() == :prod do
   # Sweep interval for Estimate.MCP.OAuth.Janitor (see its moduledoc).
   config :estimate, Estimate.MCP.OAuth.Janitor,
     interval_ms: String.to_integer(System.get_env("OAUTH_JANITOR_INTERVAL_MS", "3600000"))
-
-  # Versioned encryption key ring (see Estimate.Encryption moduledoc). When unset,
-  # the ring has only the SECRET_KEY_BASE-derived v1 key.
-  config :estimate, Estimate.Encryption, key: System.get_env("ENCRYPTION_KEY")
 
   config :estimate, EstimateWeb.Endpoint,
     url: [host: host, port: 443, scheme: "https"],

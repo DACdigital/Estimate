@@ -290,7 +290,7 @@ Runtime config follows the standard Phoenix split: compile-time in `config/*.exs
 | `TRUSTED_PROXY_HOPS` | prod | no | Default `1`. `x-forwarded-for` hops trusted by `EstimateWeb.ClientIP`; set `0` when not behind a proxy |
 | `RATE_LIMIT_LOGIN_EMAIL` / `RATE_LIMIT_LOGIN_IP` / `RATE_LIMIT_TOTP_ATTEMPT` / `RATE_LIMIT_OAUTH_IP` | prod | no | Overrides for `Estimate.RateLimit` bucket limits; defaults `10` / `60` / `5` / `20` |
 | `OAUTH_JANITOR_INTERVAL_MS` | prod | no | Sweep interval (ms) for `Estimate.MCP.OAuth.Janitor`; default `3600000` (1 hour) |
-| `ENCRYPTION_KEY` | prod | no | Base64 of 32 random bytes (`openssl rand -base64 32`); when set, new secrets use it and old ones are re-encrypted on read or via `mix estimate.rotate_encryption` |
+| `ENCRYPTION_KEY` | prod | no | Base64 of 32 random bytes (`openssl rand -base64 32`); when set, new secrets use it and old ones are re-encrypted on read or via `mix estimate.rotate_encryption`. Once set, `ENCRYPTION_KEY` must never be removed or replaced without first rotating: rows encrypted with it become permanently undecryptable; keep the old `SECRET_KEY_BASE` until `Rotation.run/0` reports nothing left on v1. |
 
 Per-organization settings (SMTP relay, AI key/model/prompt, currencies, 2FA policy) live in the database, not the environment — this is a multi-tenant app; tenants configure themselves.
 
@@ -319,6 +319,14 @@ Manual migration control, if you'd rather not auto-migrate:
 docker run --rm -e SKIP_RLS_ROLE=true -e DATABASE_URL=... -e SECRET_KEY_BASE=... -e PHX_HOST=... \
   estimate /app/bin/migrate
 ```
+
+### Rotating the at-rest encryption key
+
+1. Generate a new key: `openssl rand -base64 32`.
+2. Set it as `ENCRYPTION_KEY` and deploy — the key ring now has v2, and every new/lazily-read secret uses it, but existing rows stay on v1 until rotated.
+3. Eagerly re-encrypt everything still on v1: `bin/estimate eval 'Estimate.Encryption.Rotation.run() |> IO.inspect()'` (the `mix estimate.rotate_encryption` task is the dev/CI entry point only — it isn't available in a release).
+4. Confirm the result shows zero `users_failed` / `organizations_failed`; if either is non-zero, the run still rotated everything it could and logged the reason for each failure (`rotate: could not re-encrypt ...`) — fix and re-run before proceeding.
+5. Only once rotation reports nothing left on v1 is it safe to retire the old `SECRET_KEY_BASE`. Removing or replacing `ENCRYPTION_KEY` (or the old `SECRET_KEY_BASE`) before that permanently bricks whatever is still encrypted with it.
 
 ### Kubernetes
 

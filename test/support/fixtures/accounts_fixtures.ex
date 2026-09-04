@@ -81,7 +81,8 @@ defmodule Estimate.AccountsFixtures do
   back the stamp off by a full period first.
   """
   def backdate_totp_last_used_at(user, seconds \\ 60) do
-    backdated = DateTime.utc_now() |> DateTime.add(-seconds, :second) |> DateTime.truncate(:second)
+    backdated =
+      DateTime.utc_now() |> DateTime.add(-seconds, :second) |> DateTime.truncate(:second)
 
     {1, _} =
       Estimate.Repo.update_all(

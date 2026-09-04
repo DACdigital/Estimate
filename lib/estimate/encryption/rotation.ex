@@ -1,31 +1,53 @@
 defmodule Estimate.Encryption.Rotation do
   @moduledoc "Eagerly re-encrypts every stored secret that is not on the current key version."
   import Ecto.Query
+  require Logger
   alias Estimate.{Encryption, Repo}
   alias Estimate.Accounts.{Organization, User}
 
-  @spec run() :: %{users: non_neg_integer(), organizations: non_neg_integer()}
+  @spec run() :: %{
+          users: non_neg_integer(),
+          users_failed: non_neg_integer(),
+          organizations: non_neg_integer(),
+          organizations_failed: non_neg_integer()
+        }
   def run do
     current = Encryption.current_version()
 
     Repo.without_rls(fn ->
-      users =
+      {users, users_failed} =
         from(u in User,
           where: not is_nil(u.encrypted_totp_secret) and u.totp_key_version < ^current
         )
         |> Repo.all()
-        |> Enum.count(&rotate_user(&1, current))
+        |> Enum.reduce({0, 0}, fn user, {ok, failed} ->
+          case rotate_user(user, current) do
+            :ok -> {ok + 1, failed}
+            :failed -> {ok, failed + 1}
+          end
+        end)
 
-      orgs =
+      {orgs, orgs_failed} =
         from(o in Organization,
           where:
             (not is_nil(o.encrypted_openrouter_api_key) and o.openrouter_key_version < ^current) or
               (not is_nil(o.encrypted_smtp_password) and o.smtp_key_version < ^current)
         )
         |> Repo.all()
-        |> Enum.count(&rotate_org(&1, current))
+        |> Enum.reduce({0, 0}, fn org, {ok, failed} ->
+          case rotate_org(org, current) do
+            :ok -> {ok + 1, failed}
+            :failed -> {ok, failed + 1}
+            :unchanged -> {ok, failed}
+          end
+        end)
 
-      %{users: users, organizations: orgs}
+      %{
+        users: users,
+        users_failed: users_failed,
+        organizations: orgs,
+        organizations_failed: orgs_failed
+      }
     end)
   end
 
@@ -41,9 +63,11 @@ defmodule Estimate.Encryption.Rotation do
            Repo.update_all(from(u in User, where: u.id == ^user.id),
              set: [encrypted_totp_secret: ct, totp_secret_nonce: n, totp_key_version: current]
            ) do
-      true
+      :ok
     else
-      _ -> false
+      reason ->
+        Logger.error("rotate: could not re-encrypt users #{user.id}: #{inspect(reason)}")
+        :failed
     end
   end
 
@@ -66,9 +90,16 @@ defmodule Estimate.Encryption.Rotation do
         current
       )
 
-    api or smtp
+    cond do
+      :failed in [api, smtp] -> :failed
+      :ok in [api, smtp] -> :ok
+      true -> :unchanged
+    end
   end
 
+  # Returns :ok (rotated), :unchanged (nothing stored on that field, or
+  # already on the current version), or :failed (logged, reason from the
+  # `with` else).
   defp rotate_field(org, nonce_f, ct_f, ver_f, current) do
     with ct when is_binary(ct) <- Map.get(org, ct_f),
          true <- Map.get(org, ver_f) < current,
@@ -78,9 +109,17 @@ defmodule Estimate.Encryption.Rotation do
            Repo.update_all(from(o in Organization, where: o.id == ^org.id),
              set: [{ct_f, new_ct}, {nonce_f, n}, {ver_f, current}]
            ) do
-      true
+      :ok
     else
-      _ -> false
+      nil ->
+        :unchanged
+
+      false ->
+        :unchanged
+
+      reason ->
+        Logger.error("rotate: could not re-encrypt organizations #{org.id}: #{inspect(reason)}")
+        :failed
     end
   end
 end

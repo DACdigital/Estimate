@@ -1,6 +1,7 @@
 defmodule Estimate.EncryptionTest do
   use Estimate.DataCase, async: false
 
+  import ExUnit.CaptureLog
   import Estimate.AccountsFixtures
   alias Estimate.{Encryption, Organizations, Repo}
   alias Estimate.Accounts.Totp
@@ -27,7 +28,10 @@ defmodule Estimate.EncryptionTest do
     assert Encryption.current_version() == 1
     {:ok, n, ct, 1} = Encryption.encrypt("s3cret")
     assert {:ok, "s3cret"} = Encryption.decrypt(n, ct, 1)
-    assert {:error, :unknown_key_version} = Encryption.decrypt(n, ct, 2)
+
+    capture_log(fn ->
+      assert {:error, :unknown_key_version} = Encryption.decrypt(n, ct, 2)
+    end)
   end
 
   test "with ENCRYPTION_KEY new data is v2 and v1 data still decrypts" do
@@ -40,7 +44,18 @@ defmodule Estimate.EncryptionTest do
     {:ok, n2, ct2, 2} = Encryption.encrypt("new")
     assert {:ok, "old"} = Encryption.decrypt(n1, ct1, 1)
     assert {:ok, "new"} = Encryption.decrypt(n2, ct2, 2)
-    assert {:error, :decrypt_failed} = Encryption.decrypt(n2, ct2, 1)
+
+    capture_log(fn ->
+      assert {:error, :decrypt_failed} = Encryption.decrypt(n2, ct2, 1)
+    end)
+  end
+
+  test "ENCRYPTION_KEY with surrounding whitespace (e.g. a trailing newline from a mounted secret file) still loads" do
+    set_key("  #{@v2}\n")
+    Encryption.load_keys()
+    assert Encryption.current_version() == 2
+    {:ok, n, ct, 2} = Encryption.encrypt("padded-key-secret")
+    assert {:ok, "padded-key-secret"} = Encryption.decrypt(n, ct, 2)
   end
 
   test "TOTP secret is lazily re-encrypted to the current key on read" do
@@ -69,6 +84,32 @@ defmodule Estimate.EncryptionTest do
     Encryption.load_keys()
     assert Organizations.get_decrypted_api_key(org) == "sk-or-abc123456789"
     assert Repo.reload!(org).openrouter_key_version == 2
+  end
+
+  test "decrypt failures are logged with the key version and reason, never plaintext or ciphertext" do
+    set_key(nil)
+    Encryption.load_keys()
+    {:ok, n, ct, 1} = Encryption.encrypt("s3cret-value")
+
+    log =
+      capture_log(fn ->
+        assert {:error, :unknown_key_version} = Encryption.decrypt(n, ct, 2)
+      end)
+
+    assert log =~ "encryption: decrypt failed"
+    assert log =~ "unknown_key_version"
+    assert log =~ "v2"
+    refute log =~ "s3cret-value"
+    refute log =~ Base.encode64(ct)
+
+    log2 =
+      capture_log(fn ->
+        assert {:error, :decrypt_failed} = Encryption.decrypt(n, <<0::128>>, 1)
+      end)
+
+    assert log2 =~ "encryption: decrypt failed"
+    assert log2 =~ "decrypt_failed"
+    assert log2 =~ "v1"
   end
 
   test "key version columns exist with default 1" do
