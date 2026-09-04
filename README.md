@@ -294,6 +294,15 @@ Runtime config follows the standard Phoenix split: compile-time in `config/*.exs
 
 Per-organization settings (SMTP relay, AI key/model/prompt, currencies, 2FA policy) live in the database, not the environment — this is a multi-tenant app; tenants configure themselves.
 
+### MCP access: API keys, OAuth scopes and connected apps
+
+The MCP server (`/mcp`) is reachable two ways, with different access levels:
+
+- **API keys** (per-user, per-org, created under Settings → MCP) — full access to every enabled tool, read and write.
+- **OAuth connectors** (e.g. claude.ai) — a client requests `mcp:read` and/or `mcp:write` at connect time; the consent screen shows exactly what's being granted, and if the client didn't ask for write, an opt-in checkbox on that screen can add it anyway. Either way, write tools also require the org's own MCP write toggle (Settings → MCP) — a connector holding `mcp:write` still can't write in an org that has writes disabled.
+
+Users see and revoke their connected apps under **Account → Connected apps**. A grant expires 90 days after consent regardless of use, and changing your password immediately revokes every one of your connectors' tokens.
+
 ## 🚢 Deployment
 
 ### Docker
