@@ -33,6 +33,8 @@ defmodule Estimate.MCP.OAuth do
     Ecto.Query.CastError -> nil
   end
 
+  # attrs.scope, if present, is stored as-is (no validation); callers must
+  # run it through Scopes.parse/1 first.
   def create_code(attrs) do
     plaintext = @code_prefix <> random_token()
 
