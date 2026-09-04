@@ -274,7 +274,8 @@ defmodule Estimate.MCP.OAuth do
     end
   end
 
-  defp revoke_family(family_id) do
+  @doc "Always-commit family revoke; see the note above exchange_code/2 for the invariant this preserves."
+  def revoke_family(family_id) do
     # Always commits — never rolls back — so the revoke-must-persist rule
     # holds despite using a transaction. The transaction exists only to hold
     # the advisory lock for its duration: taking the same family-scoped lock
@@ -346,6 +347,66 @@ defmodule Estimate.MCP.OAuth do
     if stale? do
       Repo.update_all(from(t in Token, where: t.id == ^token.id), set: [last_used_at: now()])
     end
+
+    :ok
+  end
+
+  @doc "Active grants (token families) for a user, newest first."
+  def list_grants(user_id) do
+    Repo.without_rls(fn ->
+      from(t in Token,
+        join: c in Client,
+        on: c.id == t.client_id,
+        join: o in Organization,
+        on: o.id == t.organization_id,
+        left_join: code in Code,
+        on: code.id == t.code_id,
+        where: t.user_id == ^user_id and is_nil(t.revoked_at) and t.refresh_expires_at > ^now(),
+        group_by: [t.family_id, c.name, o.name, t.scope],
+        select: %{
+          family_id: t.family_id,
+          client_name: c.name,
+          organization_name: o.name,
+          scope: t.scope,
+          granted_at: type(min(coalesce(code.inserted_at, t.inserted_at)), :utc_datetime),
+          last_used_at: type(max(t.last_used_at), :utc_datetime)
+        },
+        order_by: [desc: min(coalesce(code.inserted_at, t.inserted_at))]
+      )
+      |> Repo.all()
+    end)
+  end
+
+  @doc "Revokes a family only if it belongs to `user_id`."
+  def revoke_grant(user_id, family_id) do
+    Repo.without_rls(fn ->
+      owned? =
+        Repo.exists?(from(t in Token, where: t.family_id == ^family_id and t.user_id == ^user_id))
+
+      if owned? do
+        {count, _} =
+          Repo.update_all(
+            from(t in Token, where: t.family_id == ^family_id and is_nil(t.revoked_at)),
+            set: [revoked_at: now()]
+          )
+
+        {:ok, count}
+      else
+        {:error, :not_found}
+      end
+    end)
+  rescue
+    Ecto.Query.CastError -> {:error, :not_found}
+  end
+
+  @doc "Revokes every live token of the user (all orgs). Called on password change."
+  def revoke_all_for_user(user_id) do
+    Repo.without_rls(fn ->
+      Repo.update_all(
+        from(t in Token, where: t.user_id == ^user_id and is_nil(t.revoked_at)),
+        set: [revoked_at: now()]
+      )
+    end)
 
     :ok
   end

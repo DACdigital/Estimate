@@ -600,4 +600,43 @@ defmodule Estimate.AccountsTest do
       assert Portfolio.list_sole_owned_projects(ctx.owner.id, ctx.org.id) == []
     end
   end
+
+  describe "update_user_password/3 — OAuth grant revocation" do
+    test "changing the password revokes OAuth grants", %{} do
+      %{user: user, organization: org} = user_with_organization_fixture()
+      {:ok, org} = Organizations.update_mcp_settings(org, %{mcp_enabled: true})
+
+      {:ok, client} =
+        OAuth.register_client(%{
+          "client_name" => "C",
+          "redirect_uris" => ["https://claude.ai/cb"]
+        })
+
+      {:ok, code} =
+        OAuth.create_code(%{
+          client_id: client.id,
+          user_id: user.id,
+          organization_id: org.id,
+          redirect_uri: "https://claude.ai/cb",
+          code_challenge: "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
+          resource: "http://localhost:4000/mcp"
+        })
+
+      {:ok, tokens} =
+        OAuth.exchange_code(code, %{
+          client_id: client.id,
+          redirect_uri: "https://claude.ai/cb",
+          code_verifier: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
+          resource: "http://localhost:4000/mcp"
+        })
+
+      {:ok, _} =
+        Accounts.update_user_password(user, valid_user_password(), %{
+          "password" => "new long password 123",
+          "password_confirmation" => "new long password 123"
+        })
+
+      assert {:error, :invalid_key} = OAuth.verify_access_token(tokens.access_token)
+    end
+  end
 end
