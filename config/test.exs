@@ -56,3 +56,7 @@ config :estimate, EstimateWeb.ClientIP, trusted_proxy_hops: 1
 
 # No ENCRYPTION_KEY by default; the ring has only the SECRET_KEY_BASE-derived v1.
 config :estimate, Estimate.Encryption, key: nil
+
+# Cheap Argon2 params so every auth test (login, registration, password
+# change) isn't paying production hashing cost; security-irrelevant in test.
+config :argon2_elixir, t_cost: 1, m_cost: 8
