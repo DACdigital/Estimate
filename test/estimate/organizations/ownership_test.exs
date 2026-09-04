@@ -46,6 +46,18 @@ defmodule Estimate.Organizations.OwnershipTest do
     refute Organizations.get_user_membership(ctx.owner.id, ctx.org.id)
   end
 
+  test "one of two owners can leave; the org keeps its remaining owner", ctx do
+    second_owner = user_fixture()
+    _ = membership_fixture(second_owner, ctx.org, "owner")
+    assert Organizations.count_owners(ctx.org.id) == 2
+
+    assert {:ok, _} = Organizations.leave_organization(ctx.owner.id, ctx.org.id)
+
+    refute Organizations.get_user_membership(ctx.owner.id, ctx.org.id)
+    assert Organizations.get_user_membership(second_owner.id, ctx.org.id).role == "owner"
+    assert Organizations.count_owners(ctx.org.id) == 1
+  end
+
   test "sole project owner cannot leave", ctx do
     project = project_fixture(nil, ctx.member)
     _ = project

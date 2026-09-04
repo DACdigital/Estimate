@@ -3,6 +3,7 @@ defmodule Estimate.AccountsFixtures do
   This module defines test helpers for creating
   entities via the `Estimate.Accounts` context.
   """
+  import Ecto.Query
 
   def unique_user_email, do: "user#{System.unique_integer()}@example.com"
   def valid_user_password, do: "hello_world!"
@@ -71,6 +72,25 @@ defmodule Estimate.AccountsFixtures do
 
   @doc "A currently-valid 6-digit TOTP code for the given raw secret."
   def valid_totp_code(secret), do: NimbleTOTP.verification_code(secret)
+
+  @doc """
+  `enable_totp/3` stamps `totp_last_used_at` at enrollment time (the enrollment
+  code counts as used, see `Estimate.Accounts.Totp`), so a code for the
+  *current* period is no longer "newer" than that stamp. Tests that need to
+  present a fresh `valid_totp_code/1` after `user_with_totp_fixture/1` should
+  back the stamp off by a full period first.
+  """
+  def backdate_totp_last_used_at(user, seconds \\ 60) do
+    backdated = DateTime.utc_now() |> DateTime.add(-seconds, :second) |> DateTime.truncate(:second)
+
+    {1, _} =
+      Estimate.Repo.update_all(
+        from(u in Estimate.Accounts.User, where: u.id == ^user.id),
+        set: [totp_last_used_at: backdated]
+      )
+
+    Estimate.Accounts.get_user!(user.id)
+  end
 
   @doc "A valid pending invite for `organization`, created by `inviter`."
   def invite_fixture(organization, inviter, attrs \\ %{}) do

@@ -60,6 +60,7 @@ defmodule EstimateWeb.UserLive.AccountSecurityTest do
   describe "account settings — disable 2FA" do
     test "valid code disables 2FA", %{conn: conn} do
       %{user: user, secret: secret} = user_with_totp_fixture()
+      user = backdate_totp_last_used_at(user)
       conn = log_in_user(conn, user)
       {:ok, lv, _html} = live(conn, ~p"/account")
 

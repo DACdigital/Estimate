@@ -63,7 +63,11 @@ defmodule Estimate.Accounts.Totp do
       totp_secret_nonce: nonce,
       totp_key_version: version,
       totp_enabled_at: now,
-      totp_backup_codes: encoded_hashes
+      totp_backup_codes: encoded_hashes,
+      # The code the user just typed to prove enrollment must count as used —
+      # otherwise it's still valid for the rest of its 30s period and could be
+      # replayed as the first "login" TOTP check right after enrolling.
+      totp_last_used_at: now
     })
     |> Repo.update()
   end
@@ -75,7 +79,8 @@ defmodule Estimate.Accounts.Totp do
       totp_secret_nonce: nil,
       totp_key_version: 1,
       totp_enabled_at: nil,
-      totp_backup_codes: nil
+      totp_backup_codes: nil,
+      totp_last_used_at: nil
     })
     |> Repo.update()
   end

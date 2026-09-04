@@ -335,22 +335,40 @@ defmodule Estimate.Organizations do
 
   @doc "Self-service leave. Refused for the org's only owner and for sole owners of any project."
   def leave_organization(user_id, org_id) do
-    case get_user_membership(user_id, org_id) do
-      nil ->
-        {:error, :not_a_member}
+    # The owner count and the removal must happen in one transaction with the
+    # owner rows locked (FOR UPDATE): otherwise two owners leaving at the same
+    # moment can both pass the "not the sole owner" check before either row is
+    # deleted, and the org ends up with zero owners. delete_membership/2 opens
+    # its own Repo.transaction + ensure_org_context checkout; nested inside an
+    # already-open transaction, Ecto reuses the same connection, so this is safe.
+    Repo.transaction(fn ->
+      case get_user_membership(user_id, org_id) do
+        nil ->
+          Repo.rollback(:not_a_member)
 
-      membership ->
-        cond do
-          membership.role == "owner" and count_owners(org_id) == 1 ->
-            {:error, :sole_owner}
+        membership ->
+          owners =
+            from(m in Membership,
+              where: m.organization_id == ^org_id and m.role == "owner",
+              lock: "FOR UPDATE"
+            )
+            |> Repo.all()
 
-          Estimate.Portfolio.list_sole_owned_projects(user_id, org_id) != [] ->
-            {:error, :sole_project_owner}
+          cond do
+            membership.role == "owner" and length(owners) == 1 ->
+              Repo.rollback(:sole_owner)
 
-          true ->
-            delete_membership(membership, %{})
-        end
-    end
+            Estimate.Portfolio.list_sole_owned_projects(user_id, org_id) != [] ->
+              Repo.rollback(:sole_project_owner)
+
+            true ->
+              case delete_membership(membership, %{}) do
+                {:ok, m} -> m
+                {:error, reason} -> Repo.rollback(reason)
+              end
+          end
+      end
+    end)
   end
 
   @doc "Number of owners in `org_id`."

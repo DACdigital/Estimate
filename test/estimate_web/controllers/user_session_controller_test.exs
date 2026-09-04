@@ -76,6 +76,9 @@ defmodule EstimateWeb.UserSessionControllerTest do
   describe "POST /users/two-factor/verify" do
     setup %{conn: conn} do
       %{user: user, secret: secret} = user_with_totp_fixture()
+      # enable_totp/3 stamps totp_last_used_at at enrollment; back it off so
+      # a code for the current period reads as fresh in these tests.
+      user = backdate_totp_last_used_at(user)
       # put the connection into pending-2FA state via the real login step
       conn =
         post(conn, ~p"/users/log_in", %{
