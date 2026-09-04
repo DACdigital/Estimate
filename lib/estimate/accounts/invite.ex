@@ -24,7 +24,7 @@ defmodule Estimate.Accounts.Invite do
     |> cast(attrs, [:email, :role, :organization_id, :invited_by_id])
     |> validate_required([:email, :role, :organization_id])
     |> validate_format(:email, ~r/^[^\s]+@[^\s]+$/)
-    |> validate_inclusion(:role, Estimate.Accounts.Membership.roles())
+    |> validate_inclusion(:role, Estimate.Accounts.Membership.assignable_roles())
     |> put_token()
     |> put_expires_at()
     |> unique_constraint(:token)
@@ -34,7 +34,7 @@ defmodule Estimate.Accounts.Invite do
     invite
     |> cast(attrs, [:role, :organization_id, :invited_by_id])
     |> validate_required([:role, :organization_id])
-    |> validate_inclusion(:role, Estimate.Accounts.Membership.roles())
+    |> validate_inclusion(:role, Estimate.Accounts.Membership.assignable_roles())
     |> put_code()
     |> put_token()
     |> put_expires_at()
@@ -50,9 +50,13 @@ defmodule Estimate.Accounts.Invite do
   end
 
   def generate_code(length \\ 8) do
-    for _ <- 1..length, into: "" do
-      <<Enum.random(@code_alphabet)>>
-    end
+    alphabet = @code_alphabet
+    size = length(alphabet)
+
+    :crypto.strong_rand_bytes(length)
+    |> :binary.bin_to_list()
+    |> Enum.map(&<<Enum.at(alphabet, rem(&1, size))>>)
+    |> Enum.join()
   end
 
   defp put_token(changeset) do

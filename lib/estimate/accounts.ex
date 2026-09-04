@@ -80,7 +80,7 @@ defmodule Estimate.Accounts do
       {:error, :check_invite, reason, _} ->
         {:error, reason}
 
-      {:error, :verify_still_valid, :expired, _} ->
+      {:error, :claim, :expired, _} ->
         {:error, :expired}
 
       {:error, _op, changeset, _} ->

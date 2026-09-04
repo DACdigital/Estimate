@@ -253,9 +253,11 @@ defmodule Estimate.Organizations do
   end
 
   def update_membership_role(%Membership{} = membership, role) do
-    membership
-    |> Membership.changeset(%{role: role})
-    |> Repo.update()
+    if role in Membership.assignable_roles() do
+      membership |> Membership.changeset(%{role: role}) |> Repo.update()
+    else
+      {:error, :invalid_role}
+    end
   end
 
   @doc """
@@ -421,18 +423,18 @@ defmodule Estimate.Organizations do
         true -> {:ok, user}
       end
     end)
-    |> Ecto.Multi.run(:verify_still_valid, fn _repo, _ ->
-      fresh =
-        from(i in Invite,
-          where:
-            i.id == ^invite.id and is_nil(i.accepted_at) and i.expires_at > ^DateTime.utc_now()
-        )
-        |> Repo.one()
+    |> Ecto.Multi.run(:claim, fn repo, _ ->
+      now = DateTime.utc_now() |> DateTime.truncate(:second)
 
-      if fresh, do: {:ok, fresh}, else: {:error, :expired}
-    end)
-    |> Ecto.Multi.update(:invite, fn %{verify_still_valid: fresh} ->
-      Invite.accept_changeset(fresh)
+      case repo.update_all(
+             from(i in Invite,
+               where: i.id == ^invite.id and is_nil(i.accepted_at) and i.expires_at > ^now
+             ),
+             set: [accepted_at: now]
+           ) do
+        {1, _} -> {:ok, :claimed}
+        _ -> {:error, :expired}
+      end
     end)
     |> Ecto.Multi.insert(:membership, fn %{check_invite: user} ->
       Membership.changeset(%Membership{}, %{
@@ -475,7 +477,7 @@ defmodule Estimate.Organizations do
       {:error, :check_invite, reason, _} ->
         {:error, reason}
 
-      {:error, :verify_still_valid, :expired, _} ->
+      {:error, :claim, :expired, _} ->
         {:error, :expired}
 
       {:error, _op, changeset, _} ->

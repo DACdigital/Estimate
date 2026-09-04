@@ -25,6 +25,9 @@ defmodule EstimateWeb.SettingsLive.Members.Roster do
               members = Organizations.list_organization_members(socket.assigns.org_id)
               {:noreply, socket |> put_flash(:info, "Role updated") |> assign(:members, members)}
 
+            {:error, :invalid_role} ->
+              {:noreply, put_flash(socket, :error, "Invalid role")}
+
             {:error, _} ->
               {:noreply, put_flash(socket, :error, "Could not update role")}
           end
