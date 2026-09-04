@@ -14,6 +14,7 @@ defmodule Estimate.Application do
       {Phoenix.PubSub, name: Estimate.PubSub},
       {Task.Supervisor, name: Estimate.TaskSupervisor},
       {Estimate.RateLimit, [clean_period: :timer.minutes(1)]},
+      Estimate.MCP.OAuth.Janitor,
       EstimateWeb.Endpoint,
       {EstimateWeb.MCPServer,
        transport: :streamable_http, authorization: EstimateWeb.MCPServer.runtime_authorization()}

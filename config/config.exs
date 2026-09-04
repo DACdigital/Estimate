@@ -39,6 +39,9 @@ config :estimate, Estimate.RateLimit,
   totp_replay: 1,
   oauth_ip: 20
 
+# Hourly janitor for expired OAuth codes/tokens (see Estimate.MCP.OAuth.Janitor)
+config :estimate, Estimate.MCP.OAuth.Janitor, enabled: true
+
 # How many x-forwarded-for hops to trust (see EstimateWeb.ClientIP moduledoc).
 # Default assumes the documented deployment: a single k8s ingress hop.
 config :estimate, EstimateWeb.ClientIP, trusted_proxy_hops: 1
