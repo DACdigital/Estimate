@@ -86,6 +86,36 @@ defmodule Estimate.EncryptionTest do
     assert Repo.reload!(org).openrouter_key_version == 2
   end
 
+  test "a stale org struct cannot clobber a row already rotated by a concurrent read" do
+    set_key(nil)
+    Encryption.load_keys()
+    %{organization: stale} = user_with_organization_fixture()
+
+    {:ok, stale} =
+      Organizations.update_ai_settings(stale, %{"openrouter_api_key" => "sk-or-abc123456789"})
+
+    assert stale.openrouter_key_version == 1
+    set_key(@v2)
+    Encryption.load_keys()
+
+    # A first read rotates the row to v2 for real.
+    assert Organizations.get_decrypted_api_key(stale) == "sk-or-abc123456789"
+    rotated = Repo.reload!(stale)
+    assert rotated.openrouter_key_version == 2
+
+    # A second, concurrently-held struct that still believes v1 (`stale`, not
+    # reloaded) triggers another lazy re-encrypt from its own stale
+    # nonce/ciphertext. Without the version check in the update_all WHERE,
+    # this blindly overwrites the row that's already on v2 with a fresh
+    # (but redundant, and racy against any writer using the real v2 row)
+    # re-encryption — the guard makes it a no-op (0 rows matched) instead.
+    assert Organizations.get_decrypted_api_key(stale) == "sk-or-abc123456789"
+    unchanged = Repo.reload!(stale)
+    assert unchanged.openrouter_api_key_nonce == rotated.openrouter_api_key_nonce
+    assert unchanged.encrypted_openrouter_api_key == rotated.encrypted_openrouter_api_key
+    assert unchanged.openrouter_key_version == 2
+  end
+
   test "decrypt failures are logged with the key version and reason, never plaintext or ciphertext" do
     set_key(nil)
     Encryption.load_keys()

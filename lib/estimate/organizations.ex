@@ -139,7 +139,12 @@ defmodule Estimate.Organizations do
     if version < Estimate.Encryption.current_version() do
       {:ok, nonce, ciphertext, new_version} = Estimate.Encryption.encrypt(plaintext)
 
-      from(o in Organization, where: o.id == ^org.id)
+      # Re-check the version in the WHERE, not just the id: `org` may be a
+      # struct read before a concurrent request already rotated this row, in
+      # which case this stale write must not go through (0 rows matched)
+      # rather than clobbering the already-current row with a redundant
+      # re-encryption derived from the old (but still-valid) plaintext.
+      from(o in Organization, where: o.id == ^org.id and field(o, ^version_field) == ^version)
       |> Repo.update_all(
         set: [
           {nonce_field, nonce},
@@ -278,19 +283,17 @@ defmodule Estimate.Organizations do
   silently leaving the org with zero owners. That race surfaces as `{:error, :not_a_member}`.
   """
   def transfer_ownership(org_id, actor_user_id, target_user_id) do
-    cond do
-      actor_user_id == target_user_id ->
-        {:error, :same_user}
+    with false <- actor_user_id == target_user_id do
+      actor = get_user_membership(actor_user_id, org_id)
+      target = get_user_membership(target_user_id, org_id)
 
-      true ->
-        actor = get_user_membership(actor_user_id, org_id)
-        target = get_user_membership(target_user_id, org_id)
-
-        cond do
-          is_nil(actor) or actor.role != "owner" -> {:error, :not_owner}
-          is_nil(target) -> {:error, :not_a_member}
-          true -> do_transfer(org_id, actor, target)
-        end
+      cond do
+        is_nil(actor) or actor.role != "owner" -> {:error, :not_owner}
+        is_nil(target) -> {:error, :not_a_member}
+        true -> do_transfer(org_id, actor, target)
+      end
+    else
+      true -> {:error, :same_user}
     end
   end
 
@@ -328,8 +331,7 @@ defmodule Estimate.Organizations do
     end
   end
 
-  @doc false
-  def verify_transfer_counts(%{new_owner: {n1, _}, previous_owner: {n2, _}}) do
+  defp verify_transfer_counts(%{new_owner: {n1, _}, previous_owner: {n2, _}}) do
     if n1 == 1 and n2 == 1, do: {:ok, :ok}, else: {:error, :stale}
   end
 

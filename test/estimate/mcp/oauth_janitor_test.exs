@@ -89,16 +89,18 @@ defmodule Estimate.MCP.OAuth.JanitorTest do
 
   test "a raising run_fun never crashes the janitor process; it logs and reschedules" do
     pid =
-      start_supervised!(
-        {Janitor,
-         [
-           enabled: true,
-           interval_ms: 60_000,
-           initial_delay_ms: 0,
-           run_fun: fn -> raise "boom" end,
-           name: :janitor_under_test
-         ]}
-      )
+      start_supervised!({Janitor,
+       [
+         enabled: true,
+         interval_ms: 60_000,
+         # High enough that init/1's own scheduled first run never fires
+         # during this test — only the explicit `send/2` below (inside
+         # capture_log) triggers run_fun, so the "boom" warning it logs
+         # never leaks into test output.
+         initial_delay_ms: 60_000,
+         run_fun: fn -> raise "boom" end,
+         name: :janitor_under_test
+       ]})
 
     Ecto.Adapters.SQL.Sandbox.allow(Repo, self(), pid)
 

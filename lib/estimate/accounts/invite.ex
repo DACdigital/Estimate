@@ -39,6 +39,7 @@ defmodule Estimate.Accounts.Invite do
     |> put_token()
     |> put_expires_at()
     |> unique_constraint(:token)
+    |> unique_constraint(:code)
   end
 
   defp put_code(changeset) do
@@ -49,11 +50,11 @@ defmodule Estimate.Accounts.Invite do
     end
   end
 
-  def generate_code(length \\ 8) do
+  def generate_code(count \\ 8) do
     alphabet = @code_alphabet
     size = length(alphabet)
 
-    :crypto.strong_rand_bytes(length)
+    :crypto.strong_rand_bytes(count)
     |> :binary.bin_to_list()
     |> Enum.map(&<<Enum.at(alphabet, rem(&1, size))>>)
     |> Enum.join()
@@ -86,9 +87,4 @@ defmodule Estimate.Accounts.Invite do
   end
 
   def valid?(_), do: false
-
-  def accept_changeset(invite) do
-    now = DateTime.utc_now() |> DateTime.truncate(:second)
-    change(invite, accepted_at: now)
-  end
 end

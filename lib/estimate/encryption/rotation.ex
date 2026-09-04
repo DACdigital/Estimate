@@ -14,41 +14,41 @@ defmodule Estimate.Encryption.Rotation do
   def run do
     current = Encryption.current_version()
 
-    Repo.without_rls(fn ->
-      {users, users_failed} =
-        from(u in User,
-          where: not is_nil(u.encrypted_totp_secret) and u.totp_key_version < ^current
-        )
-        |> Repo.all()
-        |> Enum.reduce({0, 0}, fn user, {ok, failed} ->
-          case rotate_user(user, current) do
-            :ok -> {ok + 1, failed}
-            :failed -> {ok, failed + 1}
-          end
-        end)
+    # users/organizations have no RLS policies (see the RLS migrations), so
+    # this needs no Repo.without_rls escape hatch.
+    {users, users_failed} =
+      from(u in User,
+        where: not is_nil(u.encrypted_totp_secret) and u.totp_key_version < ^current
+      )
+      |> Repo.all()
+      |> Enum.reduce({0, 0}, fn user, {ok, failed} ->
+        case rotate_user(user, current) do
+          :ok -> {ok + 1, failed}
+          :failed -> {ok, failed + 1}
+        end
+      end)
 
-      {orgs, orgs_failed} =
-        from(o in Organization,
-          where:
-            (not is_nil(o.encrypted_openrouter_api_key) and o.openrouter_key_version < ^current) or
-              (not is_nil(o.encrypted_smtp_password) and o.smtp_key_version < ^current)
-        )
-        |> Repo.all()
-        |> Enum.reduce({0, 0}, fn org, {ok, failed} ->
-          case rotate_org(org, current) do
-            :ok -> {ok + 1, failed}
-            :failed -> {ok, failed + 1}
-            :unchanged -> {ok, failed}
-          end
-        end)
+    {orgs, orgs_failed} =
+      from(o in Organization,
+        where:
+          (not is_nil(o.encrypted_openrouter_api_key) and o.openrouter_key_version < ^current) or
+            (not is_nil(o.encrypted_smtp_password) and o.smtp_key_version < ^current)
+      )
+      |> Repo.all()
+      |> Enum.reduce({0, 0}, fn org, {ok, failed} ->
+        case rotate_org(org, current) do
+          :ok -> {ok + 1, failed}
+          :failed -> {ok, failed + 1}
+          :unchanged -> {ok, failed}
+        end
+      end)
 
-      %{
-        users: users,
-        users_failed: users_failed,
-        organizations: orgs,
-        organizations_failed: orgs_failed
-      }
-    end)
+    %{
+      users: users,
+      users_failed: users_failed,
+      organizations: orgs,
+      organizations_failed: orgs_failed
+    }
   end
 
   defp rotate_user(user, current) do

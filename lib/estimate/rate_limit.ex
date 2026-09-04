@@ -49,6 +49,5 @@ defmodule Estimate.RateLimit do
   end
 
   defp normalize(key) when is_binary(key), do: String.downcase(key)
-  defp normalize({a, b}), do: "#{normalize(a)}|#{normalize(b)}"
   defp normalize(key), do: to_string(key)
 end
