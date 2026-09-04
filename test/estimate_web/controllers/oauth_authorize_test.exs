@@ -304,6 +304,9 @@ defmodule EstimateWeb.OAuthAuthorizeTest do
     html = conn |> get(~p"/oauth/authorize?#{params}") |> html_response(200)
     assert html =~ "Create and edit customers, projects and estimations as you"
     assert html =~ ~s(name="scope")
+    # Client already asked for write: no opt-in checkbox to grant something
+    # it already requested.
+    refute html =~ ~s(name="grant_write")
 
     conn =
       post(
@@ -322,5 +325,72 @@ defmodule EstimateWeb.OAuthAuthorizeTest do
     conn = get(conn, ~p"/oauth/authorize?#{authorize_params(client, %{"scope" => "mcp:admin"})}")
     assert redirected_to(conn) =~ "error=invalid_scope"
     assert redirected_to(conn) =~ "state=xyz"
+  end
+
+  test "consent shows a write opt-in checkbox when the client only requested read", %{
+    conn: conn,
+    client: client
+  } do
+    html = conn |> get(~p"/oauth/authorize?#{authorize_params(client)}") |> html_response(200)
+    assert html =~ ~s(name="grant_write")
+    assert html =~ ~s(value="true")
+
+    assert html =~
+             "Also allow this app to create and edit customers, projects and estimations as you"
+  end
+
+  test "ticking the write checkbox grants mcp:write even though the client requested read only",
+       %{conn: conn, client: client, org: org} do
+    params =
+      authorize_params(client)
+      |> Map.merge(%{
+        "decision" => "approve",
+        "organization_id" => org.id,
+        "grant_write" => "true"
+      })
+
+    conn = post(conn, ~p"/oauth/authorize", params)
+
+    assert redirected_to(conn) =~ "code=est_ac_"
+
+    assert %Estimate.MCP.OAuth.Code{scope: "mcp:read mcp:write"} =
+             Estimate.Repo.one!(Estimate.MCP.OAuth.Code)
+  end
+
+  test "leaving the write checkbox unticked keeps the grant read-only", %{
+    conn: conn,
+    client: client,
+    org: org
+  } do
+    params =
+      authorize_params(client)
+      |> Map.merge(%{"decision" => "approve", "organization_id" => org.id})
+
+    conn = post(conn, ~p"/oauth/authorize", params)
+
+    assert redirected_to(conn) =~ "code=est_ac_"
+
+    assert %Estimate.MCP.OAuth.Code{scope: "mcp:read"} =
+             Estimate.Repo.one!(Estimate.MCP.OAuth.Code)
+  end
+
+  test "grant_write=true cannot rescue an unknown scope param; scope validation runs first", %{
+    conn: conn,
+    client: client,
+    org: org
+  } do
+    params =
+      authorize_params(client, %{"scope" => "mcp:admin"})
+      |> Map.merge(%{
+        "decision" => "approve",
+        "organization_id" => org.id,
+        "grant_write" => "true"
+      })
+
+    conn = post(conn, ~p"/oauth/authorize", params)
+
+    query = URI.decode_query(URI.parse(redirected_to(conn)).query)
+    assert query["error"] == "invalid_scope"
+    refute Map.has_key?(query, "code")
   end
 end

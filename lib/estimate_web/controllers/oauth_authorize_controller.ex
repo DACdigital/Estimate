@@ -67,7 +67,7 @@ defmodule EstimateWeb.OAuthAuthorizeController do
           redirect_uri: redirect_uri,
           code_challenge: params["code_challenge"],
           resource: params["resource"],
-          scope: Scopes.join(scopes)
+          scope: Scopes.join(granted_scopes(scopes, params))
         })
 
       redirect(conn, external: append_params(redirect_uri, code: code, state: params["state"]))
@@ -126,6 +126,18 @@ defmodule EstimateWeb.OAuthAuthorizeController do
     case Scopes.parse(params["scope"]) do
       {:ok, scopes} -> {:ok, scopes}
       {:error, :invalid_scope} -> {:error, :invalid_scope, params["redirect_uri"]}
+    end
+  end
+
+  # RFC 6749 §3.3: the AS may grant a different scope than requested. When
+  # the client didn't ask for mcp:write, the consent page offers a checkbox
+  # to opt in anyway (see consent.html.heex) -- the user's tick is honored
+  # here as a scope union, on top of whatever the client requested.
+  defp granted_scopes(scopes, params) do
+    if Scopes.write?(scopes) or params["grant_write"] == "true" do
+      Scopes.all()
+    else
+      scopes
     end
   end
 

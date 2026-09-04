@@ -8,7 +8,7 @@
     <li class="flex items-center gap-2 text-base-content">
       <.icon name="hero-eye" class="w-4 h-4 text-base-content/50" /> Read your estimation data
     </li>
-    <li :if={"mcp:write" in @scopes} class="flex items-center gap-2 text-warning">
+    <li :if={Scopes.write?(@scopes)} class="flex items-center gap-2 text-warning">
       <.icon name="hero-pencil-square" class="w-4 h-4" />
       Create and edit customers, projects and estimations as you
     </li>
@@ -34,6 +34,14 @@
       name={k}
       value={v}
     />
+
+    <label
+      :if={!Scopes.write?(@scopes)}
+      class="mb-4 flex items-center gap-2 text-sm text-base-content cursor-pointer"
+    >
+      <input type="checkbox" name="grant_write" value="true" />
+      Also allow this app to create and edit customers, projects and estimations as you
+    </label>
 
     <fieldset class="mb-4">
       <legend class="text-xs font-medium text-base-content/60 mb-2">Organization</legend>
