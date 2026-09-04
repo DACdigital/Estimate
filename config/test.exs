@@ -53,3 +53,6 @@ config :estimate, Estimate.MCP.OAuth.Janitor, enabled: false
 
 # 1 hop so tests that set a single x-forwarded-for value keep working.
 config :estimate, EstimateWeb.ClientIP, trusted_proxy_hops: 1
+
+# No ENCRYPTION_KEY by default; the ring has only the SECRET_KEY_BASE-derived v1.
+config :estimate, Estimate.Encryption, key: nil

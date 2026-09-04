@@ -112,7 +112,7 @@ flowchart LR
 | `Search` | Cross-entity `tsvector` + trigram index, maintained by DB trigger, reindexed async |
 | `Organizations` | Org settings: currencies + FX, AI (OpenRouter), SMTP, 2FA enforcement |
 | `ExchangeRates` | Behaviour with a pluggable provider (default: Frankfurter over `Req`) |
-| `Encryption` | AES-256-GCM at-rest encryption for org secrets, key derived from `SECRET_KEY_BASE` |
+| `Encryption` | AES-256-GCM at-rest encryption for org secrets, versioned key ring (v1 derived from `SECRET_KEY_BASE`, v2 `ENCRYPTION_KEY`) |
 
 ## 🗃 Data model
 
@@ -262,13 +262,13 @@ Exports go the other way richer: the grid's **Copy JSON** emits roles, per-task 
 | 2FA | TOTP (`nimble_totp`) with QR enrollment (`eqrcode`), 10 single-use backup codes stored SHA-256-hashed, **max 5 verify attempts per login**, and **org-wide enforcement** with per-member grace deadlines that lock non-compliant members out of the org until they enroll |
 | OAuth | Google via `Assent` (verified-email required); OAuth users get password-less accounts and can set a password later; TOTP still applies |
 | Sessions | 60-day DB-backed tokens, session renewal + CSRF token reset on login, signed 60-day remember-me cookie (`SameSite=Lax`), LiveView socket kill on logout |
-| Secrets at rest | Org OpenRouter keys, SMTP passwords, and TOTP secrets encrypted with AES-256-GCM (12-byte nonce, 16-byte tag), key PBKDF2-derived from `SECRET_KEY_BASE` |
+| Secrets at rest | Org OpenRouter keys, SMTP passwords, and TOTP secrets encrypted with AES-256-GCM (12-byte nonce, 16-byte tag), versioned key ring (v1 PBKDF2-derived from `SECRET_KEY_BASE`, v2 `ENCRYPTION_KEY`); readers lazily re-encrypt to the newest key |
 | Tenancy | PostgreSQL RLS under a non-superuser role — see [above](#-multi-tenancy-rls-all-the-way-down) |
 | Web | `force_ssl` + HSTS behind `x-forwarded-proto` (health endpoints exempt), CSRF protection, secure browser headers, open-redirect guard on every `return_to` |
 | Input hygiene | No `String.to_atom/1` on user input anywhere — client-supplied enums go through explicit whitelist maps; invite codes use an ambiguity-free alphabet; invites expire after 7 days |
 
-> [!WARNING]
-> `SECRET_KEY_BASE` is also the encryption-key root. Rotating it invalidates every stored org secret (AI keys, SMTP passwords, TOTP secrets) — plan a re-enrollment window if you must rotate.
+> [!NOTE]
+> The at-rest encryption key ring is versioned (see `Estimate.Encryption`). Without `ENCRYPTION_KEY` set, `SECRET_KEY_BASE` is still the only key (v1) — rotating it invalidates every stored org secret. Set `ENCRYPTION_KEY` to add a v2 key independent of `SECRET_KEY_BASE`; existing v1 secrets are re-encrypted to v2 lazily on read, or eagerly via `mix estimate.rotate_encryption`.
 
 ## ⚙️ Configuration
 
@@ -277,7 +277,7 @@ Runtime config follows the standard Phoenix split: compile-time in `config/*.exs
 | Variable | Scope | Required | Notes |
 |---|---|---|---|
 | `DATABASE_URL` | prod | **yes** (raises) | `ecto://USER:PASS@HOST/DB` |
-| `SECRET_KEY_BASE` | prod | **yes** (raises) | `mix phx.gen.secret` — also derives the at-rest encryption key (see warning above) |
+| `SECRET_KEY_BASE` | prod | **yes** (raises) | `mix phx.gen.secret` — also derives the v1 at-rest encryption key (see note above) |
 | `PHX_HOST` | prod | **yes** (raises) | Public hostname for URL generation |
 | `PHX_SERVER` | all | release | Presence starts the HTTP listener (`bin/server` sets it) |
 | `PORT` | all | no | Default `4000` |
@@ -290,6 +290,7 @@ Runtime config follows the standard Phoenix split: compile-time in `config/*.exs
 | `TRUSTED_PROXY_HOPS` | prod | no | Default `1`. `x-forwarded-for` hops trusted by `EstimateWeb.ClientIP`; set `0` when not behind a proxy |
 | `RATE_LIMIT_LOGIN_EMAIL` / `RATE_LIMIT_LOGIN_IP` / `RATE_LIMIT_TOTP_ATTEMPT` / `RATE_LIMIT_OAUTH_IP` | prod | no | Overrides for `Estimate.RateLimit` bucket limits; defaults `10` / `60` / `5` / `20` |
 | `OAUTH_JANITOR_INTERVAL_MS` | prod | no | Sweep interval (ms) for `Estimate.MCP.OAuth.Janitor`; default `3600000` (1 hour) |
+| `ENCRYPTION_KEY` | prod | no | Base64 of 32 random bytes (`openssl rand -base64 32`); when set, new secrets use it and old ones are re-encrypted on read or via `mix estimate.rotate_encryption` |
 
 Per-organization settings (SMTP relay, AI key/model/prompt, currencies, 2FA policy) live in the database, not the environment — this is a multi-tenant app; tenants configure themselves.
 

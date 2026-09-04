@@ -8,6 +8,7 @@ defmodule Estimate.Accounts.Organization do
     field :name, :string
     field :encrypted_openrouter_api_key, :binary, redact: true
     field :openrouter_api_key_nonce, :binary, redact: true
+    field :openrouter_key_version, :integer, default: 1
     field :openrouter_model, :string
     field :openrouter_system_prompt, :string
 
@@ -16,6 +17,7 @@ defmodule Estimate.Accounts.Organization do
     field :smtp_username, :string
     field :encrypted_smtp_password, :binary, redact: true
     field :smtp_password_nonce, :binary, redact: true
+    field :smtp_key_version, :integer, default: 1
     field :smtp_from_name, :string
     field :smtp_from_email, :string
 
@@ -100,13 +102,15 @@ defmodule Estimate.Accounts.Organization do
         changeset
         |> put_change(:encrypted_smtp_password, nil)
         |> put_change(:smtp_password_nonce, nil)
+        |> put_change(:smtp_key_version, 1)
 
       password ->
-        {:ok, nonce, ciphertext} = Encryption.encrypt(password)
+        {:ok, nonce, ciphertext, version} = Encryption.encrypt(password)
 
         changeset
         |> put_change(:encrypted_smtp_password, ciphertext)
         |> put_change(:smtp_password_nonce, nonce)
+        |> put_change(:smtp_key_version, version)
     end
   end
 
@@ -119,13 +123,15 @@ defmodule Estimate.Accounts.Organization do
         changeset
         |> put_change(:encrypted_openrouter_api_key, nil)
         |> put_change(:openrouter_api_key_nonce, nil)
+        |> put_change(:openrouter_key_version, 1)
 
       key ->
-        {:ok, nonce, ciphertext} = Encryption.encrypt(key)
+        {:ok, nonce, ciphertext, version} = Encryption.encrypt(key)
 
         changeset
         |> put_change(:encrypted_openrouter_api_key, ciphertext)
         |> put_change(:openrouter_api_key_nonce, nonce)
+        |> put_change(:openrouter_key_version, version)
     end
   end
 end

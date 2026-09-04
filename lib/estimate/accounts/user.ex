@@ -14,6 +14,7 @@ defmodule Estimate.Accounts.User do
     # TOTP 2FA
     field :encrypted_totp_secret, :binary, redact: true
     field :totp_secret_nonce, :binary, redact: true
+    field :totp_key_version, :integer, default: 1
     field :totp_enabled_at, :utc_datetime
     field :totp_backup_codes, :binary, redact: true
     field :totp_last_used_at, :utc_datetime

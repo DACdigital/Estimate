@@ -61,7 +61,13 @@ defmodule Estimate.Organizations do
   end
 
   def get_decrypted_api_key(%Organization{} = org),
-    do: decrypt_field(org, :openrouter_api_key_nonce, :encrypted_openrouter_api_key)
+    do:
+      decrypt_field(
+        org,
+        :openrouter_api_key_nonce,
+        :encrypted_openrouter_api_key,
+        :openrouter_key_version
+      )
 
   def mask_api_key(%Organization{} = org),
     do: org |> get_decrypted_api_key() |> mask_secret()
@@ -96,25 +102,54 @@ defmodule Estimate.Organizations do
   end
 
   def get_decrypted_smtp_password(%Organization{} = org),
-    do: decrypt_field(org, :smtp_password_nonce, :encrypted_smtp_password)
+    do: decrypt_field(org, :smtp_password_nonce, :encrypted_smtp_password, :smtp_key_version)
 
   def mask_smtp_password(%Organization{} = org),
     do: org |> get_decrypted_smtp_password() |> mask_secret()
 
-  defp decrypt_field(org, nonce_field, cipher_field) do
-    case {Map.get(org, nonce_field), Map.get(org, cipher_field)} do
-      {nil, _} ->
+  defp decrypt_field(org, nonce_field, cipher_field, version_field) do
+    case {Map.get(org, nonce_field), Map.get(org, cipher_field), Map.get(org, version_field)} do
+      {nil, _, _} ->
         nil
 
-      {_, nil} ->
+      {_, nil, _} ->
         nil
 
-      {nonce, ciphertext} ->
-        case Estimate.Encryption.decrypt(nonce, ciphertext) do
-          {:ok, plaintext} -> plaintext
-          _ -> nil
+      {nonce, ciphertext, version} ->
+        case Estimate.Encryption.decrypt(nonce, ciphertext, version) do
+          {:ok, plaintext} ->
+            maybe_reencrypt_field(
+              org,
+              plaintext,
+              version,
+              nonce_field,
+              cipher_field,
+              version_field
+            )
+
+            plaintext
+
+          _ ->
+            nil
         end
     end
+  end
+
+  defp maybe_reencrypt_field(org, plaintext, version, nonce_field, cipher_field, version_field) do
+    if version < Estimate.Encryption.current_version() do
+      {:ok, nonce, ciphertext, new_version} = Estimate.Encryption.encrypt(plaintext)
+
+      from(o in Organization, where: o.id == ^org.id)
+      |> Repo.update_all(
+        set: [
+          {nonce_field, nonce},
+          {cipher_field, ciphertext},
+          {version_field, new_version}
+        ]
+      )
+    end
+
+    :ok
   end
 
   defp mask_secret(nil), do: nil

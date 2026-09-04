@@ -26,12 +26,8 @@ defmodule Estimate.Accounts.Totp do
   end
 
   def encrypt_secret(secret) do
-    {:ok, nonce, ciphertext} = Encryption.encrypt(secret)
-    {nonce, ciphertext}
-  end
-
-  def decrypt_secret(nonce, ciphertext) do
-    Encryption.decrypt(nonce, ciphertext)
+    {:ok, nonce, ciphertext, version} = Encryption.encrypt(secret)
+    {nonce, ciphertext, version}
   end
 
   def generate_backup_codes do
@@ -58,13 +54,14 @@ defmodule Estimate.Accounts.Totp do
 
   def enable_totp(%User{} = user, secret, backup_hashes) do
     now = DateTime.utc_now() |> DateTime.truncate(:second)
-    {nonce, ciphertext} = encrypt_secret(secret)
+    {nonce, ciphertext, version} = encrypt_secret(secret)
     encoded_hashes = Jason.encode!(backup_hashes)
 
     user
     |> change(%{
       encrypted_totp_secret: ciphertext,
       totp_secret_nonce: nonce,
+      totp_key_version: version,
       totp_enabled_at: now,
       totp_backup_codes: encoded_hashes
     })
@@ -76,18 +73,41 @@ defmodule Estimate.Accounts.Totp do
     |> change(%{
       encrypted_totp_secret: nil,
       totp_secret_nonce: nil,
+      totp_key_version: 1,
       totp_enabled_at: nil,
       totp_backup_codes: nil
     })
     |> Repo.update()
   end
 
-  def get_decrypted_secret(%User{totp_secret_nonce: nonce, encrypted_totp_secret: ct})
+  def get_decrypted_secret(
+        %User{totp_secret_nonce: nonce, encrypted_totp_secret: ct, totp_key_version: version} =
+          user
+      )
       when is_binary(nonce) and is_binary(ct) do
-    decrypt_secret(nonce, ct)
+    with {:ok, secret} <- Encryption.decrypt(nonce, ct, version) do
+      maybe_reencrypt_secret(user, secret, version)
+      {:ok, secret}
+    end
   end
 
   def get_decrypted_secret(_), do: {:error, :no_secret}
+
+  defp maybe_reencrypt_secret(user, secret, version) do
+    if version < Encryption.current_version() do
+      {nonce, ciphertext, new_version} = encrypt_secret(secret)
+
+      user
+      |> change(%{
+        encrypted_totp_secret: ciphertext,
+        totp_secret_nonce: nonce,
+        totp_key_version: new_version
+      })
+      |> Repo.update()
+    end
+
+    :ok
+  end
 
   def get_backup_hashes(%User{totp_backup_codes: codes}) when is_binary(codes) do
     Jason.decode!(codes)

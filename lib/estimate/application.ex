@@ -7,6 +7,8 @@ defmodule Estimate.Application do
 
   @impl true
   def start(_type, _args) do
+    Estimate.Encryption.load_keys()
+
     children = [
       EstimateWeb.Telemetry,
       Estimate.Repo,

@@ -89,6 +89,10 @@ if config_env() == :prod do
   config :estimate, Estimate.MCP.OAuth.Janitor,
     interval_ms: String.to_integer(System.get_env("OAUTH_JANITOR_INTERVAL_MS", "3600000"))
 
+  # Versioned encryption key ring (see Estimate.Encryption moduledoc). When unset,
+  # the ring has only the SECRET_KEY_BASE-derived v1 key.
+  config :estimate, Estimate.Encryption, key: System.get_env("ENCRYPTION_KEY")
+
   config :estimate, EstimateWeb.Endpoint,
     url: [host: host, port: 443, scheme: "https"],
     http: [
