@@ -35,6 +35,25 @@ defmodule Estimate.Accounts.Currency do
     |> update_change(:code, &String.upcase/1)
   end
 
+  @doc """
+  Changeset used for deletes so FK violations surface as changeset errors
+  instead of raising `Ecto.ConstraintError`.
+
+  Only `estimations_currency_id_fkey` is declared: it is the only
+  `currency_id` FK with `on_delete: :restrict` (verified via
+  `pg_constraint.confdeltype`) and therefore the only one that can fire on
+  delete. `projects`/`customers` nilify their currency reference and
+  `role_template_rates` cascades, so those FKs never raise here.
+  """
+  def delete_changeset(currency) do
+    currency
+    |> change()
+    |> foreign_key_constraint(:id,
+      name: :estimations_currency_id_fkey,
+      message: "is used by estimations"
+    )
+  end
+
   defp validate_main_currency_rate(changeset) do
     if get_field(changeset, :is_main) do
       case get_field(changeset, :exchange_rate) do

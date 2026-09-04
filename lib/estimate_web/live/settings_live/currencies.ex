@@ -3,6 +3,8 @@ defmodule EstimateWeb.SettingsLive.Currencies do
 
   alias Estimate.Organizations.Currencies
 
+  @editable_fields ~w(code name symbol)
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -335,7 +337,8 @@ defmodule EstimateWeb.SettingsLive.Currencies do
     {:noreply, socket}
   end
 
-  def handle_event("update_field", %{"id" => id, "field" => field, "value" => value}, socket) do
+  def handle_event("update_field", %{"id" => id, "field" => field, "value" => value}, socket)
+      when field in @editable_fields do
     require_admin(socket, fn ->
       currency = Currencies.get_currency!(id, socket.assigns.org_id)
       attrs = %{field => value}
@@ -349,6 +352,10 @@ defmodule EstimateWeb.SettingsLive.Currencies do
           {:noreply, put_flash(socket, :error, "Could not update #{field}")}
       end
     end)
+  end
+
+  def handle_event("update_field", _params, socket) do
+    {:noreply, put_flash(socket, :error, "Not authorized")}
   end
 
   def handle_event("toggle_position", %{"id" => id}, socket) do
@@ -456,6 +463,12 @@ defmodule EstimateWeb.SettingsLive.Currencies do
            |> put_flash(:error, "Cannot delete main currency")
            |> assign(:deleting_currency, nil)}
 
+        {:error, %Ecto.Changeset{} = cs} ->
+          {:noreply,
+           socket
+           |> put_flash(:error, "Cannot delete currency: #{errors_on_id(cs)}")
+           |> assign(:deleting_currency, nil)}
+
         {:error, _} ->
           {:noreply,
            socket
@@ -463,5 +476,12 @@ defmodule EstimateWeb.SettingsLive.Currencies do
            |> assign(:deleting_currency, nil)}
       end
     end)
+  end
+
+  defp errors_on_id(changeset) do
+    changeset
+    |> Ecto.Changeset.traverse_errors(fn {message, _opts} -> message end)
+    |> Map.get(:id, ["in use"])
+    |> List.first()
   end
 end

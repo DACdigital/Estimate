@@ -102,7 +102,7 @@ defmodule Estimate.Organizations.Currencies do
       if currency.is_main do
         {:error, :is_main_currency}
       else
-        Repo.delete(currency)
+        Repo.delete(Currency.delete_changeset(currency))
       end
     end)
   end

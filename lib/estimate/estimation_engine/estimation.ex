@@ -23,6 +23,10 @@ defmodule Estimate.EstimationEngine.Estimation do
     |> validate_required([:name, :project_id])
     |> validate_length(:name, min: 1, max: 200)
     |> foreign_key_constraint(:currency_id)
+    |> unique_constraint(:is_current,
+      name: :estimations_unique_current_per_project,
+      message: "another estimation is already current"
+    )
   end
 
   def update_changeset(estimation, attrs) do
@@ -31,6 +35,10 @@ defmodule Estimate.EstimationEngine.Estimation do
     |> validate_required([:name])
     |> validate_length(:name, min: 1, max: 200)
     |> foreign_key_constraint(:currency_id)
+    |> unique_constraint(:is_current,
+      name: :estimations_unique_current_per_project,
+      message: "another estimation is already current"
+    )
   end
 
   def soft_delete_changeset(estimation) do
