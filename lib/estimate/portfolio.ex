@@ -347,9 +347,24 @@ defmodule Estimate.Portfolio do
 
   def add_collaborator(project_id, user_id, role \\ "viewer") do
     Repo.ensure_org_context(fn ->
-      %ProjectCollaborator{}
-      |> ProjectCollaborator.changeset(%{project_id: project_id, user_id: user_id, role: role})
-      |> Repo.insert()
+      org_id =
+        from(p in Project, where: p.id == ^project_id, select: p.organization_id) |> Repo.one()
+
+      member? =
+        not is_nil(org_id) and
+          Repo.exists?(
+            from(m in Estimate.Accounts.Membership,
+              where: m.user_id == ^user_id and m.organization_id == ^org_id
+            )
+          )
+
+      if member? do
+        %ProjectCollaborator{}
+        |> ProjectCollaborator.changeset(%{project_id: project_id, user_id: user_id, role: role})
+        |> Repo.insert()
+      else
+        {:error, :not_a_member}
+      end
     end)
   end
 

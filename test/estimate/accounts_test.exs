@@ -279,6 +279,28 @@ defmodule Estimate.AccountsTest do
       assert membership.id == existing.id
       assert Organizations.get_user_membership(requester.id, org.id).totp_required_by == sentinel
     end
+
+    test "approve refuses a request that is not pending" do
+      %{user: owner, organization: org} = user_with_organization_fixture()
+      requester = user_fixture()
+      {:ok, jr} = Organizations.create_join_request(requester.id, org.id)
+      {:ok, jr} = Organizations.reject_join_request(jr, owner.id)
+      assert {:error, :not_pending} = Organizations.approve_join_request(jr, owner.id)
+      refute Organizations.get_user_membership(requester.id, org.id)
+    end
+  end
+
+  describe "Portfolio.add_collaborator/3" do
+    test "refuses a user who is not a member of the project's org" do
+      %{user: owner} = user_with_organization_fixture()
+      project = project_fixture(nil, owner)
+      stranger = user_fixture()
+
+      assert {:error, :not_a_member} =
+               Portfolio.add_collaborator(project.id, stranger.id, "viewer")
+
+      refute Portfolio.get_collaborator(project.id, stranger.id)
+    end
   end
 
   describe "delete_membership/2 with reassignment" do

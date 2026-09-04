@@ -73,6 +73,9 @@ defmodule EstimateWeb.ProjectLive.Show.Collaborators do
           {:ok, _} ->
             {:noreply, reload_collaborators(socket, "Collaborator added")}
 
+          {:error, :not_a_member} ->
+            {:noreply, put_flash(socket, :error, "Not authorized")}
+
           {:error, _} ->
             {:noreply, put_flash(socket, :error, "Could not add collaborator")}
         end

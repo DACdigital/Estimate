@@ -269,6 +269,60 @@ defmodule Estimate.Organizations do
 
   def manageable_member?(_membership, _actor_user_id), do: false
 
+  @doc "Owner-only: makes `target_user_id` the owner and demotes the actor to admin, atomically."
+  def transfer_ownership(org_id, actor_user_id, target_user_id) do
+    cond do
+      actor_user_id == target_user_id ->
+        {:error, :same_user}
+
+      true ->
+        actor = get_user_membership(actor_user_id, org_id)
+        target = get_user_membership(target_user_id, org_id)
+
+        cond do
+          is_nil(actor) or actor.role != "owner" -> {:error, :not_owner}
+          is_nil(target) -> {:error, :not_a_member}
+          true -> do_transfer(actor, target)
+        end
+    end
+  end
+
+  defp do_transfer(actor, target) do
+    Ecto.Multi.new()
+    |> Ecto.Multi.update(:new_owner, Membership.changeset(target, %{role: "owner"}))
+    |> Ecto.Multi.update(:previous_owner, Membership.changeset(actor, %{role: "admin"}))
+    |> Repo.transaction()
+    |> case do
+      {:ok, result} -> {:ok, result}
+      {:error, _op, changeset, _} -> {:error, changeset}
+    end
+  end
+
+  @doc "Self-service leave. Refused for the org's only owner and for sole owners of any project."
+  def leave_organization(user_id, org_id) do
+    case get_user_membership(user_id, org_id) do
+      nil ->
+        {:error, :not_a_member}
+
+      membership ->
+        cond do
+          membership.role == "owner" and count_owners(org_id) == 1 ->
+            {:error, :sole_owner}
+
+          Estimate.Portfolio.list_sole_owned_projects(user_id, org_id) != [] ->
+            {:error, :sole_project_owner}
+
+          true ->
+            delete_membership(membership, %{})
+        end
+    end
+  end
+
+  defp count_owners(org_id) do
+    from(m in Membership, where: m.organization_id == ^org_id and m.role == "owner")
+    |> Repo.aggregate(:count)
+  end
+
   @doc """
   Deletes membership with optional ownership reassignment.
   `reassignments` is a map of `%{project_id => new_owner_user_id}`.
@@ -536,6 +590,14 @@ defmodule Estimate.Organizations do
   end
 
   def approve_join_request(%JoinRequest{} = request, reviewer_id) do
+    if request.status != "pending" do
+      {:error, :not_pending}
+    else
+      do_approve_join_request(request, reviewer_id)
+    end
+  end
+
+  defp do_approve_join_request(%JoinRequest{} = request, reviewer_id) do
     Ecto.Multi.new()
     |> Ecto.Multi.update(:request, JoinRequest.review_changeset(request, "approved", reviewer_id))
     |> Ecto.Multi.run(:existing_membership, fn _repo, _ ->
