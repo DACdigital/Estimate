@@ -2,7 +2,7 @@ defmodule Estimate.Organizations.OwnershipTest do
   use Estimate.DataCase, async: true
 
   import Estimate.{AccountsFixtures, PortfolioFixtures}
-  alias Estimate.{Organizations, Portfolio}
+  alias Estimate.Organizations
 
   setup do
     %{user: owner, organization: org} = user_with_organization_fixture()
@@ -64,5 +64,41 @@ defmodule Estimate.Organizations.OwnershipTest do
   test "non-member cannot leave", ctx do
     stranger = user_fixture()
     assert {:error, :not_a_member} = Organizations.leave_organization(stranger.id, ctx.org.id)
+  end
+
+  test "transfer refuses when the target membership vanishes before the write", ctx do
+    target_membership = Organizations.get_user_membership(ctx.member.id, ctx.org.id)
+    Estimate.Repo.delete!(target_membership)
+
+    assert {:error, :not_a_member} =
+             Organizations.transfer_ownership(ctx.org.id, ctx.owner.id, ctx.member.id)
+
+    assert Organizations.get_user_membership(ctx.owner.id, ctx.org.id).role == "owner"
+  end
+
+  test "verify_transfer_counts/1 rejects any 0-row update (race guard)" do
+    assert {:ok, :ok} =
+             Organizations.verify_transfer_counts(%{
+               new_owner: {1, nil},
+               previous_owner: {1, nil}
+             })
+
+    assert {:error, :stale} =
+             Organizations.verify_transfer_counts(%{
+               new_owner: {0, nil},
+               previous_owner: {1, nil}
+             })
+
+    assert {:error, :stale} =
+             Organizations.verify_transfer_counts(%{
+               new_owner: {1, nil},
+               previous_owner: {0, nil}
+             })
+
+    assert {:error, :stale} =
+             Organizations.verify_transfer_counts(%{
+               new_owner: {0, nil},
+               previous_owner: {0, nil}
+             })
   end
 end

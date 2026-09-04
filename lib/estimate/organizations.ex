@@ -269,7 +269,14 @@ defmodule Estimate.Organizations do
 
   def manageable_member?(_membership, _actor_user_id), do: false
 
-  @doc "Owner-only: makes `target_user_id` the owner and demotes the actor to admin, atomically."
+  @doc """
+  Owner-only: makes `target_user_id` the owner and demotes the actor to admin, atomically.
+
+  Both writes are row-counted inside one transaction (re-checking role/org in the WHERE
+  clause) so a concurrent change to either membership (e.g. the target being removed from
+  the org between the pre-check and the write) rolls the whole transfer back instead of
+  silently leaving the org with zero owners. That race surfaces as `{:error, :not_a_member}`.
+  """
   def transfer_ownership(org_id, actor_user_id, target_user_id) do
     cond do
       actor_user_id == target_user_id ->
@@ -282,20 +289,48 @@ defmodule Estimate.Organizations do
         cond do
           is_nil(actor) or actor.role != "owner" -> {:error, :not_owner}
           is_nil(target) -> {:error, :not_a_member}
-          true -> do_transfer(actor, target)
+          true -> do_transfer(org_id, actor, target)
         end
     end
   end
 
-  defp do_transfer(actor, target) do
+  defp do_transfer(org_id, actor, target) do
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
     Ecto.Multi.new()
-    |> Ecto.Multi.update(:new_owner, Membership.changeset(target, %{role: "owner"}))
-    |> Ecto.Multi.update(:previous_owner, Membership.changeset(actor, %{role: "admin"}))
+    |> Ecto.Multi.update_all(
+      :new_owner,
+      from(m in Membership, where: m.id == ^target.id and m.organization_id == ^org_id),
+      set: [role: "owner", updated_at: now]
+    )
+    |> Ecto.Multi.update_all(
+      :previous_owner,
+      from(m in Membership,
+        where: m.id == ^actor.id and m.organization_id == ^org_id and m.role == "owner"
+      ),
+      set: [role: "admin", updated_at: now]
+    )
+    |> Ecto.Multi.run(:verify, fn _repo, changes -> verify_transfer_counts(changes) end)
     |> Repo.transaction()
     |> case do
-      {:ok, result} -> {:ok, result}
-      {:error, _op, changeset, _} -> {:error, changeset}
+      {:ok, _} ->
+        {:ok,
+         %{
+           new_owner: get_user_membership(target.user_id, org_id),
+           previous_owner: get_user_membership(actor.user_id, org_id)
+         }}
+
+      {:error, :verify, :stale, _} ->
+        {:error, :not_a_member}
+
+      {:error, _op, changeset, _} ->
+        {:error, changeset}
     end
+  end
+
+  @doc false
+  def verify_transfer_counts(%{new_owner: {n1, _}, previous_owner: {n2, _}}) do
+    if n1 == 1 and n2 == 1, do: {:ok, :ok}, else: {:error, :stale}
   end
 
   @doc "Self-service leave. Refused for the org's only owner and for sole owners of any project."
