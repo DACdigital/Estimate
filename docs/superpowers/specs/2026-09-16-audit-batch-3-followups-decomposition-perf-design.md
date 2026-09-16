@@ -21,12 +21,13 @@ Today the `Repo.update_all` in `rotate_field` sets ciphertext/nonce/version unco
 - `{0, _}` (no row matched → someone else already rotated or changed the secret) is `:unchanged`, **not** `:failed`; counts stay accurate.
 - Test: pre-bump the row's version after loading it, call `rotate_field`, assert `:unchanged` and the row is untouched. Existing rotation tests unchanged.
 
-### A2. `Estimations.maybe_auto_set_current/1` goes through a changeset
-Today: `Ecto.Changeset.change(is_current: true) |> Repo.update()` — bypasses the schema's `unique_constraint(:is_current, name: :estimations_unique_current_per_project)`; a concurrent auto-set raises `Postgrex.Error` instead of a changeset error.
+### A2. `Estimations.maybe_auto_set_current/1` goes through a changeset and is race-free
+Today: `Ecto.Changeset.change(is_current: true) |> Repo.update()` — bypasses the schema's `unique_constraint(:is_current, name: :estimations_unique_current_per_project)`; a concurrent auto-set raises `Postgrex.Error`. It is only called from `restore_estimation/1`, inside an `Ecto.Multi` transaction, and its result is discarded (`{:ok, :done}`).
 
-- New `Estimation.set_current_changeset/1`: `change(estimation, is_current: true) |> unique_constraint(:is_current, name: :estimations_unique_current_per_project, message: "another estimation is already current")`. Single source for the constraint options (extract to a private helper used by `changeset/2` too).
-- `maybe_auto_set_current/1` uses it. `{:error, %Ecto.Changeset{}}` with the `is_current` error → treated as "another estimation won the race": return the estimation unchanged (log at debug). Any other error propagates as today.
-- Tests: (a) `maybe_auto_set_current` on a project with no current estimation sets it; (b) with a current estimation already present it leaves the second one untouched; (c) the race path directly: `Repo.update(Estimation.set_current_changeset(second))` while another current row exists returns `{:error, changeset}` carrying the `is_current` error instead of raising `Postgrex.Error`.
+- New `Estimation.set_current_changeset/1`: `change(estimation, is_current: true)` + the same `unique_constraint(:is_current, …)` as `changeset/2` (constraint options extracted to one private helper used by both).
+- `maybe_auto_set_current/1` first locks the project row (`from(p in Project, where: p.id == ^estimation.project_id, lock: "FOR UPDATE")`), then runs the exists-check, then `Repo.update(Estimation.set_current_changeset(estimation))`. The lock serialises concurrent auto-sets per project, so the unique index can no longer be hit by a race. Returns `{:ok, %Estimation{}}` (set), `{:ok, :unchanged}` (another estimation is current) or `{:error, changeset}`.
+- `restore_estimation/1` uses that return value directly in `Multi.run` — a genuine failure now rolls the restore back instead of being swallowed. (A unique violation inside a transaction aborts the Postgres transaction even though Ecto returns `{:error, changeset}`; that is why the race is removed with a lock rather than "tolerated".)
+- Tests: (a) restoring the only estimation of a project makes it current; (b) restoring when another estimation is current leaves both flags unchanged; (c) `Repo.update(Estimation.set_current_changeset(second))` while another current row exists returns `{:error, changeset}` with the `is_current` error, not a raise (outside any transaction).
 
 ### A3. `OAuth.Janitor` prunes orphan `oauth_clients`
 Dynamic client registration creates one `oauth_clients` row per connector attempt; nothing deletes them.
