@@ -1,8 +1,30 @@
 defmodule Estimate.Accounts.TotpTest do
-  use Estimate.DataCase, async: true
+  # async: false — some tests below mutate the global Estimate.Encryption key
+  # ring (Application env + Encryption.load_keys/0), which is process-global
+  # state and must not race concurrently-running async tests.
+  use Estimate.DataCase, async: false
 
   import Estimate.AccountsFixtures
   alias Estimate.Accounts.Totp
+  alias Estimate.Encryption
+
+  @v2 Base.encode64(:crypto.strong_rand_bytes(32))
+
+  # Copied from test/estimate/encryption_rotation_test.exs: forces the ring
+  # to v1-only at the start of each test and restores the prior config +
+  # ring on exit, so a v2 key set mid-test never leaks into later tests.
+  setup do
+    prev = Application.get_env(:estimate, Estimate.Encryption, [])
+    Application.put_env(:estimate, Estimate.Encryption, key: nil)
+    Encryption.load_keys()
+
+    on_exit(fn ->
+      Application.put_env(:estimate, Estimate.Encryption, prev)
+      Encryption.load_keys()
+    end)
+
+    :ok
+  end
 
   test "verify_code accepts a fresh code once and refuses the same code again (DB-backed)" do
     %{user: user, secret: secret} = user_with_totp_fixture()
@@ -60,5 +82,39 @@ defmodule Estimate.Accounts.TotpTest do
       )
 
     assert nullable == "YES"
+  end
+
+  test "a stale read at v1 does not clobber a secret already re-encrypted at v2 by someone else" do
+    %{user: user} = user_with_totp_fixture()
+    stale = user
+    assert stale.totp_key_version == 1
+
+    Application.put_env(:estimate, Estimate.Encryption, key: @v2)
+    Encryption.load_keys()
+
+    # Simulate the row having been re-encrypted at v2 in the meantime, with a
+    # different secret than the one baked into `stale` (e.g. a concurrent
+    # rotation or a fresh re-enrollment), so a clobber would be observable.
+    fresh_secret = NimbleTOTP.secret()
+    {:ok, fresh_nonce, fresh_ciphertext, 2} = Encryption.encrypt(fresh_secret)
+
+    {1, _} =
+      Repo.update_all(
+        from(u in Estimate.Accounts.User, where: u.id == ^stale.id),
+        set: [
+          encrypted_totp_secret: fresh_ciphertext,
+          totp_secret_nonce: fresh_nonce,
+          totp_key_version: 2
+        ]
+      )
+
+    # The read path on the stale (v1) struct still decrypts fine (v1 key
+    # stays in the ring) and must not overwrite the v2 row it never saw.
+    assert {:ok, _decrypted} = Totp.get_decrypted_secret(stale)
+
+    reloaded = Estimate.Accounts.get_user!(stale.id)
+    assert reloaded.totp_key_version == 2
+    assert reloaded.encrypted_totp_secret == fresh_ciphertext
+    assert reloaded.totp_secret_nonce == fresh_nonce
   end
 end

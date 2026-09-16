@@ -2,6 +2,7 @@ defmodule Estimate.Accounts.Totp do
   @moduledoc "TOTP two-factor authentication helpers."
 
   import Ecto.Changeset
+  import Ecto.Query
   alias Estimate.Accounts.User
   alias Estimate.{Encryption, Repo}
 
@@ -102,13 +103,21 @@ defmodule Estimate.Accounts.Totp do
     if version < Encryption.current_version() do
       {nonce, ciphertext, new_version} = encrypt_secret(secret)
 
-      user
-      |> change(%{
-        encrypted_totp_secret: ciphertext,
-        totp_secret_nonce: nonce,
-        totp_key_version: new_version
-      })
-      |> Repo.update()
+      # Re-check the version in the WHERE, not just the id: `user` may be a
+      # struct read before a concurrent request already re-encrypted this
+      # row (enrollment, rotation, or another lazy read), in which case this
+      # stale write must not go through (0 rows matched) rather than
+      # clobbering the already-current row with a redundant re-encryption
+      # derived from the old (but still-valid) plaintext. Mirrors
+      # `Estimate.Organizations.maybe_reencrypt_field/6`.
+      from(u in User, where: u.id == ^user.id and u.totp_key_version == ^version)
+      |> Repo.update_all(
+        set: [
+          encrypted_totp_secret: ciphertext,
+          totp_secret_nonce: nonce,
+          totp_key_version: new_version
+        ]
+      )
     end
 
     :ok

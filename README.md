@@ -293,6 +293,8 @@ Runtime config follows the standard Phoenix split: compile-time in `config/*.exs
 | `CSP_REPORT_ONLY` | prod | no | `true` → Content-Security-Policy is sent as `Content-Security-Policy-Report-Only` instead of enforced; default enforced |
 | `ENCRYPTION_KEY` | prod | no | Base64 of 32 random bytes (`openssl rand -base64 32`); when set, new secrets use it and old ones are re-encrypted on read or via `mix estimate.rotate_encryption`. Once set, `ENCRYPTION_KEY` must never be removed or replaced without first rotating: rows encrypted with it become permanently undecryptable; keep the old `SECRET_KEY_BASE` until `Rotation.run/0` reports nothing left on v1. |
 
+A dynamically-registered OAuth client row is removed once nothing references it (no code, no token) and it is older than 24h — in practice ~37 days after its last refresh (30-day refresh TTL + 7-day token grace) or 7 days after revocation. A connector that persists its `client_id` and returns later must re-run dynamic client registration.
+
 Per-organization settings (SMTP relay, AI key/model/prompt, currencies, 2FA policy) live in the database, not the environment — this is a multi-tenant app; tenants configure themselves.
 
 ### MCP access: API keys, OAuth scopes and connected apps

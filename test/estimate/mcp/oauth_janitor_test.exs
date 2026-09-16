@@ -137,6 +137,24 @@ defmodule Estimate.MCP.OAuth.JanitorTest do
       assert Repo.get(Client, ctx.client.id)
     end
 
+    test "a client with an unexchanged, unexpired authorization code is kept", ctx do
+      age_client(ctx.client, hours_ago(48))
+
+      {:ok, _unused_code} =
+        OAuth.create_code(%{
+          client_id: ctx.client.id,
+          user_id: ctx.user.id,
+          organization_id: ctx.org.id,
+          redirect_uri: @redirect,
+          code_challenge: @challenge,
+          resource: @resource
+        })
+
+      assert %{clients: 0, codes: 0} = Janitor.run()
+      assert Repo.get(Client, ctx.client.id)
+      assert Repo.aggregate(Code, :count) == 1
+    end
+
     test "a client whose last token and code are pruned in this run is deleted in the same run",
          ctx do
       _t = mint(ctx)

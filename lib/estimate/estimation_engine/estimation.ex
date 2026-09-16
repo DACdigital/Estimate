@@ -55,4 +55,11 @@ defmodule Estimate.EstimationEngine.Estimation do
     now = DateTime.utc_now() |> DateTime.truncate(:second)
     change(estimation, deleted_at: now, is_current: false)
   end
+
+  @doc "Clears `deleted_at` to restore a soft-deleted estimation."
+  def restore_changeset(estimation) do
+    estimation
+    |> change(deleted_at: nil)
+    |> unique_current_constraint()
+  end
 end

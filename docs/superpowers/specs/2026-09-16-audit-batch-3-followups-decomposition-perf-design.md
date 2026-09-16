@@ -41,7 +41,7 @@ Dynamic client registration creates one `oauth_clients` row per connector attemp
 `consent.html.heex` headline is `Connect {@client.name}` — attacker-chosen text in the most prominent position.
 
 - Headline: `Connect to {@redirect_host}` (host is validated against the registered redirect URIs — the only trustworthy identity we have).
-- Body: `An app calling itself “{@client.name}” at <mono>{@redirect_host}</mono> is asking to access your estimation data, acting as you:` — name in quotes, clearly self-declared. HEEx escaping already prevents markup injection; also clamp display with CSS truncation (`truncate max-w-full`) so a 100-char name cannot push the host off-screen.
+- Body: `An app calling itself “{@client.name}” at <mono>{@redirect_host}</mono> is asking to access your estimation data, acting as you:` — name in quotes, clearly self-declared. HEEx escaping already prevents markup injection; also clamp display with CSS truncation (`max-w-[14rem] truncate`) so a 100-char name cannot push the host off-screen (`max-w-full` on an inline-block inside an unconstrained paragraph does not clamp).
 - Loopback warning unchanged. Tests: consent renders host in the `h1`, renders name inside quotes, and a name containing `<b>` is rendered escaped.
 
 ---

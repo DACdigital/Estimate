@@ -171,7 +171,7 @@ defmodule Estimate.EstimationEngine.Estimations do
         ),
         set: [is_current: false]
       )
-      |> Ecto.Multi.update(:set_current, Estimation.changeset(estimation, %{is_current: true}))
+      |> Ecto.Multi.update(:set_current, Estimation.set_current_changeset(estimation))
       |> Repo.transaction()
       |> case do
         {:ok, %{set_current: estimation}} -> {:ok, estimation}
@@ -180,12 +180,18 @@ defmodule Estimate.EstimationEngine.Estimations do
     end)
   end
 
+  @doc """
+  Restores a soft-deleted estimation, auto-marking it current if the project
+  has no current estimation.
+
+  Returns `{:ok, estimation} | {:error, :not_deleted} | {:error, :project_not_found} | {:error, Ecto.Changeset.t()}`.
+  """
   def restore_estimation(%Estimation{deleted_at: nil}), do: {:error, :not_deleted}
 
   def restore_estimation(%Estimation{} = estimation) do
     Repo.ensure_org_context(fn ->
       Ecto.Multi.new()
-      |> Ecto.Multi.update(:restore, Ecto.Changeset.change(estimation, deleted_at: nil))
+      |> Ecto.Multi.update(:restore, Estimation.restore_changeset(estimation))
       |> Ecto.Multi.run(:auto_current, fn _repo, %{restore: restored} ->
         maybe_auto_set_current(restored)
       end)
@@ -196,8 +202,8 @@ defmodule Estimate.EstimationEngine.Estimations do
           Search.index_estimation(estimation)
           {:ok, estimation}
 
-        {:error, _op, changeset, _} ->
-          {:error, changeset}
+        {:error, _op, reason, _} ->
+          {:error, reason}
       end
     end)
   end
@@ -274,7 +280,15 @@ defmodule Estimate.EstimationEngine.Estimations do
   # same project serialise here instead of both passing the exists-check and
   # one of them hitting the partial unique index — which, inside a
   # transaction, would abort the whole transaction no matter how Ecto reports
-  # it. The changeset still carries the constraint as defense in depth.
+  # it. The lock serialises a restore against a concurrent create: an
+  # `estimations` INSERT takes FOR KEY SHARE on its parent `projects` row,
+  # which FOR UPDATE conflicts with, so if the restore commits first the
+  # concurrent create fails with "another estimation is already current" —
+  # it does not make the create benign, only serialised against this restore.
+  # Holding FOR UPDATE briefly blocks inserts of any `projects` child for
+  # that project, deliberately (FOR NO KEY UPDATE would drop the create
+  # serialisation). The changeset still carries the constraint as defense in
+  # depth.
   defp maybe_auto_set_current(%Estimation{} = estimation) do
     case Repo.one(from(p in Project, where: p.id == ^estimation.project_id, lock: "FOR UPDATE")) do
       nil ->

@@ -52,15 +52,17 @@ defmodule Estimate.Encryption.Rotation do
     }
   end
 
-  # Public for tests only. Returns :ok (rotated), :unchanged (the row was
-  # already moved off `user.totp_key_version` by the lazy read-path between
-  # our SELECT and this UPDATE — the WHERE on the version we read makes that
-  # a 0-row update instead of an overwrite), or :failed (logged).
+  # Public so tests can call it directly; also used by run/0. Returns :ok
+  # (rotated), :unchanged (either the caller passed an already-current row,
+  # or the row was moved off `user.totp_key_version` by the lazy read-path
+  # between our SELECT and this UPDATE — the WHERE on the version we read
+  # makes that a 0-row update instead of an overwrite), or :failed (logged).
   @doc false
   def rotate_user(user, current) do
     old_version = user.totp_key_version
 
-    with {:ok, pt} <-
+    with true <- old_version < current,
+         {:ok, pt} <-
            Encryption.decrypt(user.totp_secret_nonce, user.encrypted_totp_secret, old_version),
          {:ok, n, ct, ^current} <- Encryption.encrypt(pt),
          {rows, _} when rows in [0, 1] <-
@@ -70,6 +72,9 @@ defmodule Estimate.Encryption.Rotation do
            ) do
       if rows == 1, do: :ok, else: :unchanged
     else
+      false ->
+        :unchanged
+
       reason ->
         Logger.error("rotate: could not re-encrypt users #{user.id}: #{inspect(reason)}")
         :failed
