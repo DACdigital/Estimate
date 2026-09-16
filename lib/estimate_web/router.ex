@@ -10,6 +10,7 @@ defmodule EstimateWeb.Router do
     plug :put_root_layout, html: {EstimateWeb.Layouts, :root}
     plug :protect_from_forgery
     plug :put_secure_browser_headers
+    plug EstimateWeb.Plugs.ContentSecurityPolicy
     plug :fetch_current_user
   end
 
@@ -175,7 +176,10 @@ defmodule EstimateWeb.Router do
     scope "/dev" do
       pipe_through :browser
 
-      live_dashboard "/dashboard", metrics: EstimateWeb.Telemetry
+      live_dashboard "/dashboard",
+        metrics: EstimateWeb.Telemetry,
+        csp_nonce_assign_key: :csp_nonce
+
       forward "/mailbox", Plug.Swoosh.MailboxPreview
     end
   end

@@ -290,6 +290,7 @@ Runtime config follows the standard Phoenix split: compile-time in `config/*.exs
 | `TRUSTED_PROXY_HOPS` | prod | no | Default `1`. `x-forwarded-for` hops trusted by `EstimateWeb.ClientIP`; set `0` when not behind a proxy |
 | `RATE_LIMIT_LOGIN_EMAIL` / `RATE_LIMIT_LOGIN_IP` / `RATE_LIMIT_TOTP_ATTEMPT` / `RATE_LIMIT_OAUTH_IP` | prod | no | Overrides for `Estimate.RateLimit` bucket limits; defaults `10` / `60` / `5` / `20` |
 | `OAUTH_JANITOR_INTERVAL_MS` | prod | no | Sweep interval (ms) for `Estimate.MCP.OAuth.Janitor`; default `3600000` (1 hour) |
+| `CSP_REPORT_ONLY` | prod | no | `true` → Content-Security-Policy is sent as `Content-Security-Policy-Report-Only` instead of enforced; default enforced |
 | `ENCRYPTION_KEY` | prod | no | Base64 of 32 random bytes (`openssl rand -base64 32`); when set, new secrets use it and old ones are re-encrypted on read or via `mix estimate.rotate_encryption`. Once set, `ENCRYPTION_KEY` must never be removed or replaced without first rotating: rows encrypted with it become permanently undecryptable; keep the old `SECRET_KEY_BASE` until `Rotation.run/0` reports nothing left on v1. |
 
 Per-organization settings (SMTP relay, AI key/model/prompt, currencies, 2FA policy) live in the database, not the environment — this is a multi-tenant app; tenants configure themselves.
@@ -373,6 +374,7 @@ Operational notes:
 - **Database TLS** — not enabled yet on the Repo (tracked in `runtime.exs`); terminate inside a trusted network or enable `ssl:` when your Postgres has certs.
 - **`TRUSTED_PROXY_HOPS`** (default `1`) — how many `x-forwarded-for` hops `EstimateWeb.ClientIP` trusts for rate-limiting; set `0` if the app is ever exposed directly, without a reverse proxy in front of it.
 - **Rate limiting is per-node, in-memory ETS state** (`Estimate.RateLimit`): with more than one replica each pod enforces its own limits independently, and all counters reset on every deploy. The TOTP replay guard is DB-backed (`users.totp_last_used_at` + `NimbleTOTP` `:since`), so it is consistent across replicas and survives deploys; the in-memory rate limits remain per-node.
+- **CSP is enforced**; flip `CSP_REPORT_ONLY=true` and restart if a page breaks; add hosts to the policy in `EstimateWeb.Plugs.ContentSecurityPolicy`.
 
 ### Health endpoints
 

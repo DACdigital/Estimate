@@ -97,6 +97,10 @@ if config_env() == :prod do
   config :estimate, Estimate.MCP.OAuth.Janitor,
     interval_ms: String.to_integer(System.get_env("OAUTH_JANITOR_INTERVAL_MS", "3600000"))
 
+  # Content Security Policy report-only escape hatch (see EstimateWeb.Plugs.ContentSecurityPolicy).
+  config :estimate, EstimateWeb.Plugs.ContentSecurityPolicy,
+    report_only: System.get_env("CSP_REPORT_ONLY") == "true"
+
   config :estimate, EstimateWeb.Endpoint,
     url: [host: host, port: 443, scheme: "https"],
     http: [
