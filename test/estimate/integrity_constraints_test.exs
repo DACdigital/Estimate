@@ -1,7 +1,7 @@
 defmodule Estimate.IntegrityConstraintsTest do
   use Estimate.DataCase, async: true
 
-  import Estimate.{AccountsFixtures, CRMFixtures, PortfolioFixtures}
+  import Estimate.{AccountsFixtures, CRMFixtures, PortfolioFixtures, EstimationEngineFixtures}
   alias Estimate.Repo
 
   @not_null [
@@ -42,7 +42,7 @@ defmodule Estimate.IntegrityConstraintsTest do
   end
 
   test "a project cannot point at another org's customer even with RLS bypassed" do
-    %{user: owner_a, organization: org_a} = user_with_organization_fixture()
+    %{user: owner_a, organization: _} = user_with_organization_fixture()
     %{organization: org_b} = user_with_organization_fixture()
     customer_b = customer_fixture(org_b)
     project_a = project_fixture(nil, owner_a)
@@ -55,6 +55,23 @@ defmodule Estimate.IntegrityConstraintsTest do
     end
 
     assert Repo.reload!(project_a).customer_id == project_a.customer_id
-    _ = org_a
+  end
+
+  test "an estimation cannot point at another org's project even with RLS bypassed" do
+    %{user: owner_a} = user_with_organization_fixture()
+    project_a = project_fixture(nil, owner_a)
+    estimation_a = estimation_fixture(project_a)
+
+    %{user: owner_b} = user_with_organization_fixture()
+    project_b = project_fixture(nil, owner_b)
+
+    assert_raise Postgrex.Error, ~r/estimations_project_org_fkey/, fn ->
+      Repo.query!("UPDATE estimations SET project_id = $1 WHERE id = $2", [
+        Ecto.UUID.dump!(project_b.id),
+        Ecto.UUID.dump!(estimation_a.id)
+      ])
+    end
+
+    assert Repo.reload!(estimation_a).project_id == project_a.id
   end
 end

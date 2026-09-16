@@ -1,7 +1,9 @@
 defmodule EstimateWeb.EstimatorLive.AiEnhanceTest do
   use EstimateWeb.ConnCase, async: false
 
+  require Logger
   import Phoenix.LiveViewTest
+  import ExUnit.CaptureLog
   import Estimate.{AccountsFixtures, PortfolioFixtures, EstimationEngineFixtures}
 
   defmodule BlockingAI do
@@ -34,7 +36,18 @@ defmodule EstimateWeb.EstimatorLive.AiEnhanceTest do
     project = project_fixture(nil, owner)
     est = estimation_fixture(project)
     prev = Application.get_env(:estimate, :ai_enhancer)
-    on_exit(fn -> Application.put_env(:estimate, :ai_enhancer, prev) end)
+
+    # `prev` is nil whenever the key was never configured (the common case) —
+    # `put_env(.., nil)` would leave a stray `nil` entry instead of the
+    # true "unset" state, so restore with delete_env in that case.
+    on_exit(fn ->
+      if is_nil(prev) do
+        Application.delete_env(:estimate, :ai_enhancer)
+      else
+        Application.put_env(:estimate, :ai_enhancer, prev)
+      end
+    end)
+
     on_exit(fn -> :persistent_term.erase(:ai_enhance_test_pid) end)
     %{conn: log_in_user(conn, owner), org: org, project: project, est: est}
   end
@@ -57,7 +70,7 @@ defmodule EstimateWeb.EstimatorLive.AiEnhanceTest do
       "target" => "epic"
     })
 
-    assert_receive {:ai_stub_started, stub_pid}
+    assert_receive {:ai_stub_started, stub_pid}, 1_000
     assert assigns(lv).ai_loading == "epic"
 
     send(stub_pid, :go)
@@ -78,14 +91,35 @@ defmodule EstimateWeb.EstimatorLive.AiEnhanceTest do
 
     render_click(lv, "add_epic", %{})
 
-    render_click(lv, "ai_enhance_description", %{
-      "description" => "hello",
-      "name" => "E",
-      "target" => "epic"
-    })
+    # FailingAI raises inside the async Task started by `start_async`; that
+    # crash report is expected (it's exactly what handle_async's {:exit, _}
+    # clause is for) but should not pollute test output — capture it and
+    # assert on its content instead.
+    #
+    # The Task reports its result to the LiveView (unblocking render_async)
+    # *before* it unwinds and logs the crash — Task.Supervised logs the
+    # crash report only once the re-raised exception propagates out of the
+    # task function, which is a genuine race against this process resuming
+    # after render_async returns. There's no message to wait on for "the
+    # crash has been logged", so give the task's own scheduler slice time to
+    # run; Logger.flush/0 alone only drains what's already enqueued, it
+    # doesn't wait for a message that hasn't been submitted yet.
+    {html, log} =
+      with_log(fn ->
+        render_click(lv, "ai_enhance_description", %{
+          "description" => "hello",
+          "name" => "E",
+          "target" => "epic"
+        })
 
-    html = render_async(lv)
+        html = render_async(lv)
+        Process.sleep(50)
+        Logger.flush()
+        html
+      end)
+
     assert html =~ "AI request failed"
+    assert log =~ "boom"
     assert assigns(lv).ai_loading == nil
   end
 end

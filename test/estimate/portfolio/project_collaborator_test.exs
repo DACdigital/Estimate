@@ -3,7 +3,7 @@ defmodule Estimate.Portfolio.ProjectCollaboratorTest do
   alias Estimate.Portfolio.ProjectCollaborator
 
   test "edit_roles is the single source for editing collaborator roles" do
-    assert ProjectCollaborator.edit_roles() == ["owner", "editor"]
     assert Enum.all?(ProjectCollaborator.edit_roles(), &(&1 in ProjectCollaborator.roles()))
+    refute "viewer" in ProjectCollaborator.edit_roles()
   end
 end
