@@ -168,7 +168,7 @@ sequenceDiagram
 
 The moving parts:
 
-- **A dedicated non-superuser DB role.** Every pooled connection runs `SET ROLE estimate_app` in `after_connect` ([`repo.ex`](lib/estimate/repo.ex)). Superusers bypass RLS; `estimate_app` (LOGIN, `NOSUPERUSER NOCREATEDB NOCREATEROLE`) cannot.
+- **A dedicated non-superuser DB role.** Every pooled connection runs `SET ROLE estimate_app` in `after_connect` ([`repo.ex`](lib/estimate/repo.ex)). Superusers bypass RLS; `estimate_app` (`NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE`, only ever reached via `SET ROLE`) cannot.
 - **Session-scoped tenancy context.** `Repo.ensure_org_context/1` checks out a connection, pins `app.current_org_id` / `app.current_user_id` via `set_config`, and runs the operation on that connection.
 - **Policies that walk the ownership chain.** Direct org tables use simple equality; child tables (`task_estimates` → `tasks` → `epics` → `estimations`) prove lineage with `EXISTS`. And it's not just org-level — projects get **row-level authorization**:
 
@@ -186,7 +186,7 @@ The moving parts:
   ```
 
   A plain member who isn't a collaborator doesn't get a `403` — the row simply *does not exist* for them.
-- **Documented escape hatches.** `memberships` and `invites` deliberately skip RLS (auth flows are inherently cross-org: "list my organizations", "accept this invite token"), and `Repo.without_rls/1` (`RESET ROLE`) exists for exactly two jobs: search reindexing and activity timestamps. Every exception is a conscious, greppable decision.
+- **Documented escape hatches.** `memberships` and `invites` deliberately skip RLS (auth flows are inherently cross-org: "list my organizations", "accept this invite token"), and `Repo.without_rls/1` exists for system-level operations (search reindexing, activity timestamps, MCP/OAuth token bookkeeping) that must see across every org. It no longer relies on `RESET ROLE` bouncing back to a superuser login: it does `SET ROLE estimate_system` — a dedicated `NOLOGIN BYPASSRLS NOSUPERUSER` role granted to whichever role runs migrations (so the `DATABASE_URL` role must be able to `SET ROLE estimate_system`) — and asserts `rolbypassrls` before running `fun`, raising if the role is ever missing or misconfigured. Every exception is a conscious, greppable decision.
 - **Defense in depth, not instead of depth.** App-level scoping remains everywhere; `Repo.prepare_query/3` can inject org filters as a second belt. RLS is the backstop that turns "we missed a filter" from a data breach into a blank page.
 - **Migrations stay privileged.** DDL runs as the login user — the Repo drops its `after_connect` hook during `ecto.*` tasks and when `SKIP_RLS_ROLE=true` (which is how the release entrypoint migrates).
 

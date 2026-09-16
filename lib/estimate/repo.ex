@@ -130,8 +130,8 @@ defmodule Estimate.Repo do
   end
 
   @doc """
-  Checks out a connection and resets to the login role (postgres/superuser),
-  bypassing RLS. For system-level operations like search reindexing.
+  Checks out a connection and switches to the estimate_system role, which
+  bypasses RLS. For system-level operations like search reindexing.
   State-neutral: captures the connection's role and RLS context first and restores both afterward, so pooled connections never check back in polluted.
   """
   def without_rls(fun) when is_function(fun, 0) do
@@ -142,9 +142,21 @@ defmodule Estimate.Repo do
           []
         )
 
-      query!("RESET ROLE", [])
+      query!("SET ROLE estimate_system", [])
 
       try do
+        # The BYPASSRLS assertion must run inside the try (not between the
+        # SET ROLE above and this block) so that if it ever raises — role
+        # exists but somehow lost BYPASSRLS — the after-clause still restores
+        # prev_role/org/user before the exception propagates. Otherwise a
+        # pooled connection would be checked back in still SET ROLE'd to
+        # estimate_system, i.e. checked back in with RLS bypassed: the exact
+        # leak this wrapper exists to prevent.
+        %{rows: [[bypass]]} =
+          query!("SELECT rolbypassrls FROM pg_roles WHERE rolname = current_user", [])
+
+        unless bypass, do: raise("without_rls: role estimate_system lacks BYPASSRLS")
+
         fun.()
       after
         # Role names cannot be bind params; quote_ident (in the SELECT above)

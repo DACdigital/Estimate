@@ -35,6 +35,12 @@ defmodule Estimate.RepoWithoutRLSTest do
       assert current_org_setting() == org_id
     end
 
+    # This also covers the without_rls BYPASSRLS assertion: that assertion
+    # lives inside the try (see repo.ex) for the same reason fun.() does —
+    # so a raise there restores prev_role/org/user too. A raise from the
+    # assertion itself isn't separately exercised here (would need to
+    # revoke BYPASSRLS from estimate_system mid-test, i.e. DDL under the
+    # sandbox), but it shares the exact same try/after path as fun raising.
     test "restores role and RLS context even when fun raises" do
       org_id = Ecto.UUID.generate()
 
@@ -48,6 +54,17 @@ defmodule Estimate.RepoWithoutRLSTest do
 
       assert current_user_role() == "estimate_app"
       assert current_org_setting() == org_id
+    end
+
+    test "runs fun as estimate_system, which bypasses RLS" do
+      Repo.assume_app_role()
+
+      assert Repo.without_rls(fn -> current_user_role() end) == "estimate_system"
+
+      %{rows: [[bypass]]} =
+        Repo.query!("SELECT rolbypassrls FROM pg_roles WHERE rolname = 'estimate_system'", [])
+      assert bypass
+      assert current_user_role() == "estimate_app"
     end
   end
 
