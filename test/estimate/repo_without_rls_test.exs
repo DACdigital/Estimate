@@ -63,6 +63,7 @@ defmodule Estimate.RepoWithoutRLSTest do
 
       %{rows: [[bypass]]} =
         Repo.query!("SELECT rolbypassrls FROM pg_roles WHERE rolname = 'estimate_system'", [])
+
       assert bypass
       assert current_user_role() == "estimate_app"
     end

@@ -10,10 +10,20 @@ defmodule EstimateWeb.SettingsLive.CurrenciesTest do
   test "update_field refuses non-whitelisted fields", %{conn: conn, org: org} do
     [_main, eur | _] = Currencies.list_currencies(org.id)
     {:ok, lv, _} = live(conn, ~p"/org/#{org.id}/settings/currencies")
-    html = render_click(lv, "update_field", %{"id" => eur.id, "field" => "is_main", "value" => "true"})
+
+    html =
+      render_click(lv, "update_field", %{"id" => eur.id, "field" => "is_main", "value" => "true"})
+
     assert html =~ "Not authorized"
     refute Repo.reload!(eur).is_main
-    html = render_click(lv, "update_field", %{"id" => eur.id, "field" => "exchange_rate", "value" => "0"})
+
+    html =
+      render_click(lv, "update_field", %{
+        "id" => eur.id,
+        "field" => "exchange_rate",
+        "value" => "0"
+      })
+
     assert html =~ "Not authorized"
   end
 

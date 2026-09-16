@@ -41,7 +41,9 @@ defmodule Estimate.OrganizationsCurrenciesTest do
       project = project_fixture(nil, owner)
       _est = estimation_fixture(project, %{"currency_id" => eur.id})
 
-      assert {:error, %Ecto.Changeset{} = cs} = Estimate.Organizations.Currencies.delete_currency(eur)
+      assert {:error, %Ecto.Changeset{} = cs} =
+               Estimate.Organizations.Currencies.delete_currency(eur)
+
       assert %{id: ["is used by estimations"]} = errors_on(cs)
       assert Repo.get(Estimate.Accounts.Currency, eur.id)
     end

@@ -34,7 +34,8 @@ defmodule Estimate.Repo.Migrations.TightenIntegrityConstraints do
       alter table(t), do: modify(:position, :integer, null: false, default: 0)
     end
 
-    alter table(:estimation_template_tasks), do: modify(:priority, :string, null: false, default: "must")
+    alter table(:estimation_template_tasks),
+      do: modify(:priority, :string, null: false, default: "must")
 
     # 3. composite uniqueness so the composite FKs below are valid targets
     create unique_index(:customers, [:id, :organization_id])
@@ -58,7 +59,8 @@ defmodule Estimate.Repo.Migrations.TightenIntegrityConstraints do
     drop unique_index(:projects, [:id, :organization_id])
     drop unique_index(:customers, [:id, :organization_id])
 
-    alter table(:estimation_template_tasks), do: modify(:priority, :string, null: true, default: "must")
+    alter table(:estimation_template_tasks),
+      do: modify(:priority, :string, null: true, default: "must")
 
     for t <- ~w(role_templates project_roles estimation_template_epics estimation_template_tasks)a do
       alter table(t), do: modify(:position, :integer, null: true, default: 0)
