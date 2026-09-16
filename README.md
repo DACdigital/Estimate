@@ -289,7 +289,7 @@ Runtime config follows the standard Phoenix split: compile-time in `config/*.exs
 | `SKIP_RLS_ROLE` | ops | no | Skips `SET ROLE` on connect — used by the release migration wrapper |
 | `TRUSTED_PROXY_HOPS` | prod | no | Default `1`. `x-forwarded-for` hops trusted by `EstimateWeb.ClientIP`; set `0` when not behind a proxy |
 | `RATE_LIMIT_LOGIN_EMAIL` / `RATE_LIMIT_LOGIN_IP` / `RATE_LIMIT_TOTP_ATTEMPT` / `RATE_LIMIT_OAUTH_IP` | prod | no | Overrides for `Estimate.RateLimit` bucket limits; defaults `10` / `60` / `5` / `20` |
-| `OAUTH_JANITOR_INTERVAL_MS` | prod | no | Sweep interval (ms) for `Estimate.MCP.OAuth.Janitor`; default `3600000` (1 hour) |
+| `OAUTH_JANITOR_INTERVAL_MS` | prod | no | Sweep interval (ms) for `Estimate.MCP.OAuth.Janitor` (expired codes, dead tokens, and orphan dynamically-registered clients older than 24h); default `3600000` (1 hour) |
 | `CSP_REPORT_ONLY` | prod | no | `true` → Content-Security-Policy is sent as `Content-Security-Policy-Report-Only` instead of enforced; default enforced |
 | `ENCRYPTION_KEY` | prod | no | Base64 of 32 random bytes (`openssl rand -base64 32`); when set, new secrets use it and old ones are re-encrypted on read or via `mix estimate.rotate_encryption`. Once set, `ENCRYPTION_KEY` must never be removed or replaced without first rotating: rows encrypted with it become permanently undecryptable; keep the old `SECRET_KEY_BASE` until `Rotation.run/0` reports nothing left on v1. |
 

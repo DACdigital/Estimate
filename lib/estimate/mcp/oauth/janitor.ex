@@ -1,22 +1,26 @@
 defmodule Estimate.MCP.OAuth.Janitor do
   @moduledoc """
   Hourly cleanup of OAuth rows that can no longer be used: authorization
-  codes more than an hour past expiry that no token references, and tokens
-  revoked or refresh-expired more than seven days ago. Runs at boot and then
-  every `interval_ms`. Disabled in test (config `enabled: false`); `run/0`
-  is callable directly.
+  codes more than an hour past expiry that no token references, tokens
+  revoked or refresh-expired more than seven days ago, and dynamically
+  registered clients older than 24 hours that no code or token references
+  any more (a client's life is derived from its children; a live grant's
+  token row always blocks the delete). Runs at boot and then every
+  `interval_ms`. Disabled in test (config `enabled: false`); `run/0` is
+  callable directly.
   """
   use GenServer
   require Logger
   import Ecto.Query
 
-  alias Estimate.MCP.OAuth.{Code, Token}
+  alias Estimate.MCP.OAuth.{Client, Code, Token}
   alias Estimate.Repo
 
   @default_interval :timer.hours(1)
   @default_initial_delay :timer.seconds(30)
   @code_grace_seconds 3600
   @token_grace_seconds 7 * 24 * 3600
+  @client_grace_seconds 24 * 3600
 
   def start_link(opts) do
     name = Keyword.get(opts, :name, __MODULE__)
@@ -63,7 +67,9 @@ defmodule Estimate.MCP.OAuth.Janitor do
     try do
       counts = state.run_fun.()
       # Logs only aggregate counts (integers), never token/code values or hashes.
-      Logger.info("oauth janitor: pruned #{counts.codes} codes, #{counts.tokens} tokens")
+      Logger.info(
+        "oauth janitor: pruned #{counts.codes} codes, #{counts.tokens} tokens, #{counts.clients} clients"
+      )
     rescue
       # Exception.message/1 is the exception's own description text (e.g. an
       # Ecto/Postgrex error message), never a raw token/code plaintext or
@@ -75,12 +81,17 @@ defmodule Estimate.MCP.OAuth.Janitor do
     {:noreply, state}
   end
 
-  @spec run() :: %{codes: non_neg_integer(), tokens: non_neg_integer()}
+  @spec run() :: %{
+          codes: non_neg_integer(),
+          tokens: non_neg_integer(),
+          clients: non_neg_integer()
+        }
   def run do
     Repo.without_rls(fn ->
       now = DateTime.utc_now() |> DateTime.truncate(:second)
       code_cutoff = DateTime.add(now, -@code_grace_seconds)
       token_cutoff = DateTime.add(now, -@token_grace_seconds)
+      client_cutoff = DateTime.add(now, -@client_grace_seconds)
 
       # Delete tokens before codes so `code_id` nilification (nilify_all on
       # code delete) never races the token delete below, and so the
@@ -105,7 +116,24 @@ defmodule Estimate.MCP.OAuth.Janitor do
           )
         )
 
-      %{codes: codes, tokens: tokens}
+      # Clients last: after the two deletes above, any client with no code
+      # and no token row is an orphan. The 24h grace protects an in-flight
+      # register -> authorize flow that has not minted a code yet. The FK
+      # cascade (codes/tokens -> clients, on_delete: :delete_all) is never
+      # reached because a referenced client is excluded here.
+      has_code = from(c in Code, where: c.client_id == parent_as(:client).id)
+      has_token = from(t in Token, where: t.client_id == parent_as(:client).id)
+
+      {clients, _} =
+        Repo.delete_all(
+          from(cl in Client,
+            as: :client,
+            where:
+              cl.inserted_at < ^client_cutoff and not exists(has_code) and not exists(has_token)
+          )
+        )
+
+      %{codes: codes, tokens: tokens, clients: clients}
     end)
   end
 end

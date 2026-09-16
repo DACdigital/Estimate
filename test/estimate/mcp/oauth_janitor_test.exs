@@ -3,7 +3,7 @@ defmodule Estimate.MCP.OAuth.JanitorTest do
 
   import Estimate.AccountsFixtures
   alias Estimate.MCP.OAuth
-  alias Estimate.MCP.OAuth.{Code, Janitor, Token}
+  alias Estimate.MCP.OAuth.{Client, Code, Janitor, Token}
   alias Estimate.Organizations
 
   @redirect "https://claude.ai/api/mcp/auth_callback"
@@ -46,6 +46,18 @@ defmodule Estimate.MCP.OAuth.JanitorTest do
   defp ago(days),
     do: DateTime.utc_now() |> DateTime.add(-days, :day) |> DateTime.truncate(:second)
 
+  defp hours_ago(hours),
+    do: DateTime.utc_now() |> DateTime.add(-hours, :hour) |> DateTime.truncate(:second)
+
+  defp age_client(client, inserted_at) do
+    {1, _} =
+      Repo.update_all(from(c in Client, where: c.id == ^client.id),
+        set: [inserted_at: inserted_at]
+      )
+
+    :ok
+  end
+
   test "deletes long-expired unreferenced codes and long-dead tokens, keeps live tokens and referenced codes",
        ctx do
     live = mint(ctx)
@@ -72,7 +84,7 @@ defmodule Estimate.MCP.OAuth.JanitorTest do
     before_codes = Repo.aggregate(Code, :count)
     assert before_codes == 3
 
-    assert %{codes: codes, tokens: 1} = Janitor.run()
+    assert %{codes: codes, tokens: 1, clients: 0} = Janitor.run()
     assert codes == 1
     assert Repo.aggregate(Token, :count) == before_tokens - 1
     # both exchanged codes (live's and dead's) are still referenced by a token
@@ -85,6 +97,65 @@ defmodule Estimate.MCP.OAuth.JanitorTest do
     t = mint(ctx)
     {:ok, _} = OAuth.refresh_tokens(t.refresh_token, ctx.client.id)
     assert %{tokens: 0} = Janitor.run()
+  end
+
+  describe "orphan client pruning" do
+    test "a client with no codes and no tokens older than 24h is deleted", ctx do
+      age_client(ctx.client, hours_ago(25))
+
+      assert %{clients: 1} = Janitor.run()
+      refute Repo.get(Client, ctx.client.id)
+    end
+
+    test "a client with no codes and no tokens younger than 24h is kept (registration grace)",
+         ctx do
+      age_client(ctx.client, hours_ago(23))
+
+      assert %{clients: 0} = Janitor.run()
+      assert Repo.get(Client, ctx.client.id)
+    end
+
+    test "a client whose only token is revoked but not yet pruned is kept", ctx do
+      t = mint(ctx)
+      {:ok, _} = OAuth.refresh_tokens(t.refresh_token, ctx.client.id)
+      # revoke the rotated replacement too so nothing on this client is live
+      Repo.update_all(from(t in Token, where: t.client_id == ^ctx.client.id),
+        set: [revoked_at: hours_ago(1)]
+      )
+
+      age_client(ctx.client, hours_ago(48))
+
+      assert %{tokens: 0, clients: 0} = Janitor.run()
+      assert Repo.get(Client, ctx.client.id)
+    end
+
+    test "a client with a live token is kept regardless of age", ctx do
+      _live = mint(ctx)
+      age_client(ctx.client, hours_ago(24 * 400))
+
+      assert %{tokens: 0, codes: 0, clients: 0} = Janitor.run()
+      assert Repo.get(Client, ctx.client.id)
+    end
+
+    test "a client whose last token and code are pruned in this run is deleted in the same run",
+         ctx do
+      _t = mint(ctx)
+
+      Repo.update_all(from(t in Token, where: t.client_id == ^ctx.client.id),
+        set: [revoked_at: ago(8)]
+      )
+
+      Repo.update_all(from(c in Code, where: c.client_id == ^ctx.client.id),
+        set: [expires_at: ago(1)]
+      )
+
+      age_client(ctx.client, hours_ago(48))
+
+      assert %{tokens: 1, codes: 1, clients: 1} = Janitor.run()
+      refute Repo.get(Client, ctx.client.id)
+      assert Repo.aggregate(Token, :count) == 0
+      assert Repo.aggregate(Code, :count) == 0
+    end
   end
 
   test "a raising run_fun never crashes the janitor process; it logs and reschedules" do
