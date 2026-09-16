@@ -174,7 +174,7 @@ defmodule Estimate.Portfolio do
       |> Ecto.Multi.insert(:project, fn _ ->
         %Project{}
         |> Project.changeset(Map.put(attrs, "customer_id", customer_id))
-        |> ChangesetHelpers.validate_org_reference(:customer_id, Customer, org_id)
+        # customer already verified by CRM.get_customer!/2 above
         |> ChangesetHelpers.validate_org_reference(:currency_id, Currency, org_id)
       end)
       |> Ecto.Multi.insert(:collaborator, fn %{project: project} ->

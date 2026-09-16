@@ -3,6 +3,7 @@ defmodule Estimate.Portfolio.ProjectCollaborator do
   import Ecto.Changeset
 
   @roles ~w(owner editor viewer)
+  @edit_roles ~w(owner editor)
 
   schema "project_collaborators" do
     field :role, :string, default: "viewer"
@@ -22,4 +23,5 @@ defmodule Estimate.Portfolio.ProjectCollaborator do
   end
 
   def roles, do: @roles
+  def edit_roles, do: @edit_roles
 end
