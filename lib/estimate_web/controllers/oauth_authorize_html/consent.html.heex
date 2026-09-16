@@ -1,7 +1,11 @@
 <div class="max-w-md mx-auto">
-  <h1 class="text-xl font-semibold text-base-content mb-1">Connect {@client.name}</h1>
+  <h1 class="text-xl font-semibold text-base-content mb-1">Connect to {@redirect_host}</h1>
   <p class="text-sm text-base-content/60 mb-3">
-    <span class="font-mono">{@redirect_host}</span>
+    An app calling itself
+    <span class="inline-block max-w-[14rem] truncate align-bottom text-base-content/80">
+      “{@client.name}”
+    </span>
+    at <span class="font-mono text-base-content">{@redirect_host}</span>
     is asking to access your estimation data, acting as you:
   </p>
   <ul class="mb-4 space-y-1.5 text-sm">

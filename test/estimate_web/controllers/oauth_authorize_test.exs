@@ -41,16 +41,29 @@ defmodule EstimateWeb.OAuthAuthorizeTest do
     assert get_session(conn, :user_return_to) =~ "/oauth/authorize?"
   end
 
-  test "consent page shows client, redirect host and org picker", %{
-    conn: conn,
-    client: client,
-    org: org
-  } do
+  test "consent page anchors on the redirect host and labels the client name as self-declared",
+       %{conn: conn, client: client, org: org} do
     html = conn |> get(~p"/oauth/authorize?#{authorize_params(client)}") |> html_response(200)
 
-    assert html =~ "Claude"
-    assert html =~ "claude.ai"
+    assert html =~ ~r|<h1[^>]*>\s*Connect to claude\.ai\s*</h1>|
+    assert html =~ "An app calling itself"
+    assert html =~ "“Claude”"
     assert html =~ org.name
+    refute html =~ ~r|<h1[^>]*>\s*Connect Claude\s*</h1>|
+  end
+
+  test "consent page renders a hostile client name escaped, never as markup", %{conn: conn} do
+    {:ok, evil} =
+      OAuth.register_client(%{
+        "client_name" => "<b onmouseover=alert(1)>claude.ai</b>",
+        "redirect_uris" => [@redirect]
+      })
+
+    html = conn |> get(~p"/oauth/authorize?#{authorize_params(evil)}") |> html_response(200)
+
+    assert html =~ "&lt;b onmouseover=alert(1)&gt;claude.ai&lt;/b&gt;"
+    refute html =~ "<b onmouseover=alert(1)>"
+    assert html =~ ~r|<h1[^>]*>\s*Connect to claude\.ai\s*</h1>|
   end
 
   test "consent GET widens form-action to the client's redirect origin; other pages keep the default",
