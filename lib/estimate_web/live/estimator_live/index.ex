@@ -747,18 +747,16 @@ defmodule EstimateWeb.EstimatorLive.Index do
       api_key = Organizations.get_decrypted_api_key(org)
 
       if api_key do
-        pid = self()
         model = org.openrouter_model || "openai/gpt-4o-mini"
         system_prompt = org.openrouter_system_prompt
+        enhancer = Application.get_env(:estimate, :ai_enhancer, Estimate.AI.OpenRouter)
 
-        Task.start(fn ->
-          result =
-            Estimate.AI.OpenRouter.enhance_description(api_key, model, system_prompt, name, desc)
-
-          send(pid, {:ai_result, target, result})
-        end)
-
-        {:noreply, assign(socket, :ai_loading, target)}
+        {:noreply,
+         socket
+         |> assign(:ai_loading, target)
+         |> start_async({:ai_enhance, target}, fn ->
+           enhancer.enhance_description(api_key, model, system_prompt, name, desc)
+         end)}
       else
         {:noreply, put_flash(socket, :error, "AI not configured")}
       end
@@ -766,21 +764,29 @@ defmodule EstimateWeb.EstimatorLive.Index do
   end
 
   @impl true
-  def handle_info({:ai_result, target, {:ok, enhanced}}, socket) do
+  def handle_async({:ai_enhance, target}, {:ok, {:ok, enhanced}}, socket) do
     {:noreply,
      socket
      |> assign(:ai_loading, nil)
      |> push_event("ai_set_description", %{text: enhanced, target: target})}
   end
 
-  def handle_info({:ai_result, _target, {:error, reason}}, socket) do
+  def handle_async({:ai_enhance, _target}, {:ok, {:error, reason}}, socket) do
     {:noreply,
      socket
      |> assign(:ai_loading, nil)
      |> put_flash(:error, "AI error: #{reason}")}
   end
 
+  def handle_async({:ai_enhance, _target}, {:exit, _reason}, socket) do
+    {:noreply,
+     socket
+     |> assign(:ai_loading, nil)
+     |> put_flash(:error, "AI request failed")}
+  end
+
   # All broadcast events trigger a full reload
+  @impl true
   def handle_info({:tasks_reordered, _epic_id, _task_ids}, socket) do
     {:noreply, reload_estimation(socket)}
   end
