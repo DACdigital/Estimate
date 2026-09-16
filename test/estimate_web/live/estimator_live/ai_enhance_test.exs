@@ -20,7 +20,14 @@ defmodule EstimateWeb.EstimatorLive.AiEnhanceTest do
   end
 
   defmodule FailingAI do
-    def enhance_description(_, _, _, _, _), do: raise("boom")
+    # Same handshake as BlockingAI: tells the test which pid to monitor
+    # before crashing, so the test can wait for that exact task's :DOWN
+    # instead of sleeping.
+    def enhance_description(_, _, _, _, _) do
+      test_pid = :persistent_term.get(:ai_enhance_test_pid)
+      send(test_pid, {:ai_stub_started, self()})
+      raise "boom"
+    end
   end
 
   defp assigns(lv), do: :sys.get_state(lv.pid).socket.assigns
@@ -81,6 +88,7 @@ defmodule EstimateWeb.EstimatorLive.AiEnhanceTest do
   end
 
   test "a crashing provider flashes AI request failed", ctx do
+    :persistent_term.put(:ai_enhance_test_pid, self())
     Application.put_env(:estimate, :ai_enhancer, FailingAI)
 
     {:ok, lv, _} =
@@ -96,14 +104,11 @@ defmodule EstimateWeb.EstimatorLive.AiEnhanceTest do
     # clause is for) but should not pollute test output — capture it and
     # assert on its content instead.
     #
-    # The Task reports its result to the LiveView (unblocking render_async)
-    # *before* it unwinds and logs the crash — Task.Supervised logs the
-    # crash report only once the re-raised exception propagates out of the
-    # task function, which is a genuine race against this process resuming
-    # after render_async returns. There's no message to wait on for "the
-    # crash has been logged", so give the task's own scheduler slice time to
-    # run; Logger.flush/0 alone only drains what's already enqueued, it
-    # doesn't wait for a message that hasn't been submitted yet.
+    # Task.Supervised logs the crash report *before* the task process
+    # actually exits (the log call happens synchronously as the raised
+    # exception unwinds, ahead of process termination), so waiting for the
+    # task's own :DOWN guarantees the log call has already been made — no
+    # sleep needed.
     {html, log} =
       with_log(fn ->
         render_click(lv, "ai_enhance_description", %{
@@ -112,8 +117,11 @@ defmodule EstimateWeb.EstimatorLive.AiEnhanceTest do
           "target" => "epic"
         })
 
+        assert_receive {:ai_stub_started, stub_pid}, 1_000
+        ref = Process.monitor(stub_pid)
+        assert_receive {:DOWN, ^ref, :process, ^stub_pid, _}, 1_000
+
         html = render_async(lv)
-        Process.sleep(50)
         Logger.flush()
         html
       end)
