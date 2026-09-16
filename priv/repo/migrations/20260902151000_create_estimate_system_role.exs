@@ -15,6 +15,11 @@ defmodule Estimate.Repo.Migrations.CreateEstimateSystemRole do
     $$
     """
 
+    # Unconditional: corrects a pre-existing role's attributes too (e.g. one
+    # created by hand, or by an older version of this migration) so BYPASSRLS
+    # and the NOSUPERUSER/NOCREATEDB/NOCREATEROLE guardrails always hold.
+    execute "ALTER ROLE estimate_system NOLOGIN BYPASSRLS NOSUPERUSER NOCREATEDB NOCREATEROLE"
+
     execute "GRANT USAGE ON SCHEMA public TO estimate_system"
 
     execute "GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO estimate_system"
@@ -44,6 +49,19 @@ defmodule Estimate.Repo.Migrations.CreateEstimateSystemRole do
     execute "REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM estimate_system"
     execute "REVOKE ALL ON ALL TABLES IN SCHEMA public FROM estimate_system"
     execute "REVOKE USAGE ON SCHEMA public FROM estimate_system"
-    execute "DROP ROLE IF EXISTS estimate_system"
+
+    # Mirrors `20260211080345_enforce_rls_with_app_role.exs`'s `down` for
+    # `estimate_app`: guard the drop so it's a no-op if the role is already
+    # gone (roles are cluster-scoped — dev and test share a container, so a
+    # concurrent down elsewhere may have already dropped it).
+    execute """
+    DO $$
+    BEGIN
+      IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'estimate_system') THEN
+        DROP ROLE estimate_system;
+      END IF;
+    END
+    $$
+    """
   end
 end
