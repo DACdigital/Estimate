@@ -25,6 +25,7 @@ defmodule Estimate.Encryption.Rotation do
         case rotate_user(user, current) do
           :ok -> {ok + 1, failed}
           :failed -> {ok, failed + 1}
+          :unchanged -> {ok, failed}
         end
       end)
 
@@ -51,19 +52,23 @@ defmodule Estimate.Encryption.Rotation do
     }
   end
 
-  defp rotate_user(user, current) do
+  # Public for tests only. Returns :ok (rotated), :unchanged (the row was
+  # already moved off `user.totp_key_version` by the lazy read-path between
+  # our SELECT and this UPDATE — the WHERE on the version we read makes that
+  # a 0-row update instead of an overwrite), or :failed (logged).
+  @doc false
+  def rotate_user(user, current) do
+    old_version = user.totp_key_version
+
     with {:ok, pt} <-
-           Encryption.decrypt(
-             user.totp_secret_nonce,
-             user.encrypted_totp_secret,
-             user.totp_key_version
-           ),
+           Encryption.decrypt(user.totp_secret_nonce, user.encrypted_totp_secret, old_version),
          {:ok, n, ct, ^current} <- Encryption.encrypt(pt),
-         {1, _} <-
-           Repo.update_all(from(u in User, where: u.id == ^user.id),
+         {rows, _} when rows in [0, 1] <-
+           Repo.update_all(
+             from(u in User, where: u.id == ^user.id and u.totp_key_version == ^old_version),
              set: [encrypted_totp_secret: ct, totp_secret_nonce: n, totp_key_version: current]
            ) do
-      :ok
+      if rows == 1, do: :ok, else: :unchanged
     else
       reason ->
         Logger.error("rotate: could not re-encrypt users #{user.id}: #{inspect(reason)}")
@@ -71,7 +76,8 @@ defmodule Estimate.Encryption.Rotation do
     end
   end
 
-  defp rotate_org(org, current) do
+  @doc false
+  def rotate_org(org, current) do
     api =
       rotate_field(
         org,
@@ -97,19 +103,25 @@ defmodule Estimate.Encryption.Rotation do
     end
   end
 
-  # Returns :ok (rotated), :unchanged (nothing stored on that field, or
-  # already on the current version), or :failed (logged, reason from the
-  # `with` else).
+  # Returns :ok (rotated), :unchanged (nothing stored on that field, already
+  # on the current version, or the row was moved off the version we read by
+  # the lazy read-path — the WHERE on `ver_f` turns that race into a 0-row
+  # update), or :failed (logged, reason from the `with` else).
   defp rotate_field(org, nonce_f, ct_f, ver_f, current) do
+    old_version = Map.get(org, ver_f)
+
     with ct when is_binary(ct) <- Map.get(org, ct_f),
-         true <- Map.get(org, ver_f) < current,
-         {:ok, pt} <- Encryption.decrypt(Map.get(org, nonce_f), ct, Map.get(org, ver_f)),
+         true <- old_version < current,
+         {:ok, pt} <- Encryption.decrypt(Map.get(org, nonce_f), ct, old_version),
          {:ok, n, new_ct, ^current} <- Encryption.encrypt(pt),
-         {1, _} <-
-           Repo.update_all(from(o in Organization, where: o.id == ^org.id),
+         {rows, _} when rows in [0, 1] <-
+           Repo.update_all(
+             from(o in Organization,
+               where: o.id == ^org.id and field(o, ^ver_f) == ^old_version
+             ),
              set: [{ct_f, new_ct}, {nonce_f, n}, {ver_f, current}]
            ) do
-      :ok
+      if rows == 1, do: :ok, else: :unchanged
     else
       nil ->
         :unchanged
