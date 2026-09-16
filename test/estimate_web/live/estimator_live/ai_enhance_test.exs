@@ -4,12 +4,16 @@ defmodule EstimateWeb.EstimatorLive.AiEnhanceTest do
   import Phoenix.LiveViewTest
   import Estimate.{AccountsFixtures, PortfolioFixtures, EstimationEngineFixtures}
 
-  defmodule StubAI do
-    # small delay so the test can observe :ai_loading before the async task resolves,
-    # mirroring the real provider's network latency
+  defmodule BlockingAI do
+    # The test registers itself under :ai_enhance_test_pid; the stub tells the test it
+    # started, then waits for :go. No timing assumptions anywhere.
     def enhance_description(_key, _model, _prompt, _name, desc) do
-      Process.sleep(50)
-      {:ok, String.upcase(desc)}
+      test_pid = :persistent_term.get(:ai_enhance_test_pid)
+      send(test_pid, {:ai_stub_started, self()})
+
+      receive do
+        :go -> {:ok, String.upcase(desc)}
+      end
     end
   end
 
@@ -31,11 +35,13 @@ defmodule EstimateWeb.EstimatorLive.AiEnhanceTest do
     est = estimation_fixture(project)
     prev = Application.get_env(:estimate, :ai_enhancer)
     on_exit(fn -> Application.put_env(:estimate, :ai_enhancer, prev) end)
+    on_exit(fn -> :persistent_term.erase(:ai_enhance_test_pid) end)
     %{conn: log_in_user(conn, owner), org: org, project: project, est: est}
   end
 
   test "result arrives via handle_async and clears loading", ctx do
-    Application.put_env(:estimate, :ai_enhancer, StubAI)
+    :persistent_term.put(:ai_enhance_test_pid, self())
+    Application.put_env(:estimate, :ai_enhancer, BlockingAI)
 
     {:ok, lv, _} =
       live(
@@ -51,11 +57,14 @@ defmodule EstimateWeb.EstimatorLive.AiEnhanceTest do
       "target" => "epic"
     })
 
+    assert_receive {:ai_stub_started, stub_pid}
     assert assigns(lv).ai_loading == "epic"
 
+    send(stub_pid, :go)
+
     render_async(lv)
-    assert assigns(lv).ai_loading == nil
     assert_push_event(lv, "ai_set_description", %{text: "HELLO", target: "epic"})
+    assert assigns(lv).ai_loading == nil
   end
 
   test "a crashing provider flashes AI request failed", ctx do
