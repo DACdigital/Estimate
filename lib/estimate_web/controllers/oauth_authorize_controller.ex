@@ -5,6 +5,7 @@ defmodule EstimateWeb.OAuthAuthorizeController do
   alias Estimate.MCP.OAuth.{PKCE, Redirect, Scopes}
   alias Estimate.Organizations
   alias EstimateWeb.MCPServer
+  alias EstimateWeb.Plugs.ContentSecurityPolicy
 
   plug :put_layout, html: {EstimateWeb.Layouts, :auth}
 
@@ -23,9 +24,13 @@ defmodule EstimateWeb.OAuthAuthorizeController do
           )
 
         orgs ->
-          render(conn, :consent,
+          uri = URI.parse(redirect_uri)
+
+          conn
+          |> ContentSecurityPolicy.allow_form_action(origin(uri))
+          |> render(:consent,
             client: client,
-            redirect_host: URI.parse(redirect_uri).host,
+            redirect_host: uri.host,
             loopback_warning: Redirect.loopback_only?(client.redirect_uris),
             orgs: orgs,
             scopes: scopes,
@@ -111,6 +116,17 @@ defmodule EstimateWeb.OAuthAuthorizeController do
   end
 
   defp resolve_client(_), do: {:error, :bad_client}
+
+  # `URI.parse/1` fills `port` with the scheme's default when the URI omits
+  # one, so compare against `URI.default_port/1` rather than a hardcoded
+  # [80, 443] list (also covers non-http schemes correctly).
+  defp origin(%URI{scheme: scheme, host: host, port: port}) do
+    if port == URI.default_port(scheme) do
+      "#{scheme}://#{host}"
+    else
+      "#{scheme}://#{host}:#{port}"
+    end
+  end
 
   defp validate_request(params) do
     valid? =

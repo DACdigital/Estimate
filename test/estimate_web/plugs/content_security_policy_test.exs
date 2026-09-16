@@ -32,7 +32,40 @@ defmodule EstimateWeb.Plugs.ContentSecurityPolicyTest do
     on_exit(fn -> Application.put_env(:estimate, CSP, prev) end)
 
     conn = get(conn, ~p"/users/log_in")
-    assert [_] = get_resp_header(conn, "content-security-policy-report-only")
-    assert get_resp_header(conn, "content-security-policy") == []
+
+    # Report-only mode must still ship an enforced baseline — it's a kill-switch for
+    # the FULL policy, not a "no CSP at all" mode.
+    assert [enforced] = get_resp_header(conn, "content-security-policy")
+    assert enforced == "base-uri 'self'; frame-ancestors 'none'"
+
+    assert [report_only] = get_resp_header(conn, "content-security-policy-report-only")
+    assert report_only =~ "script-src 'self' 'nonce-"
+  end
+
+  test "/oauth/token and /mcp carry no CSP header", %{conn: conn} do
+    conn1 =
+      conn
+      |> put_req_header("content-type", "application/x-www-form-urlencoded")
+      |> post(~p"/oauth/token", URI.encode_query(%{"grant_type" => "nope"}))
+
+    assert get_resp_header(conn1, "content-security-policy") == []
+    assert get_resp_header(conn1, "content-security-policy-report-only") == []
+
+    # /mcp is forwarded outside the :browser pipeline, so the plug never runs
+    # regardless of the response — start the Anubis server for real so the
+    # request doesn't blow up before we get a response to inspect.
+    start_supervised!(
+      {EstimateWeb.MCPServer,
+       transport: {:streamable_http, start: true},
+       authorization: EstimateWeb.MCPServer.runtime_authorization()}
+    )
+
+    conn2 =
+      build_conn()
+      |> put_req_header("content-type", "application/json")
+      |> post("/mcp", Jason.encode!(%{}))
+
+    assert get_resp_header(conn2, "content-security-policy") == []
+    assert get_resp_header(conn2, "content-security-policy-report-only") == []
   end
 end

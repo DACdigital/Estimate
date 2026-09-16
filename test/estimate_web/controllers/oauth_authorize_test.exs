@@ -53,6 +53,17 @@ defmodule EstimateWeb.OAuthAuthorizeTest do
     assert html =~ org.name
   end
 
+  test "consent GET widens form-action to the client's redirect origin; other pages keep the default",
+       %{conn: conn, client: client} do
+    consent_conn = get(conn, ~p"/oauth/authorize?#{authorize_params(client)}")
+    [csp] = get_resp_header(consent_conn, "content-security-policy")
+    assert csp =~ "form-action 'self' https://claude.ai"
+
+    other_conn = get(build_conn(), ~p"/users/log_in")
+    [other_csp] = get_resp_header(other_conn, "content-security-policy")
+    assert String.ends_with?(other_csp, "form-action 'self'")
+  end
+
   test "unknown client or unmatched redirect renders error page, never redirects", %{
     conn: conn,
     client: client
