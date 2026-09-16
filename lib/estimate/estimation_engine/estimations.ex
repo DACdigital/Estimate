@@ -5,6 +5,7 @@ defmodule Estimate.EstimationEngine.Estimations do
   alias Estimate.ChangesetHelpers
   alias Estimate.Repo
   alias Estimate.EstimationEngine.{Estimation, EstimationRole}
+  alias Estimate.Portfolio.Project
   alias Estimate.Search
 
   @dialyzer :no_opaque
@@ -187,7 +188,6 @@ defmodule Estimate.EstimationEngine.Estimations do
       |> Ecto.Multi.update(:restore, Ecto.Changeset.change(estimation, deleted_at: nil))
       |> Ecto.Multi.run(:auto_current, fn _repo, %{restore: restored} ->
         maybe_auto_set_current(restored)
-        {:ok, :done}
       end)
       |> Repo.transaction()
       |> case do
@@ -269,20 +269,32 @@ defmodule Estimate.EstimationEngine.Estimations do
     end)
   end
 
+  # Called inside restore_estimation/1's transaction. Locks the project row
+  # first so two concurrent restores (or a restore racing a create) on the
+  # same project serialise here instead of both passing the exists-check and
+  # one of them hitting the partial unique index — which, inside a
+  # transaction, would abort the whole transaction no matter how Ecto reports
+  # it. The changeset still carries the constraint as defense in depth.
   defp maybe_auto_set_current(%Estimation{} = estimation) do
-    has_current =
-      from(e in Estimation,
-        where:
-          e.project_id == ^estimation.project_id and
-            e.is_current == true and
-            is_nil(e.deleted_at)
-      )
-      |> Repo.exists?()
+    case Repo.one(from(p in Project, where: p.id == ^estimation.project_id, lock: "FOR UPDATE")) do
+      nil ->
+        {:error, :project_not_found}
 
-    unless has_current do
-      estimation
-      |> Ecto.Changeset.change(is_current: true)
-      |> Repo.update()
+      _locked ->
+        has_current =
+          from(e in Estimation,
+            where:
+              e.project_id == ^estimation.project_id and
+                e.is_current == true and
+                is_nil(e.deleted_at)
+          )
+          |> Repo.exists?()
+
+        if has_current do
+          {:ok, :unchanged}
+        else
+          Repo.update(Estimation.set_current_changeset(estimation))
+        end
     end
   end
 end
