@@ -18,7 +18,7 @@ defmodule Estimate.Repo do
     end
   end
 
-  # Skip SET ROLE during migrations (need DDL as superuser) and tests
+  # Skip SET ROLE during migrations (DDL runs as the table-owning login role) and tests
   # (run as postgres by default; tests opt into RLS via DataCase.setup_rls/1).
   defp skip_after_connect? do
     Application.get_env(:estimate, :env) == :test or
@@ -130,9 +130,18 @@ defmodule Estimate.Repo do
   end
 
   @doc """
-  Checks out a connection and switches to the estimate_system role, which
-  bypasses RLS. For system-level operations like search reindexing.
-  State-neutral: captures the connection's role and RLS context first and restores both afterward, so pooled connections never check back in polluted.
+  Checks out a connection and drops back to the login role, which owns every
+  table and therefore bypasses RLS (Postgres exempts table owners unless
+  `FORCE ROW LEVEL SECURITY` is set). For system-level operations like
+  search reindexing, activity timestamps and MCP/OAuth token bookkeeping.
+
+  Asserts that the bypass actually holds — the login role must own (or be a
+  member of the owner of) every RLS-enabled table, and none may force RLS —
+  and raises otherwise, so a mis-provisioned database fails loudly instead of
+  silently returning empty results.
+
+  State-neutral: captures the connection's role and RLS context first and
+  restores both afterward, so pooled connections never check back in polluted.
   """
   def without_rls(fun) when is_function(fun, 0) do
     checkout(fn ->
@@ -142,21 +151,15 @@ defmodule Estimate.Repo do
           []
         )
 
-      query!("SET ROLE estimate_system", [])
+      query!("RESET ROLE", [])
 
       try do
-        # The BYPASSRLS assertion must run inside the try (not between the
-        # SET ROLE above and this block) so that if it ever raises — role
-        # exists but somehow lost BYPASSRLS — the after-clause still restores
+        # The assertion must run inside the try (not between RESET ROLE and
+        # this block) so that if it raises the after-clause still restores
         # prev_role/org/user before the exception propagates. Otherwise a
-        # pooled connection would be checked back in still SET ROLE'd to
-        # estimate_system, i.e. checked back in with RLS bypassed: the exact
-        # leak this wrapper exists to prevent.
-        %{rows: [[bypass]]} =
-          query!("SELECT rolbypassrls FROM pg_roles WHERE rolname = current_user", [])
-
-        unless bypass, do: raise("without_rls: role estimate_system lacks BYPASSRLS")
-
+        # pooled connection would be checked back in with RLS bypassed: the
+        # exact leak this wrapper exists to prevent.
+        assert_rls_bypassed!()
         fun.()
       after
         # Role names cannot be bind params; quote_ident (in the SELECT above)
@@ -166,6 +169,34 @@ defmodule Estimate.Repo do
         query!("SELECT set_config('app.current_user_id', $1, false)", [prev_user || ""])
       end
     end)
+  end
+
+  # True when current_user bypasses RLS on every RLS-enabled table in public:
+  # it has the owner's privileges (`pg_has_role(..., 'USAGE')` is exactly the
+  # check Postgres' owner exemption uses; superusers pass trivially) and the
+  # table does not FORCE ROW LEVEL SECURITY. Vacuous truth if no table has RLS.
+  @rls_bypass_sql """
+  SELECT coalesce(
+           bool_and(pg_has_role(current_user, c.relowner, 'USAGE') AND NOT c.relforcerowsecurity),
+           true
+         )
+  FROM pg_class c
+  JOIN pg_namespace n ON n.oid = c.relnamespace
+  WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relrowsecurity
+  """
+
+  defp assert_rls_bypassed! do
+    %{rows: [[bypass]]} = query!(@rls_bypass_sql, [])
+
+    unless bypass do
+      raise "without_rls: role #{current_role!()} does not bypass RLS " <>
+              "(it must own every RLS-enabled table and none may FORCE ROW LEVEL SECURITY)"
+    end
+  end
+
+  defp current_role! do
+    %{rows: [[role]]} = query!("SELECT current_user", [])
+    role
   end
 
   @doc "Sets RLS org context on current connection. For test helper."

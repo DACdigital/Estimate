@@ -91,6 +91,9 @@ Replay of a valid code fails after `totp_last_used_at` is set, across two fresh 
 - `SettingsLive.Currencies` `update_field` accepts only `field in ~w(code name symbol)`; anything else → "Not authorized".
 
 ### RLS bypass role
+
+> **Superseded 2026-09-16.** Prod migrator is not a superuser, so `CREATE ROLE … BYPASSRLS` cannot run. `without_rls` reverted to `RESET ROLE` (login role = table owner bypasses RLS) plus a runtime assertion (`pg_has_role(current_user, relowner, 'USAGE')` and no `FORCE ROW LEVEL SECURITY` on any RLS table). `estimate_system` migration deleted; `HardenAppRole` keeps only `REVOKE CREATE`. Original design kept below for history.
+
 - Migration: `CREATE ROLE estimate_system NOLOGIN BYPASSRLS` (idempotent), `GRANT estimate_system TO <current login role>`, grant the same DML/sequence privileges `estimate_app` has.
 - `Repo.without_rls/1` executes `SET ROLE estimate_system`, then asserts `SELECT rolbypassrls FROM pg_roles WHERE rolname = current_user` is true (raise otherwise), restores as today. `SKIP_RLS_ROLE` migration flow unchanged (migrations run as the login role).
 - Test `repo_without_rls_test.exs` extended: inside `without_rls`, `current_user` is `estimate_system`.

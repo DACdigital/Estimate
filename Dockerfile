@@ -55,7 +55,7 @@ RUN mix phx.gen.release
 RUN mix release
 
 
-RUN echo '#!/bin/sh\nSKIP_RLS_ROLE=true /app/bin/migrate\nexec /app/bin/server' > /app/_build/prod/rel/estimate/bin/migrate_and_server && \
+RUN echo '#!/bin/sh\nset -e\nSKIP_RLS_ROLE=true /app/bin/migrate\nexec /app/bin/server' > /app/_build/prod/rel/estimate/bin/migrate_and_server && \
     chmod +x /app/_build/prod/rel/estimate/bin/migrate_and_server
 
 

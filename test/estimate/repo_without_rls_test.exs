@@ -35,12 +35,6 @@ defmodule Estimate.RepoWithoutRLSTest do
       assert current_org_setting() == org_id
     end
 
-    # This also covers the without_rls BYPASSRLS assertion: that assertion
-    # lives inside the try (see repo.ex) for the same reason fun.() does —
-    # so a raise there restores prev_role/org/user too. A raise from the
-    # assertion itself isn't separately exercised here (would need to
-    # revoke BYPASSRLS from estimate_system mid-test, i.e. DDL under the
-    # sandbox), but it shares the exact same try/after path as fun raising.
     test "restores role and RLS context even when fun raises" do
       org_id = Ecto.UUID.generate()
 
@@ -56,16 +50,44 @@ defmodule Estimate.RepoWithoutRLSTest do
       assert current_org_setting() == org_id
     end
 
-    test "runs fun as estimate_system, which bypasses RLS" do
+    test "runs fun as the table-owning login role, which bypasses RLS" do
+      login_role = current_user_role()
+      refute login_role == "estimate_app"
+
       Repo.assume_app_role()
 
-      assert Repo.without_rls(fn -> current_user_role() end) == "estimate_system"
+      assert Repo.without_rls(fn -> current_user_role() end) == login_role
 
-      %{rows: [[bypass]]} =
-        Repo.query!("SELECT rolbypassrls FROM pg_roles WHERE rolname = 'estimate_system'", [])
+      %{rows: [[owns_all]]} =
+        Repo.query!(
+          """
+          SELECT bool_and(pg_has_role($1, c.relowner, 'USAGE'))
+          FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+          WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relrowsecurity
+          """,
+          [login_role]
+        )
 
-      assert bypass
+      assert owns_all
       assert current_user_role() == "estimate_app"
+    end
+
+    # FORCE ROW LEVEL SECURITY is transactional DDL, so the sandbox rolls it
+    # back; this exercises the assertion's raise path and proves the after
+    # clause still restores role + context when the assertion (not fun) fails.
+    test "raises and restores state when the login role would not bypass RLS" do
+      org_id = Ecto.UUID.generate()
+      Repo.query!("ALTER TABLE projects FORCE ROW LEVEL SECURITY", [])
+
+      Repo.assume_app_role()
+      Repo.set_org_context(org_id)
+
+      assert_raise RuntimeError, ~r/without_rls: role .* does not bypass RLS/, fn ->
+        Repo.without_rls(fn -> flunk("fun must not run when the bypass assertion fails") end)
+      end
+
+      assert current_user_role() == "estimate_app"
+      assert current_org_setting() == org_id
     end
   end
 
