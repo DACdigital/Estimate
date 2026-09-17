@@ -7,18 +7,21 @@ defmodule EstimateWeb.EstimatorLive.Estimates do
   patch is the only update the originator performs.
 
   Reads: `:estimation`, `:org_id`, `:can_edit` (via Authz).
-  Writes: `:editing`, `:editing_rate`, `:estimation` (in-memory patch).
+  Writes: `:editing`, `:editing_rate`, `:estimation` (in-memory patch), stream
+  `:rows`, `:totals`, `:grid_empty?` (via Grid).
   """
   use EstimateWeb, :live_handlers
 
   import EstimateWeb.EstimatorLive.Authz
   import EstimateWeb.EstimatorLive.Helpers, only: [parse_decimal: 1]
   alias Estimate.EstimationEngine
+  alias EstimateWeb.EstimatorLive.Grid
 
   def cancel_edit(socket, _params),
-    do: {:noreply, socket |> assign(:editing, nil) |> assign(:editing_rate, nil)}
+    do: {:noreply, socket |> assign(:editing, nil) |> assign(:editing_rate, nil) |> Grid.reset()}
 
-  def edit_estimate(socket, %{"key" => key}), do: {:noreply, assign(socket, :editing, key)}
+  def edit_estimate(socket, %{"key" => key}),
+    do: {:noreply, socket |> assign(:editing, key) |> Grid.reset()}
 
   def edit_rate(socket, %{"role-id" => role_id}),
     do: {:noreply, assign(socket, :editing_rate, role_id)}
@@ -36,7 +39,8 @@ defmodule EstimateWeb.EstimatorLive.Estimates do
             {:noreply,
              socket
              |> assign(:estimation, update_role_in_memory(estimation, updated_role))
-             |> assign(:editing_rate, nil)}
+             |> assign(:editing_rate, nil)
+             |> Grid.reset()}
 
           {:error, _changeset} ->
             {:noreply, assign(socket, :editing_rate, nil)}
@@ -66,13 +70,14 @@ defmodule EstimateWeb.EstimatorLive.Estimates do
             {:noreply,
              socket
              |> assign(:estimation, update_estimate_in_memory(estimation, updated_estimate))
-             |> assign(:editing, nil)}
+             |> assign(:editing, nil)
+             |> Grid.reset()}
 
           {:error, _changeset} ->
-            {:noreply, assign(socket, :editing, nil)}
+            {:noreply, socket |> assign(:editing, nil) |> Grid.reset()}
         end
       else
-        {:noreply, assign(socket, :editing, nil)}
+        {:noreply, socket |> assign(:editing, nil) |> Grid.reset()}
       end
     end)
   end

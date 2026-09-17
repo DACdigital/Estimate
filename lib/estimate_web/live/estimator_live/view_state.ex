@@ -5,9 +5,12 @@ defmodule EstimateWeb.EstimatorLive.ViewState do
   none of these are edit-gated (viewers may use them).
 
   Reads: `:show_breakdown`, `:show_all_in_rates`, `:show_descriptions`, `:enabled_priorities`.
-  Writes: the same four, plus `:modal`, `:epic_form`, `:task_form`, `:current_epic_id` (close_modal).
+  Writes: the same four, plus `:modal`, `:epic_form`, `:task_form`, `:current_epic_id`
+  (close_modal), stream `:rows`, `:totals`, `:grid_empty?` (via Grid).
   """
   use EstimateWeb, :live_handlers
+
+  alias EstimateWeb.EstimatorLive.Grid
 
   @all_priorities MapSet.new(["must", "should", "could", "wont"])
 
@@ -24,10 +27,14 @@ defmodule EstimateWeb.EstimatorLive.ViewState do
     do: {:noreply, assign(socket, :show_breakdown, !socket.assigns.show_breakdown)}
 
   def toggle_all_in_rates(socket, _params),
-    do: {:noreply, assign(socket, :show_all_in_rates, !socket.assigns.show_all_in_rates)}
+    do:
+      {:noreply,
+       socket |> assign(:show_all_in_rates, !socket.assigns.show_all_in_rates) |> Grid.reset()}
 
   def toggle_descriptions(socket, _params),
-    do: {:noreply, assign(socket, :show_descriptions, !socket.assigns.show_descriptions)}
+    do:
+      {:noreply,
+       socket |> assign(:show_descriptions, !socket.assigns.show_descriptions) |> Grid.reset()}
 
   def toggle_priority(socket, %{"priority" => priority}) do
     current = socket.assigns.enabled_priorities
@@ -40,6 +47,7 @@ defmodule EstimateWeb.EstimatorLive.ViewState do
     {:noreply,
      socket
      |> assign(:enabled_priorities, updated)
+     |> Grid.reset()
      |> push_event("save_priorities", %{priorities: MapSet.to_list(updated)})}
   end
 
@@ -47,7 +55,7 @@ defmodule EstimateWeb.EstimatorLive.ViewState do
     valid = MapSet.intersection(MapSet.new(priorities), @all_priorities)
 
     if MapSet.size(valid) > 0,
-      do: {:noreply, assign(socket, :enabled_priorities, valid)},
+      do: {:noreply, socket |> assign(:enabled_priorities, valid) |> Grid.reset()},
       else: {:noreply, socket}
   end
 

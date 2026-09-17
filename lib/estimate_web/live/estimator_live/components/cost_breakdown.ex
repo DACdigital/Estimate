@@ -1,11 +1,9 @@
 defmodule EstimateWeb.EstimatorLive.Components.CostBreakdown do
   use EstimateWeb, :html
 
-  alias Estimate.EstimationEngine.Calculator
   import EstimateWeb.EstimatorLive.Helpers
 
-  attr :epics, :list, required: true
-  attr :roles, :list, required: true
+  attr :totals, :map, required: true
   attr :currency, :map, required: true
   attr :show_breakdown, :boolean, required: true
 
@@ -21,7 +19,7 @@ defmodule EstimateWeb.EstimatorLive.Components.CostBreakdown do
         <span class="text-sm text-base-content/60">Total with overheads</span>
         <div class="flex items-center gap-4">
           <span class="text-xl font-bold text-base-content">
-            {format_cost(Calculator.grand_total_with_overhead(@epics, @roles), @currency)}
+            {format_cost(@totals.breakdown.grand_total, @currency)}
           </span>
           <.icon name="hero-chevron-down" class="w-5 h-5 text-base-content/40" />
         </div>
@@ -43,10 +41,10 @@ defmodule EstimateWeb.EstimatorLive.Components.CostBreakdown do
                 Base Cost
               </p>
               <p class="text-xl font-bold text-base-content">
-                {format_cost(Calculator.total_base_cost(@epics, @roles), @currency)}
+                {format_cost(@totals.breakdown.base_cost, @currency)}
               </p>
               <p class="text-xs text-base-content/40 mt-1">
-                {format_hours(Calculator.calc_total_hours(@epics))} hours
+                {format_hours(@totals.breakdown.total_hours)} hours
               </p>
             </div>
             <div class="bg-info/10 rounded-lg p-4">
@@ -54,10 +52,10 @@ defmodule EstimateWeb.EstimatorLive.Components.CostBreakdown do
                 PM Overhead
               </p>
               <p class="text-xl font-bold text-info">
-                {format_cost(Calculator.total_pm_overhead(@epics, @roles), @currency)}
+                {format_cost(@totals.breakdown.pm, @currency)}
               </p>
               <p class="text-xs text-info/60 mt-1">
-                ~{Calculator.weighted_avg_overhead(@epics, @roles, &Calculator.role_pm_overhead/2)}%
+                ~{@totals.breakdown.avg_pm}%
               </p>
             </div>
             <div class="bg-secondary/10 rounded-lg p-4">
@@ -65,10 +63,10 @@ defmodule EstimateWeb.EstimatorLive.Components.CostBreakdown do
                 QA Overhead
               </p>
               <p class="text-xl font-bold text-secondary">
-                {format_cost(Calculator.total_qa_overhead(@epics, @roles), @currency)}
+                {format_cost(@totals.breakdown.qa, @currency)}
               </p>
               <p class="text-xs text-secondary/60 mt-1">
-                ~{Calculator.weighted_avg_overhead(@epics, @roles, &Calculator.role_qa_overhead/2)}%
+                ~{@totals.breakdown.avg_qa}%
               </p>
             </div>
             <div class="bg-warning/10 rounded-lg p-4">
@@ -76,10 +74,10 @@ defmodule EstimateWeb.EstimatorLive.Components.CostBreakdown do
                 Risk Buffer
               </p>
               <p class="text-xl font-bold text-warning">
-                {format_cost(Calculator.total_risk_buffer(@epics, @roles), @currency)}
+                {format_cost(@totals.breakdown.risk, @currency)}
               </p>
               <p class="text-xs text-warning/60 mt-1">
-                ~{Calculator.weighted_avg_overhead(@epics, @roles, &Calculator.role_risk_buffer/2)}%
+                ~{@totals.breakdown.avg_risk}%
               </p>
             </div>
             <div class="bg-neutral rounded-lg p-4">
@@ -87,7 +85,7 @@ defmodule EstimateWeb.EstimatorLive.Components.CostBreakdown do
                 Grand Total
               </p>
               <p class="text-xl font-bold text-neutral-content">
-                {format_cost(Calculator.grand_total_with_overhead(@epics, @roles), @currency)}
+                {format_cost(@totals.breakdown.grand_total, @currency)}
               </p>
               <p class="text-xs text-neutral-content/50 mt-1">incl. overheads</p>
             </div>
@@ -121,59 +119,51 @@ defmodule EstimateWeb.EstimatorLive.Components.CostBreakdown do
                 </tr>
               </thead>
               <tbody class="divide-y divide-base-content/10">
-                <%= for role <- @roles, Decimal.compare(Calculator.role_hours(@epics, role.id), 0) == :gt do %>
-                  <tr class="hover:bg-base-200">
-                    <td class="px-3 py-2 text-base-content font-medium">{role.name}</td>
-                    <td class="px-3 py-2 text-right font-mono text-base-content/70">
-                      {format_hours(Calculator.role_hours(@epics, role.id))}
-                    </td>
-                    <td class="px-3 py-2 text-right font-mono text-base-content/70">
-                      {format_cost(Calculator.role_base_cost(@epics, role), @currency)}
-                    </td>
-                    <td class="px-3 py-2 text-right font-mono text-info">
-                      <span class="text-base-content/40 text-xs">{role.pm_overhead}%</span>
-                      {format_cost(Calculator.role_pm_overhead(@epics, role), @currency)}
-                    </td>
-                    <td class="px-3 py-2 text-right font-mono text-secondary">
-                      <span class="text-base-content/40 text-xs">{role.qa_overhead}%</span>
-                      {format_cost(Calculator.role_qa_overhead(@epics, role), @currency)}
-                    </td>
-                    <td class="px-3 py-2 text-right font-mono text-warning">
-                      <span class="text-base-content/40 text-xs">{role.risk_buffer}%</span>
-                      {format_cost(Calculator.role_risk_buffer(@epics, role), @currency)}
-                    </td>
-                    <td class="px-3 py-2 text-right font-mono font-semibold text-base-content">
-                      {format_cost(
-                        Calculator.role_base_cost(@epics, role)
-                        |> Decimal.add(Calculator.role_pm_overhead(@epics, role))
-                        |> Decimal.add(Calculator.role_qa_overhead(@epics, role))
-                        |> Decimal.add(Calculator.role_risk_buffer(@epics, role)),
-                        @currency
-                      )}
-                    </td>
-                  </tr>
-                <% end %>
+                <tr :for={r <- @totals.breakdown.roles} class="hover:bg-base-200">
+                  <td class="px-3 py-2 text-base-content font-medium">{r.role.name}</td>
+                  <td class="px-3 py-2 text-right font-mono text-base-content/70">
+                    {format_hours(r.hours)}
+                  </td>
+                  <td class="px-3 py-2 text-right font-mono text-base-content/70">
+                    {format_cost(r.base, @currency)}
+                  </td>
+                  <td class="px-3 py-2 text-right font-mono text-info">
+                    <span class="text-base-content/40 text-xs">{r.role.pm_overhead}%</span>
+                    {format_cost(r.pm, @currency)}
+                  </td>
+                  <td class="px-3 py-2 text-right font-mono text-secondary">
+                    <span class="text-base-content/40 text-xs">{r.role.qa_overhead}%</span>
+                    {format_cost(r.qa, @currency)}
+                  </td>
+                  <td class="px-3 py-2 text-right font-mono text-warning">
+                    <span class="text-base-content/40 text-xs">{r.role.risk_buffer}%</span>
+                    {format_cost(r.risk, @currency)}
+                  </td>
+                  <td class="px-3 py-2 text-right font-mono font-semibold text-base-content">
+                    {format_cost(r.total, @currency)}
+                  </td>
+                </tr>
               </tbody>
               <tfoot>
                 <tr class="border-t-2 border-base-content/20 bg-base-200 font-semibold">
                   <td class="px-3 py-2 text-base-content">Total</td>
                   <td class="px-3 py-2 text-right font-mono text-base-content">
-                    {format_hours(Calculator.calc_total_hours(@epics))}
+                    {format_hours(@totals.breakdown.total_hours)}
                   </td>
                   <td class="px-3 py-2 text-right font-mono text-base-content">
-                    {format_cost(Calculator.total_base_cost(@epics, @roles), @currency)}
+                    {format_cost(@totals.breakdown.base_cost, @currency)}
                   </td>
                   <td class="px-3 py-2 text-right font-mono text-info">
-                    {format_cost(Calculator.total_pm_overhead(@epics, @roles), @currency)}
+                    {format_cost(@totals.breakdown.pm, @currency)}
                   </td>
                   <td class="px-3 py-2 text-right font-mono text-secondary">
-                    {format_cost(Calculator.total_qa_overhead(@epics, @roles), @currency)}
+                    {format_cost(@totals.breakdown.qa, @currency)}
                   </td>
                   <td class="px-3 py-2 text-right font-mono text-warning">
-                    {format_cost(Calculator.total_risk_buffer(@epics, @roles), @currency)}
+                    {format_cost(@totals.breakdown.risk, @currency)}
                   </td>
                   <td class="px-3 py-2 text-right font-mono text-base-content">
-                    {format_cost(Calculator.grand_total_with_overhead(@epics, @roles), @currency)}
+                    {format_cost(@totals.breakdown.grand_total, @currency)}
                   </td>
                 </tr>
               </tfoot>

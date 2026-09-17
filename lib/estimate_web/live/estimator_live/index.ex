@@ -4,7 +4,7 @@ defmodule EstimateWeb.EstimatorLive.Index do
   alias Estimate.EstimationEngine
   alias Estimate.Portfolio
   alias Estimate.Organizations.Currencies
-  alias EstimateWeb.EstimatorLive.{AI, Epics, Estimates, Export, Settings, Tasks, ViewState}
+  alias EstimateWeb.EstimatorLive.{AI, Epics, Estimates, Export, Grid, Settings, Tasks, ViewState}
 
   import EstimateWeb.EstimatorLive.Helpers
   import EstimateWeb.EstimatorLive.Components.CostBreakdown
@@ -15,7 +15,6 @@ defmodule EstimateWeb.EstimatorLive.Index do
   @impl true
   def render(assigns) do
     ~H"""
-    <% epics = ViewState.filtered_epics(@estimation, @enabled_priorities) %>
     <div class="max-w-7xl mx-auto">
       <%!-- Breadcrumb --%>
       <nav class="flex items-center space-x-2 text-sm text-base-content/60 mb-6">
@@ -128,7 +127,9 @@ defmodule EstimateWeb.EstimatorLive.Index do
 
       <.estimation_table
         estimation={@estimation}
-        epics={epics}
+        rows={@streams.rows}
+        totals={@totals}
+        grid_empty?={@grid_empty?}
         editing={@editing}
         editing_rate={@editing_rate}
         can_edit={@can_edit}
@@ -138,9 +139,8 @@ defmodule EstimateWeb.EstimatorLive.Index do
 
       <%!-- Cost Breakdown Panel (hidden when all-in rates enabled) --%>
       <.cost_breakdown
-        :if={not Enum.empty?(epics) and not @show_all_in_rates}
-        epics={epics}
-        roles={@estimation.roles}
+        :if={not @grid_empty? and not @show_all_in_rates}
+        totals={@totals}
         currency={@estimation.currency}
         show_breakdown={@show_breakdown}
       />
@@ -215,7 +215,8 @@ defmodule EstimateWeb.EstimatorLive.Index do
          :ai_configured,
          socket.assigns.current_organization.encrypted_openrouter_api_key != nil
        )
-       |> assign(:ai_loading, nil)}
+       |> assign(:ai_loading, nil)
+       |> Grid.init()}
     end
   end
 

@@ -3,8 +3,11 @@ defmodule EstimateWeb.EstimatorLive.RealtimeTest do
 
   import Phoenix.LiveViewTest
   import EstimateWeb.EstimatorLiveHelpers
+  import Ecto.Query, only: [from: 2]
 
   alias Estimate.EstimationEngine
+  alias Estimate.Repo
+  alias Estimate.EstimationEngine.Task
 
   setup :setup_estimator
 
@@ -24,48 +27,32 @@ defmodule EstimateWeb.EstimatorLive.RealtimeTest do
     assert Enum.map(assigns(ctx.lv).estimation.epics, & &1.name) == expected
   end
 
-  test "every broadcast event triggers a full reload", ctx do
-    {:ok, _} = EstimationEngine.update_task(ctx.task1, %{"name" => "T-one-db"})
-    # NOTE: characterizes current behaviour; see report. update_task's own
-    # broadcast (:task_updated) races the manual :sys.replace_state calls below
-    # (different senders give no message-order guarantee), so we render/1 once
-    # here to flush that natural broadcast through the LV before staging STALE.
-    render(ctx.lv)
-    # the LV is subscribed; update_task already broadcast. Now send each event shape by hand
-    # and prove each one re-reads the DB (the DB name differs from the in-memory one until reload).
-    :sys.replace_state(ctx.lv.pid, fn state ->
-      update_in(state.socket.assigns.estimation.epics, fn [epic] ->
-        [%{epic | tasks: Enum.map(epic.tasks, &%{&1 | name: "STALE"})}]
-      end)
-    end)
+  test "every broadcast event re-streams the grid from the database", ctx do
+    events = [
+      {:estimation_updated, nil},
+      {:epic_created, nil},
+      {:epic_updated, nil},
+      {:epic_deleted, nil},
+      {:epics_reordered, nil},
+      {:task_created, nil},
+      {:task_updated, nil},
+      {:task_deleted, nil},
+      {:estimate_updated, nil},
+      {:role_created, nil},
+      {:role_updated, nil},
+      {:role_deleted, nil},
+      {:roles_reordered, nil},
+      {:tasks_reordered, ctx.epic.id, []}
+    ]
 
-    for event <- [
-          {:estimation_updated, nil},
-          {:epic_created, nil},
-          {:epic_updated, nil},
-          {:epic_deleted, nil},
-          {:epics_reordered, nil},
-          {:task_created, nil},
-          {:task_updated, nil},
-          {:task_deleted, nil},
-          {:estimate_updated, nil},
-          {:role_created, nil},
-          {:role_updated, nil},
-          {:role_deleted, nil},
-          {:roles_reordered, nil},
-          {:tasks_reordered, ctx.epic.id, []}
-        ] do
-      :sys.replace_state(ctx.lv.pid, fn state ->
-        update_in(state.socket.assigns.estimation.epics, fn [epic] ->
-          [%{epic | tasks: Enum.map(epic.tasks, &%{&1 | name: "STALE"})}]
-        end)
-      end)
+    for {event, i} <- Enum.with_index(events, 1) do
+      name = "DB-#{i}"
+      # diverge in the DB only (no broadcast): the rendered grid must not know yet
+      Repo.update_all(from(t in Task, where: t.id == ^ctx.task1.id), set: [name: name])
+      refute render(ctx.lv) =~ name, inspect(event)
 
-      assert Enum.all?(hd(assigns(ctx.lv).estimation.epics).tasks, &(&1.name == "STALE"))
       send(ctx.lv.pid, event)
-      render(ctx.lv)
-      names = Enum.map(hd(assigns(ctx.lv).estimation.epics).tasks, & &1.name)
-      assert names == ["T-one-db", "T-two"], inspect(event)
+      assert render(ctx.lv) =~ name, inspect(event)
     end
   end
 end

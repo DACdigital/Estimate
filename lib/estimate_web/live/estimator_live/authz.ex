@@ -7,7 +7,8 @@ defmodule EstimateWeb.EstimatorLive.Authz do
   `get_epic!/get_task!` by id) so a foreign id can never touch another estimation.
 
   Reads: `:can_edit`, `:estimation`, `:org_id`.
-  Writes: `:estimation` (via `reload_estimation/1`), flash.
+  Writes: `:estimation` (via `reload_estimation/1`), stream `:rows`, `:totals`,
+  `:grid_empty?` (via Grid), flash.
   """
   import Phoenix.LiveView, only: [put_flash: 3]
   import Phoenix.Component, only: [assign: 3]
@@ -35,10 +36,13 @@ defmodule EstimateWeb.EstimatorLive.Authz do
   def belongs_to_estimation?(estimation, :role, id),
     do: Enum.any?(estimation.roles, &(&1.id == id))
 
+  @doc "Re-read the estimation and rebuild the grid stream + totals. The single reload choke point."
   def reload_estimation(socket) do
     estimation =
       EstimationEngine.get_estimation!(socket.assigns.estimation.id, socket.assigns.org_id)
 
-    assign(socket, :estimation, estimation)
+    socket
+    |> assign(:estimation, estimation)
+    |> EstimateWeb.EstimatorLive.Grid.reset()
   end
 end
