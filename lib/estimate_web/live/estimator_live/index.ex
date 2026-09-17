@@ -5,7 +5,7 @@ defmodule EstimateWeb.EstimatorLive.Index do
   alias Estimate.Portfolio
   alias Estimate.Organizations
   alias Estimate.Organizations.Currencies
-  alias EstimateWeb.EstimatorLive.{Epics, Tasks}
+  alias EstimateWeb.EstimatorLive.{Epics, Estimates, Tasks}
 
   import EstimateWeb.EstimatorLive.Helpers
   import EstimateWeb.EstimatorLive.Components.CostBreakdown
@@ -258,71 +258,15 @@ defmodule EstimateWeb.EstimatorLive.Index do
      |> assign(:current_epic_id, nil)}
   end
 
-  def handle_event("cancel_edit", _params, socket) do
-    {:noreply, socket |> assign(:editing, nil) |> assign(:editing_rate, nil)}
-  end
+  def handle_event("cancel_edit", params, socket), do: Estimates.cancel_edit(socket, params)
 
-  def handle_event("edit_estimate", %{"key" => key}, socket) do
-    {:noreply, assign(socket, :editing, key)}
-  end
+  def handle_event("edit_estimate", params, socket), do: Estimates.edit_estimate(socket, params)
 
-  def handle_event("edit_rate", %{"role-id" => role_id}, socket) do
-    {:noreply, assign(socket, :editing_rate, role_id)}
-  end
+  def handle_event("edit_rate", params, socket), do: Estimates.edit_rate(socket, params)
 
-  def handle_event("save_rate", %{"role-id" => role_id, "value" => value}, socket) do
-    with_edit_auth(socket, fn socket ->
-      estimation = socket.assigns.estimation
+  def handle_event("save_rate", params, socket), do: Estimates.save_rate(socket, params)
 
-      if belongs_to_estimation?(estimation, :role, role_id) do
-        role = EstimationEngine.get_role!(role_id, socket.assigns.org_id)
-        hourly_rate = parse_decimal(value)
-
-        case EstimationEngine.update_role(role, %{hourly_rate: hourly_rate}) do
-          {:ok, updated_role} ->
-            {:noreply,
-             socket
-             |> assign(:estimation, update_role_in_memory(estimation, updated_role))
-             |> assign(:editing_rate, nil)}
-
-          {:error, _changeset} ->
-            {:noreply, assign(socket, :editing_rate, nil)}
-        end
-      else
-        {:noreply, assign(socket, :editing_rate, nil)}
-      end
-    end)
-  end
-
-  def handle_event("save_estimate", params, socket) do
-    with_edit_auth(socket, fn socket ->
-      %{"task-id" => task_id, "role-id" => role_id, "value" => value} = params
-      estimation = socket.assigns.estimation
-
-      if belongs_to_estimation?(estimation, :task, task_id) and
-           belongs_to_estimation?(estimation, :role, role_id) do
-        hours = parse_decimal(value)
-
-        case EstimationEngine.upsert_task_estimate(
-               task_id,
-               role_id,
-               %{hours: hours},
-               estimation.id
-             ) do
-          {:ok, updated_estimate} ->
-            {:noreply,
-             socket
-             |> assign(:estimation, update_estimate_in_memory(estimation, updated_estimate))
-             |> assign(:editing, nil)}
-
-          {:error, _changeset} ->
-            {:noreply, assign(socket, :editing, nil)}
-        end
-      else
-        {:noreply, assign(socket, :editing, nil)}
-      end
-    end)
-  end
+  def handle_event("save_estimate", params, socket), do: Estimates.save_estimate(socket, params)
 
   def handle_event("reorder_epics", params, socket), do: Epics.reorder_epics(socket, params)
 
@@ -627,38 +571,5 @@ defmodule EstimateWeb.EstimatorLive.Index do
       end)
       |> Enum.reject(&Enum.empty?(&1.tasks))
     end
-  end
-
-  defp update_estimate_in_memory(estimation, updated_estimate) do
-    epics =
-      Enum.map(estimation.epics, fn epic ->
-        tasks =
-          Enum.map(epic.tasks, fn task ->
-            if task.id == updated_estimate.task_id do
-              estimates =
-                case Enum.find_index(task.estimates, &(&1.id == updated_estimate.id)) do
-                  nil -> [updated_estimate | task.estimates]
-                  idx -> List.replace_at(task.estimates, idx, updated_estimate)
-                end
-
-              %{task | estimates: estimates}
-            else
-              task
-            end
-          end)
-
-        %{epic | tasks: tasks}
-      end)
-
-    %{estimation | epics: epics}
-  end
-
-  defp update_role_in_memory(estimation, updated_role) do
-    roles =
-      Enum.map(estimation.roles, fn role ->
-        if role.id == updated_role.id, do: updated_role, else: role
-      end)
-
-    %{estimation | roles: roles}
   end
 end
