@@ -115,6 +115,10 @@ defmodule EstimateWeb.EstimatorLive.Helpers do
   def parse_decimal(value) when is_number(value), do: Decimal.new(value)
   def parse_decimal(_), do: Decimal.new(0)
 
+  @doc "Roles as displayed: with all-in (overhead-inclusive) hourly rates when the toggle is on."
+  def display_roles(roles, true), do: Calculator.roles_with_all_in_rates(roles)
+  def display_roles(roles, false), do: roles
+
   def format_hours(decimal) do
     cond do
       Decimal.compare(decimal, 0) == :eq ->

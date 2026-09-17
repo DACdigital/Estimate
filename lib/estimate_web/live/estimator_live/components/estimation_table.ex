@@ -243,7 +243,4 @@ defmodule EstimateWeb.EstimatorLive.Components.EstimationTable do
     </div>
     """
   end
-
-  defp display_roles(roles, true), do: Calculator.roles_with_all_in_rates(roles)
-  defp display_roles(roles, false), do: roles
 end

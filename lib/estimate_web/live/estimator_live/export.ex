@@ -9,8 +9,7 @@ defmodule EstimateWeb.EstimatorLive.Export do
   use EstimateWeb, :live_handlers
 
   import EstimateWeb.EstimatorLive.Authz
-  import EstimateWeb.EstimatorLive.Helpers, only: [build_json_export: 4]
-  alias Estimate.EstimationEngine.Calculator
+  import EstimateWeb.EstimatorLive.Helpers, only: [build_json_export: 4, display_roles: 2]
   alias EstimateWeb.EstimatorLive.ViewState
 
   def copy_json(socket, _params) do
@@ -55,7 +54,4 @@ defmodule EstimateWeb.EstimatorLive.Export do
   end
 
   def save_as_template(socket, _params), do: {:noreply, socket}
-
-  defp display_roles(roles, true), do: Calculator.roles_with_all_in_rates(roles)
-  defp display_roles(roles, false), do: roles
 end
