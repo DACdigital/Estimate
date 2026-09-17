@@ -31,15 +31,11 @@ defmodule EstimateWeb.EstimatorLive.RealtimeTest do
     events = [
       {:estimation_updated, nil},
       {:epic_created, nil},
-      {:epic_updated, nil},
       {:epic_deleted, nil},
       {:epics_reordered, nil},
       {:task_created, nil},
-      {:task_updated, nil},
       {:task_deleted, nil},
-      {:estimate_updated, nil},
       {:role_created, nil},
-      {:role_updated, nil},
       {:role_deleted, nil},
       {:roles_reordered, nil},
       {:tasks_reordered, ctx.epic.id, []}

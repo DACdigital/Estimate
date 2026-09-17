@@ -17,11 +17,20 @@ defmodule EstimateWeb.EstimatorLive.Estimates do
   alias Estimate.EstimationEngine
   alias EstimateWeb.EstimatorLive.Grid
 
-  def cancel_edit(socket, _params),
-    do: {:noreply, socket |> assign(:editing, nil) |> assign(:editing_rate, nil) |> Grid.reset()}
+  def cancel_edit(socket, _params) do
+    {:noreply,
+     socket
+     |> assign(:editing, nil)
+     |> assign(:editing_rate, nil)
+     |> Grid.refresh_editing(socket.assigns.editing, nil)}
+  end
 
-  def edit_estimate(socket, %{"key" => key}),
-    do: {:noreply, socket |> assign(:editing, key) |> Grid.reset()}
+  def edit_estimate(socket, %{"key" => key}) do
+    {:noreply,
+     socket
+     |> assign(:editing, key)
+     |> Grid.refresh_editing(socket.assigns.editing, key)}
+  end
 
   def edit_rate(socket, %{"role-id" => role_id}),
     do: {:noreply, assign(socket, :editing_rate, role_id)}
@@ -71,13 +80,19 @@ defmodule EstimateWeb.EstimatorLive.Estimates do
              socket
              |> assign(:estimation, update_estimate_in_memory(estimation, updated_estimate))
              |> assign(:editing, nil)
-             |> Grid.reset()}
+             |> Grid.upsert_task(task_id)}
 
           {:error, _changeset} ->
-            {:noreply, socket |> assign(:editing, nil) |> Grid.reset()}
+            {:noreply,
+             socket
+             |> assign(:editing, nil)
+             |> Grid.refresh_editing(socket.assigns.editing, nil)}
         end
       else
-        {:noreply, socket |> assign(:editing, nil) |> Grid.reset()}
+        {:noreply,
+         socket
+         |> assign(:editing, nil)
+         |> Grid.refresh_editing(socket.assigns.editing, nil)}
       end
     end)
   end
@@ -102,6 +117,47 @@ defmodule EstimateWeb.EstimatorLive.Estimates do
           end)
 
         %{epic | tasks: tasks}
+      end)
+
+    %{estimation | epics: epics}
+  end
+
+  @doc false
+  def update_task_in_memory(estimation, %{id: task_id} = updated) do
+    epics =
+      Enum.map(estimation.epics, fn epic ->
+        %{
+          epic
+          | tasks:
+              Enum.map(epic.tasks, fn task ->
+                if task.id == task_id,
+                  do: %{
+                    task
+                    | name: updated.name,
+                      description: updated.description,
+                      priority: updated.priority,
+                      position: updated.position
+                  },
+                  else: task
+              end)
+        }
+      end)
+
+    %{estimation | epics: epics}
+  end
+
+  @doc false
+  def update_epic_in_memory(estimation, %{id: epic_id} = updated) do
+    epics =
+      Enum.map(estimation.epics, fn epic ->
+        if epic.id == epic_id,
+          do: %{
+            epic
+            | name: updated.name,
+              description: updated.description,
+              position: updated.position
+          },
+          else: epic
       end)
 
     %{estimation | epics: epics}

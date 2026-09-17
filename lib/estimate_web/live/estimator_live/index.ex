@@ -4,13 +4,23 @@ defmodule EstimateWeb.EstimatorLive.Index do
   alias Estimate.EstimationEngine
   alias Estimate.Portfolio
   alias Estimate.Organizations.Currencies
-  alias EstimateWeb.EstimatorLive.{AI, Epics, Estimates, Export, Grid, Settings, Tasks, ViewState}
+
+  alias EstimateWeb.EstimatorLive.{
+    AI,
+    Epics,
+    Estimates,
+    Export,
+    Grid,
+    Settings,
+    Sync,
+    Tasks,
+    ViewState
+  }
 
   import EstimateWeb.EstimatorLive.Helpers
   import EstimateWeb.EstimatorLive.Components.CostBreakdown
   import EstimateWeb.EstimatorLive.Components.EstimatorModals
   import EstimateWeb.EstimatorLive.Components.EstimationTable
-  import EstimateWeb.EstimatorLive.Authz, only: [reload_estimation: 1]
 
   @impl true
   def render(assigns) do
@@ -313,28 +323,6 @@ defmodule EstimateWeb.EstimatorLive.Index do
   def handle_async({:ai_enhance, target}, result, socket),
     do: AI.handle_result(target, result, socket)
 
-  # All broadcast events trigger a full reload
   @impl true
-  def handle_info({:tasks_reordered, _epic_id, _task_ids}, socket) do
-    {:noreply, reload_estimation(socket)}
-  end
-
-  def handle_info({event, _data}, socket)
-      when event in [
-             :estimation_updated,
-             :epic_created,
-             :epic_updated,
-             :epic_deleted,
-             :epics_reordered,
-             :task_created,
-             :task_updated,
-             :task_deleted,
-             :estimate_updated,
-             :role_created,
-             :role_updated,
-             :role_deleted,
-             :roles_reordered
-           ] do
-    {:noreply, reload_estimation(socket)}
-  end
+  def handle_info(event, socket), do: Sync.handle(event, socket)
 end
