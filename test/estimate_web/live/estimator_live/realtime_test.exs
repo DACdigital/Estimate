@@ -12,10 +12,16 @@ defmodule EstimateWeb.EstimatorLive.RealtimeTest do
     refute render(ctx.lv) =~ "Gamma"
     {:ok, _} = EstimationEngine.create_epic(%{"name" => "Gamma", "estimation_id" => ctx.est.id})
     assert render(ctx.lv) =~ "Gamma"
-    # NOTE: characterizes current behaviour; see report. create_epic/1 never assigns
-    # a position (Epic.changeset/2 defaults :position to 0), so Gamma ties with the
-    # seeded Alpha epic (also position 0) - asserting a set, not exact order.
-    assert Enum.sort(Enum.map(assigns(ctx.lv).estimation.epics, & &1.name)) == ["Alpha", "Gamma"]
+    gamma = Enum.find(assigns(ctx.lv).estimation.epics, &(&1.name == "Gamma"))
+    # Gamma ties with the seeded Alpha epic at position 0 (Epic.changeset/2
+    # default); get_estimation!'s tiebreaker (inserted_at, id) decides the order,
+    # so assert against that same order instead of assuming creation order.
+    expected =
+      [ctx.epic, gamma]
+      |> Enum.sort_by(&{&1.position, &1.inserted_at, &1.id})
+      |> Enum.map(& &1.name)
+
+    assert Enum.map(assigns(ctx.lv).estimation.epics, & &1.name) == expected
   end
 
   test "every broadcast event triggers a full reload", ctx do

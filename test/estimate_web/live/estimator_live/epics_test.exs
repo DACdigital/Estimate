@@ -29,13 +29,17 @@ defmodule EstimateWeb.EstimatorLive.EpicsTest do
     render_submit(ctx.lv, "save_epic", %{"epic" => %{"name" => "Beta"}})
     a = assigns(ctx.lv)
     assert a.modal == nil and a.epic_form == nil
-    # NOTE: characterizes current behaviour; see report. save_epic never assigns a
-    # position on create (Epic.changeset/2 defaults :position to 0), so a newly
-    # created epic ties with the seeded one at position 0 and get_estimation!'s
-    # `order_by: ep.position` has no deterministic tiebreaker between them -
-    # asserting a set, not an exact order, to avoid flakiness.
-    assert Enum.sort(Enum.map(a.estimation.epics, & &1.name)) == ["Alpha", "Beta"]
-    assert Repo.get_by(Epic, estimation_id: ctx.est.id, name: "Beta")
+    beta = Repo.get_by(Epic, estimation_id: ctx.est.id, name: "Beta")
+    # Alpha (seeded) and Beta both land at position 0 (Epic.changeset/2 default);
+    # get_estimation!'s tiebreaker (inserted_at, id) decides the order, so assert
+    # against that same order instead of assuming creation order.
+    expected =
+      [ctx.epic, beta]
+      |> Enum.sort_by(&{&1.position, &1.inserted_at, &1.id})
+      |> Enum.map(& &1.name)
+
+    assert Enum.map(a.estimation.epics, & &1.name) == expected
+    assert beta
   end
 
   test "save_epic updates an existing epic", ctx do
@@ -81,9 +85,9 @@ defmodule EstimateWeb.EstimatorLive.EpicsTest do
     render_click(ctx.lv, "add_epic", %{})
     render_submit(ctx.lv, "save_epic", %{"epic" => %{"name" => "Beta"}})
     epics = assigns(ctx.lv).estimation.epics
-    # NOTE: characterizes current behaviour; see report. Beta is created with the
-    # same default position (0) as Alpha (Epic.changeset/2), so the two are not
-    # reliably returned in creation order - find by name instead of destructuring.
+    # Alpha and Beta both land at position 0 (Epic.changeset/2 default) before this
+    # reorder, so their pre-reorder order is not guaranteed - find by name rather
+    # than destructuring positionally.
     alpha = Enum.find(epics, &(&1.name == "Alpha"))
     beta = Enum.find(epics, &(&1.name == "Beta"))
 

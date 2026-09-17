@@ -59,14 +59,15 @@ defmodule Estimate.EstimationEngine.Estimations do
         where: e.id == ^id and e.organization_id == ^org_id and is_nil(e.deleted_at),
         preload: [
           :currency,
-          roles: ^from(r in EstimationRole, order_by: r.position),
+          roles:
+            ^from(r in EstimationRole, order_by: [asc: r.position, asc: r.inserted_at, asc: r.id]),
           epics:
             ^from(ep in Estimate.EstimationEngine.Epic,
-              order_by: ep.position,
+              order_by: [asc: ep.position, asc: ep.inserted_at, asc: ep.id],
               preload: [
                 tasks:
                   ^from(t in Estimate.EstimationEngine.Task,
-                    order_by: t.position,
+                    order_by: [asc: t.position, asc: t.inserted_at, asc: t.id],
                     preload: [:estimates]
                   )
               ]

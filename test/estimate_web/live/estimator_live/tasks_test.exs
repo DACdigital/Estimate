@@ -41,14 +41,18 @@ defmodule EstimateWeb.EstimatorLive.TasksTest do
 
     a = assigns(ctx.lv)
     assert a.modal == nil and a.task_form == nil and a.current_epic_id == nil
-    # NOTE: characterizes current behaviour; see report. save_task never assigns a
-    # position on create (Task.changeset/2 defaults :position to 0), so T-three ties
-    # with T-one (also position 0) and get_estimation!'s `order_by: t.position` has
-    # no deterministic tiebreaker between them - asserting a set, not exact order.
-    assert Enum.sort(Enum.map(hd(a.estimation.epics).tasks, & &1.name)) ==
-             ["T-one", "T-three", "T-two"]
+    t3 = Repo.get_by(Task, epic_id: ctx.epic.id, name: "T-three")
+    # T-three lands at position 0 (Task.changeset/2 default), tying with T-one
+    # (also position 0); T-two is position 1. get_estimation!'s tiebreaker
+    # (inserted_at, id) decides the T-one/T-three order, so assert against that
+    # same order instead of assuming creation order.
+    expected =
+      [ctx.task1, ctx.task2, t3]
+      |> Enum.sort_by(&{&1.position, &1.inserted_at, &1.id})
+      |> Enum.map(& &1.name)
 
-    assert Repo.get_by(Task, epic_id: ctx.epic.id, name: "T-three")
+    assert Enum.map(hd(a.estimation.epics).tasks, & &1.name) == expected
+    assert t3
   end
 
   test "save_task updates an existing task", ctx do

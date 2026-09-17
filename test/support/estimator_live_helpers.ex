@@ -27,12 +27,8 @@ defmodule EstimateWeb.EstimatorLiveHelpers do
     project = project_fixture(nil, owner)
     est = estimation_fixture(project)
     epic = epic_fixture(est, %{name: "Alpha"})
-    # NOTE: characterizes current behaviour; see report. Epic/Task position defaults
-    # to 0 (see Epic.changeset/2, Task.changeset/2) and the LV's add_epic/add_task
-    # handlers never auto-increment it on create, so two same-position siblings sort
-    # in whatever order Postgres's `order_by: position` scan happens to return them -
-    # stable in isolation but observed to flip under this suite's concurrent DB load.
-    # Assigning explicit positions here keeps every downstream test deterministic.
+    # Explicit, distinct positions keep task1/task2 ordering deterministic
+    # regardless of the inserted_at/id tiebreaker used for ties.
     task1 = task_fixture(epic, %{name: "T-one", position: 0})
     task2 = task_fixture(epic, %{name: "T-two", position: 1})
     est = refetch(est, org)
