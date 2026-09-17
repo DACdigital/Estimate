@@ -262,5 +262,30 @@ defmodule Estimate.RepoWithoutRLSTest do
 
       assert Process.get(:rls_ctx) == nil
     end
+
+    test "a same-context call nested inside without_rls runs the full path (bypass role must not leak)" do
+      org_id = Ecto.UUID.generate()
+      user_id = Ecto.UUID.generate()
+      Repo.put_user_id(user_id)
+
+      Repo.with_org_context(org_id, fn ->
+        Repo.without_rls(fn ->
+          queries()
+
+          Repo.with_org_context(org_id, fn ->
+            assert current_user_role() == "estimate_app"
+          end)
+
+          # 3 wrapper statements (capture, set, restore) plus the fun's own
+          # "SELECT current_user" from current_user_role/0 — proving the
+          # same-org, same-user nested call did NOT take the free fast path
+          # while the connection was under the without_rls bypass role.
+          assert length(queries()) == 4
+        end)
+
+        assert current_user_role() == "estimate_app"
+        assert Process.get(:rls_ctx) == {org_id, user_id}
+      end)
+    end
   end
 end

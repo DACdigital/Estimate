@@ -102,6 +102,10 @@ defmodule Estimate.Repo do
     end
   end
 
+  # `set_config('role', ...)` is SET ROLE; role names are legal bind params here.
+  # Shared by the "set" and "restore" statements in enter_org_context/3.
+  @ctx_sql "SELECT set_config('role', $1, false), set_config('app.current_org_id', $2, false), set_config('app.current_user_id', $3, false)"
+
   defp enter_org_context({org_id, user_id} = ctx, prev_ctx, fun) do
     checkout(fn ->
       %{rows: [[prev_role, prev_org, prev_user]]} =
@@ -110,24 +114,26 @@ defmodule Estimate.Repo do
           []
         )
 
-      # `set_config('role', ...)` is SET ROLE; role names are legal bind params here.
       # When no user_id is pinned for this process, keep whatever the connection had.
-      query!(
-        "SELECT set_config('role', $1, false), set_config('app.current_org_id', $2, false), set_config('app.current_user_id', $3, false)",
-        ["estimate_app", org_id, user_id || prev_user || ""]
-      )
+      query!(@ctx_sql, ["estimate_app", org_id, user_id || prev_user || ""])
 
       Process.put(:rls_ctx, ctx)
 
       try do
         fun.()
       after
-        if prev_ctx, do: Process.put(:rls_ctx, prev_ctx), else: Process.delete(:rls_ctx)
-
-        query!(
-          "SELECT set_config('role', $1, false), set_config('app.current_org_id', $2, false), set_config('app.current_user_id', $3, false)",
-          [prev_role, prev_org || "", prev_user || ""]
-        )
+        # :rls_ctx must reflect only a state the connection actually has, so
+        # the restore statement runs BEFORE the marker is flipped back. If it
+        # raises, the connection's context is unknown — clear the marker
+        # entirely (never leave a stale one behind) and re-raise.
+        try do
+          query!(@ctx_sql, [prev_role, prev_org || "", prev_user || ""])
+          if prev_ctx, do: Process.put(:rls_ctx, prev_ctx), else: Process.delete(:rls_ctx)
+        rescue
+          e ->
+            Process.delete(:rls_ctx)
+            reraise e, __STACKTRACE__
+        end
       end
     end)
   end
@@ -160,6 +166,11 @@ defmodule Estimate.Repo do
 
   State-neutral: captures the connection's role and RLS context first and
   restores both afterward, so pooled connections never check back in polluted.
+
+  Also invalidates the `:rls_ctx` fast-path marker for the duration of `fun`:
+  the connection is under the bypass role here, not any `with_org_context`
+  org, so a `with_org_context` call nested inside `fun` must not mistake a
+  stale marker for still being in that org's context and skip its setup.
   """
   def without_rls(fun) when is_function(fun, 0) do
     checkout(fn ->
@@ -168,6 +179,9 @@ defmodule Estimate.Repo do
           "SELECT quote_ident(current_user), current_setting('app.current_org_id', true), current_setting('app.current_user_id', true)",
           []
         )
+
+      prev_ctx = Process.get(:rls_ctx)
+      Process.delete(:rls_ctx)
 
       query!("RESET ROLE", [])
 
@@ -185,6 +199,8 @@ defmodule Estimate.Repo do
         query!("SET ROLE " <> prev_role, [])
         query!("SELECT set_config('app.current_org_id', $1, false)", [prev_org || ""])
         query!("SELECT set_config('app.current_user_id', $1, false)", [prev_user || ""])
+
+        if prev_ctx, do: Process.put(:rls_ctx, prev_ctx)
       end
     end)
   end
