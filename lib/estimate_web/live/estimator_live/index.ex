@@ -5,7 +5,7 @@ defmodule EstimateWeb.EstimatorLive.Index do
   alias Estimate.Portfolio
   alias Estimate.Organizations
   alias Estimate.Organizations.Currencies
-  alias EstimateWeb.EstimatorLive.{Epics, Estimates, Tasks}
+  alias EstimateWeb.EstimatorLive.{Epics, Estimates, Settings, Tasks}
 
   import EstimateWeb.EstimatorLive.Helpers
   import EstimateWeb.EstimatorLive.Components.CostBreakdown
@@ -326,11 +326,7 @@ defmodule EstimateWeb.EstimatorLive.Index do
       else: {:noreply, socket}
   end
 
-  def handle_event("open_settings", _params, socket) do
-    with_edit_auth(socket, fn socket ->
-      {:noreply, assign(socket, :modal, :settings)}
-    end)
-  end
+  def handle_event("open_settings", params, socket), do: Settings.open_settings(socket, params)
 
   def handle_event("open_save_as_template", _params, socket) do
     with_edit_auth(socket, fn socket ->
@@ -358,131 +354,21 @@ defmodule EstimateWeb.EstimatorLive.Index do
 
   def handle_event("save_as_template", _params, socket), do: {:noreply, socket}
 
-  def handle_event(
-        "add_estimation_role",
-        %{"new_role_name" => name, "new_role_abbr" => abbr},
-        socket
-      )
-      when name != "" and abbr != "" do
-    with_edit_auth(socket, fn socket ->
-      estimation = socket.assigns.estimation
+  def handle_event("add_estimation_role", params, socket),
+    do: Settings.add_estimation_role(socket, params)
 
-      attrs = %{
-        name: name,
-        abbreviation: String.upcase(abbr),
-        estimation_id: estimation.id,
-        position: length(estimation.roles),
-        hourly_rate: Decimal.new(0),
-        pm_overhead: Decimal.new(0),
-        qa_overhead: Decimal.new(0),
-        risk_buffer: Decimal.new(0)
-      }
+  def handle_event("save_settings", params, socket), do: Settings.save_settings(socket, params)
 
-      case EstimationEngine.create_role(attrs) do
-        {:ok, _role} ->
-          {:noreply, reload_estimation(socket) |> put_flash(:info, "Role added")}
+  def handle_event("confirm_delete_role", params, socket),
+    do: Settings.confirm_delete_role(socket, params)
 
-        {:error, _} ->
-          {:noreply, put_flash(socket, :error, "Could not add role")}
-      end
-    end)
-  end
+  def handle_event("cancel_delete_role", params, socket),
+    do: Settings.cancel_delete_role(socket, params)
 
-  def handle_event("add_estimation_role", _params, socket), do: {:noreply, socket}
+  def handle_event("delete_estimation_role", params, socket),
+    do: Settings.delete_estimation_role(socket, params)
 
-  def handle_event("save_settings", params, socket) do
-    with_edit_auth(socket, fn socket ->
-      estimation = socket.assigns.estimation
-      org_id = socket.assigns.org_id
-
-      attrs = %{
-        "name" => params["name"],
-        "currency_id" => params["currency_id"]
-      }
-
-      roles_params = params["roles"] || %{}
-
-      roles_result =
-        Enum.reduce_while(roles_params, :ok, fn {role_id, role_attrs}, :ok ->
-          role = EstimationEngine.get_role!(role_id, org_id)
-
-          if role.estimation_id != estimation.id do
-            {:halt, {:error, :unauthorized_role}}
-          else
-            case EstimationEngine.update_role(role, %{
-                   name: role_attrs["name"] || role.name,
-                   abbreviation: role_attrs["abbreviation"] || role.abbreviation,
-                   hourly_rate: parse_decimal(role_attrs["hourly_rate"]),
-                   pm_overhead: parse_decimal(role_attrs["pm_overhead"]),
-                   qa_overhead: parse_decimal(role_attrs["qa_overhead"]),
-                   risk_buffer: parse_decimal(role_attrs["risk_buffer"])
-                 }) do
-              {:ok, _} -> {:cont, :ok}
-              {:error, _} -> {:halt, {:error, :role_update_failed}}
-            end
-          end
-        end)
-
-      case roles_result do
-        {:error, _reason} ->
-          {:noreply, put_flash(socket, :error, "Could not update roles")}
-
-        :ok ->
-          case EstimationEngine.update_estimation(estimation, attrs) do
-            {:ok, _} ->
-              {:noreply,
-               socket
-               |> reload_estimation()
-               |> assign(:modal, nil)
-               |> put_flash(:info, "Settings saved")}
-
-            {:error, _changeset} ->
-              {:noreply, put_flash(socket, :error, "Could not save settings")}
-          end
-      end
-    end)
-  end
-
-  def handle_event("confirm_delete_role", %{"id" => role_id}, socket) do
-    with_edit_auth(socket, fn socket ->
-      {:noreply, assign(socket, :deleting_role_id, role_id)}
-    end)
-  end
-
-  def handle_event("cancel_delete_role", _params, socket) do
-    {:noreply, assign(socket, :deleting_role_id, nil)}
-  end
-
-  def handle_event("delete_estimation_role", _params, socket) do
-    with_edit_auth(socket, fn socket ->
-      case socket.assigns.deleting_role_id do
-        nil ->
-          {:noreply, socket}
-
-        role_id ->
-          role = EstimationEngine.get_role!(role_id, socket.assigns.org_id)
-
-          if role.estimation_id != socket.assigns.estimation.id do
-            {:noreply, put_flash(socket, :error, "Not authorized")}
-          else
-            EstimationEngine.delete_role(role)
-
-            {:noreply,
-             socket
-             |> reload_estimation()
-             |> assign(:deleting_role_id, nil)
-             |> put_flash(:info, "Role deleted")}
-          end
-      end
-    end)
-  end
-
-  def handle_event("reorder_roles", %{"ids" => ids}, socket) do
-    with_edit_auth(socket, fn socket ->
-      EstimationEngine.reorder_roles(socket.assigns.estimation.id, ids)
-      {:noreply, socket}
-    end)
-  end
+  def handle_event("reorder_roles", params, socket), do: Settings.reorder_roles(socket, params)
 
   def handle_event(
         "ai_enhance_description",
