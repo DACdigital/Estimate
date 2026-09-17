@@ -214,7 +214,7 @@ No CRDTs, no operational transforms — estimation grids are coarse-grained enou
 
 ### Performance notes
 
-- **Estimator grid is a LiveView stream.** Rows (`epic-<id>`, `task-<id>`, `epic-<id>-subtotal`) are built by `EstimatorLive.Rows` with their totals precomputed; footer/breakdown numbers live in one `EstimatorLive.Totals` struct. A cell edit re-inserts two rows; creates/deletes/reorders reset the stream. `EstimatorLive.Sync` is the event→update matrix.
+- **Estimator grid is a LiveView stream.** Rows (`epic-<id>`, `task-<id>`, `epic-<id>-subtotal`) are built by `EstimatorLive.Rows` with their totals precomputed; footer/breakdown numbers live in one `EstimatorLive.Totals` struct. A cell edit re-inserts two rows; creates/deletes/reorders reset the stream. `EstimatorLive.Sync` is the event→update matrix. Bench (100 tasks, 8 roles): cell edit −21%, reload server +67%, reload client +500% (3→18 ms; stream reset re-inserts rows in test Floki DOM; browsers receive same rows either way).
 - **Writers don't hear their own broadcasts.** `EstimationEngine.broadcast/2` uses `broadcast_from`; the originating LiveView applies its change locally.
 - **RLS context is 3 statements per call**, and nested `Repo.with_org_context/2` calls in the same context are free.
 - Bench harnesses (excluded from `mix test`): `mix test --include bench test/bench/<name>_bench_test.exs`.

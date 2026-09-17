@@ -7,6 +7,11 @@ defmodule EstimateWeb.Bench.EstimatorGridBenchTest do
   Seeds 20 epics x 5 tasks (100 tasks) with the default roles, then times
   (a) 20 cell edits, (b) 5 full reloads via a PubSub :epic_created event,
   (c) one priority toggle. Record the printed block in the commit message.
+
+  Cell edits and priority toggle include test-client DOM work via render/1.
+  Reloads are split: server measures :sys.get_state after handle_info (pushed
+  diff unapplied in mailbox); client measures rendering all queued diffs to
+  the test Floki DOM.
   """
   use EstimateWeb.ConnCase, async: false
   @moduletag :bench
@@ -51,13 +56,18 @@ defmodule EstimateWeb.Bench.EstimatorGridBenchTest do
         end
       end)
 
-    {reload_us, _} =
+    # Server-only: :sys.get_state returns once handle_info has been processed;
+    # the pushed diff sits in the test client's mailbox unapplied.
+    {reload_server_us, _} =
       :timer.tc(fn ->
         for _ <- 1..5 do
           send(lv.pid, {:epic_created, nil})
-          render(lv)
+          :sys.get_state(lv.pid)
         end
       end)
+
+    # Client-only: applying the 5 queued diffs to the test client's Floki DOM.
+    {reload_client_us, _} = :timer.tc(fn -> render(lv) end)
 
     {filter_us, _} =
       :timer.tc(fn ->
@@ -69,7 +79,8 @@ defmodule EstimateWeb.Bench.EstimatorGridBenchTest do
 
     estimator grid bench (100 tasks x #{length(est.roles)} roles)
       20 cell edits:      #{div(edit_us, 1000)} ms  (#{div(edit_us, 20_000)} ms/edit)
-      5 pubsub reloads:   #{div(reload_us, 1000)} ms  (#{div(reload_us, 5_000)} ms/reload)
+      5 pubsub reloads (server): #{div(reload_server_us, 1000)} ms  (#{div(reload_server_us, 5_000)} ms/reload)
+      5 pubsub reloads (client): #{div(reload_client_us, 1000)} ms
       priority toggle x2: #{div(filter_us, 1000)} ms
     """)
 
