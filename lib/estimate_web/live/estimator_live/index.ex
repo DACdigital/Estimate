@@ -3,9 +3,8 @@ defmodule EstimateWeb.EstimatorLive.Index do
 
   alias Estimate.EstimationEngine
   alias Estimate.Portfolio
-  alias Estimate.Organizations
   alias Estimate.Organizations.Currencies
-  alias EstimateWeb.EstimatorLive.{Epics, Estimates, Export, Settings, Tasks, ViewState}
+  alias EstimateWeb.EstimatorLive.{AI, Epics, Estimates, Export, Settings, Tasks, ViewState}
 
   import EstimateWeb.EstimatorLive.Helpers
   import EstimateWeb.EstimatorLive.Components.CostBreakdown
@@ -306,53 +305,12 @@ defmodule EstimateWeb.EstimatorLive.Index do
 
   def handle_event("reorder_roles", params, socket), do: Settings.reorder_roles(socket, params)
 
-  def handle_event(
-        "ai_enhance_description",
-        %{"description" => desc, "name" => name, "target" => target},
-        socket
-      ) do
-    with_edit_auth(socket, fn socket ->
-      org = socket.assigns.current_organization
-      api_key = Organizations.get_decrypted_api_key(org)
-
-      if api_key do
-        model = org.openrouter_model || "openai/gpt-4o-mini"
-        system_prompt = org.openrouter_system_prompt
-        enhancer = Application.get_env(:estimate, :ai_enhancer, Estimate.AI.OpenRouter)
-
-        {:noreply,
-         socket
-         |> assign(:ai_loading, target)
-         |> start_async({:ai_enhance, target}, fn ->
-           enhancer.enhance_description(api_key, model, system_prompt, name, desc)
-         end)}
-      else
-        {:noreply, put_flash(socket, :error, "AI not configured")}
-      end
-    end)
-  end
+  def handle_event("ai_enhance_description", params, socket),
+    do: AI.enhance_description(socket, params)
 
   @impl true
-  def handle_async({:ai_enhance, target}, {:ok, {:ok, enhanced}}, socket) do
-    {:noreply,
-     socket
-     |> assign(:ai_loading, nil)
-     |> push_event("ai_set_description", %{text: enhanced, target: target})}
-  end
-
-  def handle_async({:ai_enhance, _target}, {:ok, {:error, reason}}, socket) do
-    {:noreply,
-     socket
-     |> assign(:ai_loading, nil)
-     |> put_flash(:error, "AI error: #{reason}")}
-  end
-
-  def handle_async({:ai_enhance, _target}, {:exit, _reason}, socket) do
-    {:noreply,
-     socket
-     |> assign(:ai_loading, nil)
-     |> put_flash(:error, "AI request failed")}
-  end
+  def handle_async({:ai_enhance, target}, result, socket),
+    do: AI.handle_result(target, result, socket)
 
   # All broadcast events trigger a full reload
   @impl true

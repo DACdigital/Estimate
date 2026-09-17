@@ -130,4 +130,30 @@ defmodule EstimateWeb.EstimatorLive.AiEnhanceTest do
     assert log =~ "boom"
     assert assigns(lv).ai_loading == nil
   end
+
+  test "ai_enhance_description without an org API key flashes AI not configured", %{conn: conn} do
+    # a fresh org: the file's setup configures a key on ctx.org, this one never had one
+    %{user: owner, organization: org} = user_with_organization_fixture()
+    project = project_fixture(nil, owner)
+    est = estimation_fixture(project)
+
+    {:ok, lv, _} =
+      live(
+        log_in_user(build_conn(), owner),
+        ~p"/org/#{org.id}/projects/#{project.id}/estimations/#{est.id}/estimator"
+      )
+
+    refute assigns(lv).ai_configured
+    render_click(lv, "add_epic", %{})
+
+    html =
+      render_click(lv, "ai_enhance_description", %{
+        "description" => "hello",
+        "name" => "E",
+        "target" => "epic"
+      })
+
+    assert html =~ "AI not configured"
+    assert assigns(lv).ai_loading == nil
+  end
 end
