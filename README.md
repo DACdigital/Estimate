@@ -212,6 +212,13 @@ No CRDTs, no operational transforms — estimation grids are coarse-grained enou
 - The editor's own cell and rate edits apply **optimistically in memory** — no round-trip re-render; everyone else reloads the estimation on broadcast.
 - Logout broadcasts a disconnect to the user's `live_socket_id`, so a stolen tab dies with the session.
 
+### Performance notes
+
+- **Estimator grid is a LiveView stream.** Rows (`epic-<id>`, `task-<id>`, `epic-<id>-subtotal`) are built by `EstimatorLive.Rows` with their totals precomputed; footer/breakdown numbers live in one `EstimatorLive.Totals` struct. A cell edit re-inserts two rows; creates/deletes/reorders reset the stream. `EstimatorLive.Sync` is the event→update matrix.
+- **Writers don't hear their own broadcasts.** `EstimationEngine.broadcast/2` uses `broadcast_from`; the originating LiveView applies its change locally.
+- **RLS context is 3 statements per call**, and nested `Repo.with_org_context/2` calls in the same context are free.
+- Bench harnesses (excluded from `mix test`): `mix test --include bench test/bench/<name>_bench_test.exs`.
+
 ## 📥 JSON import and the agent prompt
 
 Estimation *structure* is portable JSON — deliberately hours-free, because scope comes from workshops but pricing is yours:
