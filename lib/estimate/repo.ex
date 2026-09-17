@@ -80,36 +80,54 @@ defmodule Estimate.Repo do
   end
 
   @doc """
-  Checks out a connection, ensures `estimate_app` role, and sets the
-  RLS org context variable. All DB calls within `fun` use the same
-  connection with RLS enforced for `org_id`.
-  State-neutral: captures the connection's prior role, org, and user context first and restores all three afterward, so pooled connections never check back in polluted.
+  Checks out a connection, assumes the `estimate_app` role and pins the RLS
+  org (and user) context for the duration of `fun`.
+
+  Three statements per call: capture prior state, set role+org+user in one
+  `SELECT set_config(...)`, restore. A call nested inside another
+  `with_org_context` on the same process with the *same* `{org_id, user_id}`
+  runs `fun` directly with zero statements — `checkout/1` pins the connection
+  to this process, so the outer context is still in force. A nested call with
+  a different context runs the full path and restores the outer one.
+
+  State-neutral: pooled connections never check back in polluted.
   """
   def with_org_context(org_id, fun) when is_binary(org_id) and is_function(fun, 0) do
     user_id = Process.get(:rls_user_id)
+    ctx = {org_id, user_id}
 
+    case Process.get(:rls_ctx) do
+      ^ctx -> fun.()
+      prev_ctx -> enter_org_context(ctx, prev_ctx, fun)
+    end
+  end
+
+  defp enter_org_context({org_id, user_id} = ctx, prev_ctx, fun) do
     checkout(fn ->
       %{rows: [[prev_role, prev_org, prev_user]]} =
         query!(
-          "SELECT quote_ident(current_user), current_setting('app.current_org_id', true), current_setting('app.current_user_id', true)",
+          "SELECT current_user::text, current_setting('app.current_org_id', true), current_setting('app.current_user_id', true)",
           []
         )
 
-      query!("SET ROLE estimate_app", [])
-      query!("SELECT set_config('app.current_org_id', $1, false)", [org_id])
+      # `set_config('role', ...)` is SET ROLE; role names are legal bind params here.
+      # When no user_id is pinned for this process, keep whatever the connection had.
+      query!(
+        "SELECT set_config('role', $1, false), set_config('app.current_org_id', $2, false), set_config('app.current_user_id', $3, false)",
+        ["estimate_app", org_id, user_id || prev_user || ""]
+      )
 
-      if user_id do
-        query!("SELECT set_config('app.current_user_id', $1, false)", [user_id])
-      end
+      Process.put(:rls_ctx, ctx)
 
       try do
         fun.()
       after
-        # Role names cannot be bind params; quote_ident (in the SELECT above)
-        # already returns prev_role safely quoted, so no extra wrapping here.
-        query!("SET ROLE " <> prev_role, [])
-        query!("SELECT set_config('app.current_org_id', $1, false)", [prev_org || ""])
-        query!("SELECT set_config('app.current_user_id', $1, false)", [prev_user || ""])
+        if prev_ctx, do: Process.put(:rls_ctx, prev_ctx), else: Process.delete(:rls_ctx)
+
+        query!(
+          "SELECT set_config('role', $1, false), set_config('app.current_org_id', $2, false), set_config('app.current_user_id', $3, false)",
+          [prev_role, prev_org || "", prev_user || ""]
+        )
       end
     end)
   end

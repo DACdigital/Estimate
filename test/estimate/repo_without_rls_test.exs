@@ -180,4 +180,87 @@ defmodule Estimate.RepoWithoutRLSTest do
       assert current_org_setting() == (login_org || "")
     end
   end
+
+  describe "with_org_context/2 statement count" do
+    setup do
+      test_pid = self()
+      handler = "ctx-count-#{System.unique_integer([:positive])}"
+
+      :telemetry.attach(
+        handler,
+        [:estimate, :repo, :query],
+        fn _e, _m, meta, _ -> send(test_pid, {:query, meta.query}) end,
+        nil
+      )
+
+      on_exit(fn -> :telemetry.detach(handler) end)
+      :ok
+    end
+
+    defp queries(acc \\ []) do
+      receive do
+        {:query, q} -> queries([q | acc])
+      after
+        0 -> Enum.reverse(acc)
+      end
+    end
+
+    test "a flat call issues exactly 3 statements: capture, set, restore" do
+      org_id = Ecto.UUID.generate()
+      Repo.put_user_id(Ecto.UUID.generate())
+      queries()
+
+      Repo.with_org_context(org_id, fn -> :ok end)
+
+      [capture, set, restore] = queries()
+      assert capture =~ "current_setting('app.current_org_id'"
+      assert set =~ "set_config('role'"
+      assert set =~ "set_config('app.current_org_id'"
+      assert set =~ "set_config('app.current_user_id'"
+      assert restore =~ "set_config('role'"
+    end
+
+    test "a nested call with the same org and user issues no statements" do
+      org_id = Ecto.UUID.generate()
+      Repo.put_user_id(Ecto.UUID.generate())
+      queries()
+
+      Repo.with_org_context(org_id, fn ->
+        queries()
+        inner = Repo.with_org_context(org_id, fn -> current_user_role() end)
+        assert inner == "estimate_app"
+        # Only the fun's own "SELECT current_user" appears — the no-op nested
+        # call adds zero wrapper (capture/set/restore) statements of its own.
+        assert queries() == ["SELECT current_user"]
+      end)
+
+      assert Process.get(:rls_ctx) == nil
+    end
+
+    test "a nested call with a different org runs the full path and restores the outer context" do
+      org_a = Ecto.UUID.generate()
+      org_b = Ecto.UUID.generate()
+      Repo.put_user_id(Ecto.UUID.generate())
+
+      Repo.with_org_context(org_a, fn ->
+        queries()
+        Repo.with_org_context(org_b, fn -> assert current_org_setting() == org_b end)
+        # 3 wrapper statements (capture, set, restore) plus the fun's own
+        # "SELECT current_setting(...)" from current_org_setting/0.
+        assert length(queries()) == 4
+        assert current_org_setting() == org_a
+        assert current_user_role() == "estimate_app"
+      end)
+    end
+
+    test "the marker is cleared even when fun raises" do
+      org_id = Ecto.UUID.generate()
+
+      assert_raise RuntimeError, "boom", fn ->
+        Repo.with_org_context(org_id, fn -> raise "boom" end)
+      end
+
+      assert Process.get(:rls_ctx) == nil
+    end
+  end
 end
