@@ -142,5 +142,13 @@ defmodule EstimateWeb.EstimatorLive.TasksTest do
       assert assigns(ctx.vlv).modal == nil
       assert Enum.map(hd(refetch(ctx.est, ctx.org).epics).tasks, & &1.name) == ["T-one", "T-two"]
     end
+
+    test "validate_task is not edit-gated: a viewer with no open form gets Not found, not the edit-access flash",
+         ctx do
+      html = render_change(ctx.vlv, "validate_task", %{"task" => %{"name" => "x"}})
+      assert html =~ "Not found"
+      refute html =~ "You don&#39;t have edit access"
+      assert assigns(ctx.vlv).task_form == nil
+    end
   end
 end

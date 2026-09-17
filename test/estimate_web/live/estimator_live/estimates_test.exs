@@ -37,7 +37,7 @@ defmodule EstimateWeb.EstimatorLive.EstimatesTest do
     assert a.editing == nil and a.editing_rate == nil
   end
 
-  test "save_estimate upserts hours in the DB and in memory without a reload", ctx do
+  test "save_estimate upserts hours in the DB and patches the in-memory estimation", ctx do
     render_click(ctx.lv, "edit_estimate", %{"key" => "#{ctx.task1.id}-#{ctx.role.id}"})
 
     render_click(ctx.lv, "save_estimate", %{
@@ -143,6 +143,18 @@ defmodule EstimateWeb.EstimatorLive.EstimatesTest do
 
       html = render_click(ctx.vlv, "save_rate", %{"role-id" => ctx.role.id, "value" => "5"})
       assert html =~ "You don&#39;t have edit access"
+
+      # Clear the denial flash left by the two calls above so the refute below
+      # actually pins "edit_estimate/edit_rate don't (re)trigger it", instead of
+      # trivially passing/failing on stale flash state from this test's setup.
+      render_click(ctx.vlv, "lv:clear-flash", %{})
+
+      key = "#{ctx.task1.id}-#{ctx.role.id}"
+      render_click(ctx.vlv, "edit_estimate", %{"key" => key})
+      assert assigns(ctx.vlv).editing == key
+      render_click(ctx.vlv, "edit_rate", %{"role-id" => ctx.role.id})
+      assert assigns(ctx.vlv).editing_rate == ctx.role.id
+      refute render(ctx.vlv) =~ "You don&#39;t have edit access"
     end
   end
 end

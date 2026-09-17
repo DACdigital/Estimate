@@ -58,17 +58,17 @@ All handler modules take `(socket, params)` and return `{:noreply, socket}`; `In
 
 | Module | Handlers / functions |
 |---|---|
-| `EstimatorLive.Authz` | `with_edit_auth/2`, `authorize_edit/1`, `find_epic/2`, `find_task/2`, `belongs_to_estimation?/3`, `not_found/1` |
+| `EstimatorLive.Authz` | `with_edit_auth/2`, `find_epic/2`, `find_task/2`, `belongs_to_estimation?/3`, `not_found/1` |
 | `EstimatorLive.Epics` | `add_epic`, `edit_epic`, `save_epic`, `confirm_delete_epic`, `cancel_delete_epic`, `delete_epic`, `reorder_epics` |
 | `EstimatorLive.Tasks` | `add_task`, `edit_task`, `validate_task`, `save_task`, `confirm_delete_task`, `cancel_delete_task`, `delete_task`, `reorder_tasks` |
 | `EstimatorLive.Estimates` | `edit_estimate`, `save_estimate`, `cancel_edit`, `edit_rate`, `save_rate`, `update_estimate_in_memory/2`, `update_role_in_memory/2` |
 | `EstimatorLive.Settings` | `open_settings`, `save_settings`, `add_estimation_role`, `confirm_delete_role`, `cancel_delete_role`, `delete_estimation_role`, `reorder_roles` |
 | `EstimatorLive.ViewState` | `toggle_breakdown`, `toggle_all_in_rates`, `toggle_descriptions`, `toggle_priority`, `restore_priorities`, `close_modal`, `filtered_epics/2` |
-| `EstimatorLive.Export` | `copy_json`, `open_save_as_template`, `save_as_template` (both clauses) |
+| `EstimatorLive.Export` | `copy_json`, `open_save_as_template`, `save_as_template` (both clauses), `display_roles/2` (private) |
 | `EstimatorLive.AI` | `ai_enhance_description` handler + the three `handle_async({:ai_enhance, _}, …)` bodies (Index keeps the callbacks, delegates) |
 | `EstimatorLive.Index` | `mount`, `render`, delegations, `handle_info`, `reload_estimation/1` (moves to `Estimates`/shared helper in 3C) |
 
-Shared helpers (`reload_estimation/1`, `display_roles/2`) live in `EstimatorLive.Authz` or a small `EstimatorLive.State` module — implementer's call, one home, no duplication. Handler modules `use EstimateWeb, :live_handlers` (the macro from the project-show work, see `ProjectLive.Show.Dashboard`).
+Shared helper `reload_estimation/1` lives in `EstimatorLive.Authz` or a small `EstimatorLive.State` module — implementer's call, one home, no duplication. `display_roles/2` is private to `EstimatorLive.Export`, its only caller. Handler modules `use EstimateWeb, :live_handlers` (the macro from the project-show work, see `ProjectLive.Show.Dashboard`).
 
 ### B3. Gates
 Characterization suite + `index_authz_test` + `ai_enhance_test` + `org_scoped_smoke_test` + `mix precommit` green after every move. No new behaviour. Each cluster move is its own commit.

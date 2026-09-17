@@ -25,13 +25,13 @@
 | File | Responsibility |
 |---|---|
 | `lib/estimate_web/live/estimator_live/index.ex` | `mount/3`, `render/1`, delegations, `handle_info` (full reload), `handle_async` delegations, `reload_estimation/1` (shared, public `@doc false` in `Authz` — see Task 2) |
-| `lib/estimate_web/live/estimator_live/authz.ex` | `with_edit_auth/2`, `not_found/1`, `find_epic/2`, `find_task/2`, `belongs_to_estimation?/3`, `reload_estimation/1`, `display_roles/2` |
+| `lib/estimate_web/live/estimator_live/authz.ex` | `with_edit_auth/2`, `not_found/1`, `find_epic/2`, `find_task/2`, `belongs_to_estimation?/3`, `reload_estimation/1` |
 | `lib/estimate_web/live/estimator_live/epics.ex` | add/edit/save/confirm_delete/cancel_delete/delete/reorder epics |
 | `lib/estimate_web/live/estimator_live/tasks.ex` | add/edit/validate/save/confirm_delete/cancel_delete/delete/reorder tasks |
 | `lib/estimate_web/live/estimator_live/estimates.ex` | edit_estimate, save_estimate, cancel_edit, edit_rate, save_rate + in-memory updaters |
 | `lib/estimate_web/live/estimator_live/settings.ex` | open_settings, save_settings, add_estimation_role, confirm/cancel/delete role, reorder_roles |
 | `lib/estimate_web/live/estimator_live/view_state.ex` | toggle_breakdown / all_in_rates / descriptions / priority, restore_priorities, close_modal, `filtered_epics/2` |
-| `lib/estimate_web/live/estimator_live/export.ex` | copy_json, open_save_as_template, save_as_template |
+| `lib/estimate_web/live/estimator_live/export.ex` | copy_json, open_save_as_template, save_as_template, `display_roles/2` (private) |
 | `lib/estimate_web/live/estimator_live/ai.ex` | ai_enhance_description + the three `handle_async` bodies |
 | `test/support/estimator_live_helpers.ex` | shared LV test setup for the estimator |
 | `test/estimate_web/live/estimator_live/{mount,epics,tasks,estimates,settings,view_state,export,realtime}_test.exs` | characterization suite |

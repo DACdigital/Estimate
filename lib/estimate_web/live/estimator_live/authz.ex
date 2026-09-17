@@ -13,7 +13,6 @@ defmodule EstimateWeb.EstimatorLive.Authz do
   import Phoenix.Component, only: [assign: 3]
 
   alias Estimate.EstimationEngine
-  alias Estimate.EstimationEngine.Calculator
 
   def with_edit_auth(socket, fun) when is_function(fun, 1) do
     if socket.assigns.can_edit do
@@ -42,7 +41,4 @@ defmodule EstimateWeb.EstimatorLive.Authz do
 
     assign(socket, :estimation, estimation)
   end
-
-  def display_roles(roles, true), do: Calculator.roles_with_all_in_rates(roles)
-  def display_roles(roles, false), do: roles
 end

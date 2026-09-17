@@ -10,7 +10,7 @@ defmodule EstimateWeb.EstimatorLive.Index do
   import EstimateWeb.EstimatorLive.Components.CostBreakdown
   import EstimateWeb.EstimatorLive.Components.EstimatorModals
   import EstimateWeb.EstimatorLive.Components.EstimationTable
-  import EstimateWeb.EstimatorLive.Authz
+  import EstimateWeb.EstimatorLive.Authz, only: [reload_estimation: 1]
 
   @impl true
   def render(assigns) do
