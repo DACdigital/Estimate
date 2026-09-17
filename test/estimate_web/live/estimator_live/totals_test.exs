@@ -101,4 +101,36 @@ defmodule EstimateWeb.EstimatorLive.TotalsTest do
     eq(t.total_hours, Decimal.new(0))
     assert t.breakdown.roles == []
   end
+
+  test "breakdown uses raw roles regardless of the all-in toggle", %{epics: epics, roles: roles} do
+    off = Totals.compute(epics, roles, false).breakdown
+    on = Totals.compute(epics, roles, true).breakdown
+
+    for key <- [
+          :grand_total,
+          :base_cost,
+          :total_hours,
+          :pm,
+          :qa,
+          :risk,
+          :avg_pm,
+          :avg_qa,
+          :avg_risk
+        ] do
+      eq(Map.fetch!(on, key), Map.fetch!(off, key))
+    end
+
+    assert Enum.map(on.roles, & &1.role.id) == Enum.map(off.roles, & &1.role.id)
+
+    for {r_on, r_off} <- Enum.zip(on.roles, off.roles),
+        key <- [:hours, :base, :pm, :qa, :risk, :total] do
+      eq(Map.fetch!(r_on, key), Map.fetch!(r_off, key))
+    end
+
+    # and the footer base_cost DOES change with the toggle (display roles), proving the two paths differ
+    refute Decimal.equal?(
+             Totals.compute(epics, roles, true).base_cost,
+             Totals.compute(epics, roles, false).base_cost
+           )
+  end
 end
