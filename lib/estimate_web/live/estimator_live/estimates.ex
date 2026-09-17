@@ -1,10 +1,10 @@
 defmodule EstimateWeb.EstimatorLive.Estimates do
   @moduledoc """
   Inline cell (hours) and rate editing. Successful writes patch `@estimation`
-  in memory so the originating LiveView does not depend on a reload. Note:
-  today the write's own PubSub broadcast still reaches this LiveView and
-  `Index.handle_info/2` performs a full reload; batch 3C (C1, `broadcast_from`)
-  removes that round trip.
+  in memory so the originating LiveView does not depend on a reload. The
+  write's own PubSub broadcast is excluded from this LiveView
+  (`EstimationEngine.broadcast/2` uses `broadcast_from`), so the in-memory
+  patch is the only update the originator performs.
 
   Reads: `:estimation`, `:org_id`, `:can_edit` (via Authz).
   Writes: `:editing`, `:editing_rate`, `:estimation` (in-memory patch).

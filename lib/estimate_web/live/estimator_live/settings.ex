@@ -130,7 +130,7 @@ defmodule EstimateWeb.EstimatorLive.Settings do
   def reorder_roles(socket, %{"ids" => ids}) do
     with_edit_auth(socket, fn socket ->
       EstimationEngine.reorder_roles(socket.assigns.estimation.id, ids)
-      {:noreply, socket}
+      {:noreply, reload_estimation(socket)}
     end)
   end
 end

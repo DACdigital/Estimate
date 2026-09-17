@@ -157,14 +157,12 @@ defmodule EstimateWeb.EstimatorLive.SettingsTest do
     assert EstimationEngine.get_role!(other_role.id, ctx.org.id)
   end
 
-  test "reorder_roles persists the order (no in-memory reload; the broadcast does it)", ctx do
+  test "reorder_roles persists the order and reloads", ctx do
     [r1, r2 | rest] = ctx.est.roles
     ids = Enum.map([r2, r1 | rest], & &1.id)
 
     render_click(ctx.lv, "reorder_roles", %{"ids" => ids})
     assert Enum.map(refetch(ctx.est, ctx.org).roles, & &1.id) == ids
-    # the LV's own broadcast reaches it and reloads
-    render(ctx.lv)
     assert Enum.map(assigns(ctx.lv).estimation.roles, & &1.id) == ids
   end
 

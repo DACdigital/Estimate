@@ -28,13 +28,21 @@ defmodule Estimate.EstimationEngine do
   @topic_prefix "estimation:"
 
   ## PubSub
+  #
+  # Contract: context functions run inline in the writer's process, and
+  # `broadcast/2` excludes that process (`broadcast_from`). The writer must
+  # apply its own change locally (reload or in-memory patch); every other
+  # subscriber receives the event. Payloads carry the full updated struct
+  # ({:task_updated, %Task{}}, {:estimate_updated, %TaskEstimate{}}, …) or
+  # the id list for reorders ({:epics_reordered, ids}, {:roles_reordered, ids},
+  # {:tasks_reordered, epic_id, ids}).
 
   def subscribe(estimation_id) do
     Phoenix.PubSub.subscribe(@pubsub, topic(estimation_id))
   end
 
   def broadcast(estimation_id, event) do
-    Phoenix.PubSub.broadcast(@pubsub, topic(estimation_id), event)
+    Phoenix.PubSub.broadcast_from(@pubsub, self(), topic(estimation_id), event)
   end
 
   defp topic(estimation_id), do: @topic_prefix <> estimation_id
