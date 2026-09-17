@@ -5,7 +5,7 @@ defmodule EstimateWeb.EstimatorLive.Index do
   alias Estimate.Portfolio
   alias Estimate.Organizations
   alias Estimate.Organizations.Currencies
-  alias EstimateWeb.EstimatorLive.{Epics, Estimates, Settings, Tasks}
+  alias EstimateWeb.EstimatorLive.{Epics, Estimates, Export, Settings, Tasks, ViewState}
 
   import EstimateWeb.EstimatorLive.Helpers
   import EstimateWeb.EstimatorLive.Components.CostBreakdown
@@ -16,7 +16,7 @@ defmodule EstimateWeb.EstimatorLive.Index do
   @impl true
   def render(assigns) do
     ~H"""
-    <% epics = filtered_epics(@estimation, @enabled_priorities) %>
+    <% epics = ViewState.filtered_epics(@estimation, @enabled_priorities) %>
     <div class="max-w-7xl mx-auto">
       <%!-- Breadcrumb --%>
       <nav class="flex items-center space-x-2 text-sm text-base-content/60 mb-6">
@@ -249,14 +249,7 @@ defmodule EstimateWeb.EstimatorLive.Index do
 
   def handle_event("delete_task", params, socket), do: Tasks.delete_task(socket, params)
 
-  def handle_event("close_modal", _params, socket) do
-    {:noreply,
-     socket
-     |> assign(:modal, nil)
-     |> assign(:epic_form, nil)
-     |> assign(:task_form, nil)
-     |> assign(:current_epic_id, nil)}
-  end
+  def handle_event("close_modal", params, socket), do: ViewState.close_modal(socket, params)
 
   def handle_event("cancel_edit", params, socket), do: Estimates.cancel_edit(socket, params)
 
@@ -272,87 +265,30 @@ defmodule EstimateWeb.EstimatorLive.Index do
 
   def handle_event("reorder_tasks", params, socket), do: Tasks.reorder_tasks(socket, params)
 
-  def handle_event("toggle_breakdown", _params, socket) do
-    {:noreply, assign(socket, :show_breakdown, !socket.assigns.show_breakdown)}
-  end
+  def handle_event("toggle_breakdown", params, socket),
+    do: ViewState.toggle_breakdown(socket, params)
 
-  def handle_event("copy_json", _params, socket) do
-    estimation = socket.assigns.estimation
-    dr = display_roles(estimation.roles, socket.assigns.show_all_in_rates)
-    filtered = filtered_epics(estimation, socket.assigns.enabled_priorities)
+  def handle_event("copy_json", params, socket), do: Export.copy_json(socket, params)
 
-    json =
-      build_json_export(
-        %{estimation | epics: filtered},
-        dr,
-        socket.assigns.customer,
-        socket.assigns.project
-      )
+  def handle_event("toggle_all_in_rates", params, socket),
+    do: ViewState.toggle_all_in_rates(socket, params)
 
-    {:noreply,
-     socket
-     |> push_event("copy_to_clipboard", %{text: json})
-     |> put_flash(:info, "Copied!")}
-  end
+  def handle_event("toggle_descriptions", params, socket),
+    do: ViewState.toggle_descriptions(socket, params)
 
-  def handle_event("toggle_all_in_rates", _params, socket) do
-    {:noreply, assign(socket, :show_all_in_rates, !socket.assigns.show_all_in_rates)}
-  end
+  def handle_event("toggle_priority", params, socket),
+    do: ViewState.toggle_priority(socket, params)
 
-  def handle_event("toggle_descriptions", _params, socket) do
-    {:noreply, assign(socket, :show_descriptions, !socket.assigns.show_descriptions)}
-  end
-
-  def handle_event("toggle_priority", %{"priority" => priority}, socket) do
-    current = socket.assigns.enabled_priorities
-
-    updated =
-      if MapSet.member?(current, priority) and MapSet.size(current) > 1,
-        do: MapSet.delete(current, priority),
-        else: MapSet.put(current, priority)
-
-    {:noreply,
-     socket
-     |> assign(:enabled_priorities, updated)
-     |> push_event("save_priorities", %{priorities: MapSet.to_list(updated)})}
-  end
-
-  def handle_event("restore_priorities", %{"priorities" => priorities}, socket) do
-    valid =
-      MapSet.intersection(MapSet.new(priorities), MapSet.new(["must", "should", "could", "wont"]))
-
-    if MapSet.size(valid) > 0,
-      do: {:noreply, assign(socket, :enabled_priorities, valid)},
-      else: {:noreply, socket}
-  end
+  def handle_event("restore_priorities", params, socket),
+    do: ViewState.restore_priorities(socket, params)
 
   def handle_event("open_settings", params, socket), do: Settings.open_settings(socket, params)
 
-  def handle_event("open_save_as_template", _params, socket) do
-    with_edit_auth(socket, fn socket ->
-      {:noreply, assign(socket, :modal, :save_template)}
-    end)
-  end
+  def handle_event("open_save_as_template", params, socket),
+    do: Export.open_save_as_template(socket, params)
 
-  def handle_event("save_as_template", %{"template_name" => name}, socket) when name != "" do
-    with_edit_auth(socket, fn socket ->
-      estimation = socket.assigns.estimation
-      org_id = socket.assigns.org_id
-
-      case Estimate.Templates.create_from_estimation(org_id, name, estimation) do
-        {:ok, _template} ->
-          {:noreply,
-           socket
-           |> assign(:modal, nil)
-           |> put_flash(:info, "Template saved")}
-
-        {:error, _} ->
-          {:noreply, put_flash(socket, :error, "Could not save template")}
-      end
-    end)
-  end
-
-  def handle_event("save_as_template", _params, socket), do: {:noreply, socket}
+  def handle_event("save_as_template", params, socket),
+    do: Export.save_as_template(socket, params)
 
   def handle_event("add_estimation_role", params, socket),
     do: Settings.add_estimation_role(socket, params)
@@ -441,21 +377,5 @@ defmodule EstimateWeb.EstimatorLive.Index do
              :roles_reordered
            ] do
     {:noreply, reload_estimation(socket)}
-  end
-
-  defp filtered_epics(estimation, enabled_priorities) do
-    if MapSet.size(enabled_priorities) == 4 do
-      estimation.epics
-    else
-      estimation.epics
-      |> Enum.map(fn epic ->
-        %{
-          epic
-          | tasks:
-              Enum.filter(epic.tasks, &MapSet.member?(enabled_priorities, &1.priority || "must"))
-        }
-      end)
-      |> Enum.reject(&Enum.empty?(&1.tasks))
-    end
   end
 end
