@@ -5,6 +5,7 @@ defmodule EstimateWeb.EstimatorLive.Index do
   alias Estimate.Portfolio
   alias Estimate.Organizations
   alias Estimate.Organizations.Currencies
+  alias EstimateWeb.EstimatorLive.Epics
 
   import EstimateWeb.EstimatorLive.Helpers
   import EstimateWeb.EstimatorLive.Components.CostBreakdown
@@ -220,96 +221,17 @@ defmodule EstimateWeb.EstimatorLive.Index do
   end
 
   @impl true
-  def handle_event("add_epic", _params, socket) do
-    with_edit_auth(socket, fn socket ->
-      changeset = EstimationEngine.Epic.changeset(%EstimationEngine.Epic{}, %{})
+  def handle_event("add_epic", params, socket), do: Epics.add_epic(socket, params)
+  def handle_event("edit_epic", params, socket), do: Epics.edit_epic(socket, params)
+  def handle_event("save_epic", params, socket), do: Epics.save_epic(socket, params)
 
-      {:noreply,
-       socket
-       |> assign(:modal, :epic)
-       |> assign(:epic_form, to_form(changeset))}
-    end)
-  end
+  def handle_event("confirm_delete_epic", params, socket),
+    do: Epics.confirm_delete_epic(socket, params)
 
-  def handle_event("edit_epic", %{"id" => id}, socket) do
-    with_edit_auth(socket, fn socket ->
-      case find_epic(socket.assigns.estimation, id) do
-        nil ->
-          not_found(socket)
+  def handle_event("cancel_delete_epic", params, socket),
+    do: Epics.cancel_delete_epic(socket, params)
 
-        epic ->
-          changeset = EstimationEngine.Epic.update_changeset(epic, %{})
-
-          {:noreply,
-           socket
-           |> assign(:modal, :epic)
-           |> assign(:epic_form, to_form(changeset))}
-      end
-    end)
-  end
-
-  def handle_event("save_epic", %{"epic" => epic_params}, socket) do
-    with_edit_auth(socket, fn socket ->
-      case socket.assigns.epic_form do
-        nil ->
-          not_found(socket)
-
-        epic_form ->
-          epic = epic_form.data
-          estimation = socket.assigns.estimation
-
-          result =
-            if epic.id do
-              EstimationEngine.update_epic(epic, epic_params)
-            else
-              attrs = Map.put(epic_params, "estimation_id", estimation.id)
-              EstimationEngine.create_epic(attrs)
-            end
-
-          case result do
-            {:ok, _epic} ->
-              {:noreply,
-               socket
-               |> reload_estimation()
-               |> assign(:modal, nil)
-               |> assign(:epic_form, nil)}
-
-            {:error, changeset} ->
-              {:noreply, assign(socket, :epic_form, to_form(changeset))}
-          end
-      end
-    end)
-  end
-
-  def handle_event("confirm_delete_epic", %{"id" => id}, socket) do
-    with_edit_auth(socket, fn socket ->
-      case find_epic(socket.assigns.estimation, id) do
-        nil -> not_found(socket)
-        epic -> {:noreply, assign(socket, :deleting_epic, epic)}
-      end
-    end)
-  end
-
-  def handle_event("cancel_delete_epic", _params, socket) do
-    {:noreply, assign(socket, :deleting_epic, nil)}
-  end
-
-  def handle_event("delete_epic", _params, socket) do
-    with_edit_auth(socket, fn socket ->
-      case socket.assigns.deleting_epic do
-        nil ->
-          {:noreply, socket}
-
-        epic ->
-          {:ok, _} = EstimationEngine.delete_epic(epic)
-
-          {:noreply,
-           socket
-           |> reload_estimation()
-           |> assign(:deleting_epic, nil)}
-      end
-    end)
-  end
+  def handle_event("delete_epic", params, socket), do: Epics.delete_epic(socket, params)
 
   def handle_event("add_task", %{"epic-id" => epic_id}, socket) do
     with_edit_auth(socket, fn socket ->
@@ -507,12 +429,7 @@ defmodule EstimateWeb.EstimatorLive.Index do
     end)
   end
 
-  def handle_event("reorder_epics", %{"ids" => ids}, socket) do
-    with_edit_auth(socket, fn socket ->
-      EstimationEngine.reorder_epics(socket.assigns.estimation.id, ids)
-      {:noreply, reload_estimation(socket)}
-    end)
-  end
+  def handle_event("reorder_epics", params, socket), do: Epics.reorder_epics(socket, params)
 
   def handle_event("reorder_tasks", %{"epic_id" => epic_id, "ids" => ids}, socket) do
     with_edit_auth(socket, fn socket ->
