@@ -2,7 +2,6 @@ defmodule EstimateWeb.EstimatorLive.Index do
   use EstimateWeb, :live_view
 
   alias Estimate.EstimationEngine
-  alias Estimate.EstimationEngine.Calculator
   alias Estimate.Portfolio
   alias Estimate.Organizations
   alias Estimate.Organizations.Currencies
@@ -11,6 +10,7 @@ defmodule EstimateWeb.EstimatorLive.Index do
   import EstimateWeb.EstimatorLive.Components.CostBreakdown
   import EstimateWeb.EstimatorLive.Components.EstimatorModals
   import EstimateWeb.EstimatorLive.Components.EstimationTable
+  import EstimateWeb.EstimatorLive.Authz
 
   @impl true
   def render(assigns) do
@@ -825,44 +825,6 @@ defmodule EstimateWeb.EstimatorLive.Index do
       |> Enum.reject(&Enum.empty?(&1.tasks))
     end
   end
-
-  defp authorize_edit(socket) do
-    if socket.assigns.can_edit do
-      :ok
-    else
-      {:unauthorized, put_flash(socket, :error, "You don't have edit access")}
-    end
-  end
-
-  defp with_edit_auth(socket, fun) do
-    case authorize_edit(socket) do
-      :ok -> fun.(socket)
-      {:unauthorized, socket} -> {:noreply, socket}
-    end
-  end
-
-  defp reload_estimation(socket) do
-    estimation =
-      EstimationEngine.get_estimation!(socket.assigns.estimation.id, socket.assigns.org_id)
-
-    assign(socket, :estimation, estimation)
-  end
-
-  defp find_epic(%{epics: epics}, id), do: Enum.find(epics, &(&1.id == id))
-
-  defp find_task(%{epics: epics}, id),
-    do: Enum.find_value(epics, fn epic -> Enum.find(epic.tasks, &(&1.id == id)) end)
-
-  defp not_found(socket), do: {:noreply, put_flash(socket, :error, "Not found")}
-
-  defp belongs_to_estimation?(estimation, :task, id),
-    do: Enum.any?(estimation.epics, fn ep -> Enum.any?(ep.tasks, &(&1.id == id)) end)
-
-  defp belongs_to_estimation?(estimation, :role, id),
-    do: Enum.any?(estimation.roles, &(&1.id == id))
-
-  defp display_roles(roles, true), do: Calculator.roles_with_all_in_rates(roles)
-  defp display_roles(roles, false), do: roles
 
   defp update_estimate_in_memory(estimation, updated_estimate) do
     epics =
