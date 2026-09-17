@@ -32,11 +32,20 @@ defmodule EstimateWeb.EstimatorLive.Rows do
 
   @spec build(map(), view()) :: [row()]
   def build(estimation, view) do
-    roles = display_roles(estimation.roles, view.show_all_in_rates)
-
     estimation
     |> ViewState.filtered_epics(view.enabled_priorities)
-    |> Enum.flat_map(&epic_rows(&1, estimation.roles, roles))
+    |> build_from_filtered(estimation, view)
+  end
+
+  @doc """
+  Same as `build/2`, but takes epics already narrowed by
+  `ViewState.filtered_epics/2` — for callers (`Grid.reset/1`) that need that
+  filtered list for something else too and would otherwise filter twice.
+  """
+  @spec build_from_filtered([map()], map(), view()) :: [row()]
+  def build_from_filtered(filtered_epics, estimation, view) do
+    roles = display_roles(estimation.roles, view.show_all_in_rates)
+    Enum.flat_map(filtered_epics, &epic_rows(&1, estimation.roles, roles))
   end
 
   @spec for_task(map(), view(), String.t()) :: [row()]

@@ -31,7 +31,7 @@ defmodule EstimateWeb.EstimatorLive.GridTest do
     assert render(ctx.lv) =~ "DB-RENAMED"
   end
 
-  test "the footer and breakdown read from @totals", ctx do
+  test "the footer reads from @totals", ctx do
     render_click(ctx.lv, "edit_estimate", %{"key" => "#{ctx.task1.id}-#{ctx.role.id}"})
 
     render_click(ctx.lv, "save_estimate", %{

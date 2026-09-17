@@ -130,6 +130,11 @@ defmodule Estimate.Accounts do
   defp seed_org_defaults(multi) do
     multi
     |> Ecto.Multi.run(:set_org_context, fn _repo, %{organization: org} ->
+      # Sets the org GUC transaction-locally WITHOUT touching Repo's
+      # `:rls_ctx` marker. Safe only because this runs outside any
+      # `with_org_context` (OrganizationLive is not org-scoped); if org
+      # creation ever moves under an org-scoped route, wrap the seeding in
+      # `Repo.with_org_context(org.id, ...)` instead.
       Repo.query!("SELECT set_config('app.current_org_id', $1, true)", [org.id])
       {:ok, :context_set}
     end)

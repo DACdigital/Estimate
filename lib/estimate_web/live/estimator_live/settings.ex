@@ -79,7 +79,9 @@ defmodule EstimateWeb.EstimatorLive.Settings do
 
       case roles_result do
         {:error, _reason} ->
-          {:noreply, put_flash(socket, :error, "Could not update roles")}
+          # Some roles may have been updated before the loop halted (writes
+          # already landed); reload so the originator's memory matches the DB.
+          {:noreply, socket |> reload_estimation() |> put_flash(:error, "Could not update roles")}
 
         :ok ->
           case EstimationEngine.update_estimation(estimation, attrs) do
@@ -91,7 +93,12 @@ defmodule EstimateWeb.EstimatorLive.Settings do
                |> put_flash(:info, "Settings saved")}
 
             {:error, _changeset} ->
-              {:noreply, put_flash(socket, :error, "Could not save settings")}
+              # Role updates in this call already succeeded and landed in the
+              # DB even though the estimation-level change failed; reload so
+              # the originator doesn't show stale rates (broadcast_from means
+              # this LV never hears its own writes).
+              {:noreply,
+               socket |> reload_estimation() |> put_flash(:error, "Could not save settings")}
           end
       end
     end)

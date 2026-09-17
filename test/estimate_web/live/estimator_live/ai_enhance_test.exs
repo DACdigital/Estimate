@@ -131,7 +131,7 @@ defmodule EstimateWeb.EstimatorLive.AiEnhanceTest do
     assert assigns(lv).ai_loading == nil
   end
 
-  test "ai_enhance_description without an org API key flashes AI not configured", %{conn: conn} do
+  test "ai_enhance_description without an org API key flashes AI not configured", %{conn: _conn} do
     # a fresh org: the file's setup configures a key on ctx.org, this one never had one
     %{user: owner, organization: org} = user_with_organization_fixture()
     project = project_fixture(nil, owner)

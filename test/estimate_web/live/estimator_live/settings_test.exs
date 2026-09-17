@@ -95,6 +95,28 @@ defmodule EstimateWeb.EstimatorLive.SettingsTest do
     assert refetch(ctx.est, ctx.org).name == ctx.est.name
   end
 
+  test "save_settings with an invalid estimation name still reloads, so in-memory rates match a role update that already landed",
+       ctx do
+    render_click(ctx.lv, "open_settings", %{})
+
+    html =
+      render_submit(ctx.lv, "save_settings", %{
+        "name" => "",
+        "currency_id" => ctx.est.currency_id,
+        "roles" => %{ctx.role.id => role_params(ctx.role, %{"hourly_rate" => "999"})}
+      })
+
+    assert html =~ "Could not save settings"
+
+    role = Enum.find(assigns(ctx.lv).estimation.roles, &(&1.id == ctx.role.id))
+    assert Decimal.equal?(role.hourly_rate, Decimal.new(999))
+
+    assert Decimal.equal?(
+             EstimationEngine.get_role!(ctx.role.id, ctx.org.id).hourly_rate,
+             Decimal.new(999)
+           )
+  end
+
   test "add_estimation_role appends a zero-rate role with upcased abbreviation", ctx do
     before = length(ctx.est.roles)
     render_click(ctx.lv, "open_settings", %{})

@@ -4,6 +4,7 @@ defmodule Estimate.Repo do
     adapter: Ecto.Adapters.Postgres
 
   import Ecto.Query
+  require Logger
 
   # ---------------------------------------------------------------------------
   # Init — skip after_connect during migrations so DDL runs as superuser
@@ -132,6 +133,11 @@ defmodule Estimate.Repo do
         rescue
           e ->
             Process.delete(:rls_ctx)
+
+            Logger.error(
+              "with_org_context: restore failed, marker cleared: #{Exception.message(e)}"
+            )
+
             reraise e, __STACKTRACE__
         end
       end

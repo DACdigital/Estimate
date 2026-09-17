@@ -3,9 +3,10 @@ defmodule EstimateWeb.EstimatorLive.SyncTest do
 
   import Phoenix.LiveViewTest
   import EstimateWeb.EstimatorLiveHelpers
+  import Estimate.EstimationEngineFixtures, only: [task_fixture: 2]
 
   alias Estimate.Repo
-  alias Estimate.EstimationEngine.{Epic, Task}
+  alias Estimate.EstimationEngine.{Epic, Task, TaskEstimate}
 
   setup :setup_estimator
 
@@ -75,7 +76,7 @@ defmodule EstimateWeb.EstimatorLive.SyncTest do
     render(ctx.lv)
     reloads()
 
-    estimate = %Estimate.EstimationEngine.TaskEstimate{
+    estimate = %TaskEstimate{
       id: Ecto.UUID.generate(),
       task_id: ctx.task1.id,
       estimation_role_id: ctx.role.id,
@@ -130,7 +131,8 @@ defmodule EstimateWeb.EstimatorLive.SyncTest do
     assert reloads() == 0
   end
 
-  test "save_estimate is a targeted update; save_rate resets", ctx do
+  test "save_estimate is a targeted update; save_rate patches the role in memory without a reload",
+       ctx do
     watch_reloads(ctx.lv)
     render(ctx.lv)
     reloads()
@@ -151,5 +153,55 @@ defmodule EstimateWeb.EstimatorLive.SyncTest do
     assert reloads() == 0
     role = Enum.find(assigns(ctx.lv).estimation.roles, &(&1.id == ctx.role.id))
     assert Decimal.equal?(role.hourly_rate, Decimal.new(200))
+  end
+
+  test "a peer task_updated that changes priority under an active filter hides/shows rows correctly and keeps order",
+       ctx do
+    # A third task that never changes priority, so the epic keeps at least
+    # one visible task throughout and a subtotal is possible at every step.
+    _task3 = task_fixture(ctx.epic, %{name: "T-three", position: 2, priority: "must"})
+
+    render_click(ctx.lv, "edit_task", %{"id" => ctx.task2.id})
+
+    render_submit(ctx.lv, "save_task", %{
+      "task" => %{"name" => "T-two", "priority" => "wont"}
+    })
+
+    render_click(ctx.lv, "toggle_priority", %{"priority" => "wont"})
+    refute render(ctx.lv) =~ ~s(id="task-#{ctx.task2.id}")
+
+    # (i) T-one's priority changes to "wont" (a peer edit) — it leaves the
+    # enabled set and its row must disappear, not linger from a stale insert.
+    send(ctx.lv.pid, {:task_updated, %{ctx.task1 | priority: "wont"}})
+    refute render(ctx.lv) =~ ~s(id="task-#{ctx.task1.id}")
+
+    # (ii) T-two's priority changes back to "must" — it re-enters the
+    # enabled set. Its row must appear, in the correct list position
+    # (before the epic subtotal), not appended at the stream's end.
+    send(ctx.lv.pid, {:task_updated, %{ctx.task2 | priority: "must"}})
+    html = render(ctx.lv)
+    assert html =~ ~s(id="task-#{ctx.task2.id}")
+
+    {task_pos, _} = :binary.match(html, ~s(id="task-#{ctx.task2.id}"))
+    {subtotal_pos, _} = :binary.match(html, ~s(id="epic-#{ctx.epic.id}-subtotal"))
+    assert task_pos < subtotal_pos
+  end
+
+  test "estimate_updated from a peer leaves an unrelated epic header element byte-identical",
+       ctx do
+    before_html = render(element(ctx.lv, "#epic-#{ctx.epic.id}"))
+
+    estimate = %TaskEstimate{
+      id: Ecto.UUID.generate(),
+      task_id: ctx.task1.id,
+      estimation_role_id: ctx.role.id,
+      hours: Decimal.new(6)
+    }
+
+    send(ctx.lv.pid, {:estimate_updated, estimate})
+    render(ctx.lv)
+
+    after_html = render(element(ctx.lv, "#epic-#{ctx.epic.id}"))
+    assert after_html == before_html
   end
 end

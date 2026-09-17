@@ -89,7 +89,7 @@ Today: 7 statements per call, re-executed when nested.
 
 - Setup collapses to **one** statement: `SELECT set_config('role', 'estimate_app', false), set_config('app.current_org_id', $1, false), set_config('app.current_user_id', $2, false)` (`set_config('role', …)` is `SET ROLE`). Capture stays one statement; restore collapses to one `SELECT set_config(...) × 3`. **7 → 3.**
 - Nested idempotency: `checkout/1` pins the connection to the process, so a process-dictionary marker `{:rls_ctx, {org_id, user_id}}` set inside the outermost call lets a nested call with the **same** `{org_id, user_id}` run `fun.()` directly — 0 statements. Different org/user → full path as today (restores the outer context after). Marker is cleared in the outermost `after`. `ensure_org_context/1` benefits automatically.
-- `without_rls/1` unchanged (rare path, already asserted).
+- `without_rls/1` clears the `:rls_ctx` marker for its duration and restores it after its own restore statements.
 - Bench: `bench/org_context.exs` (mix run, not a test) timing 1 000 `with_org_context` calls flat and 1 000 nested-same-context calls before/after; numbers go in the plan ledger and the commit message.
 - Tests: existing `repo_without_rls_test.exs` state-restoration tests must still pass unchanged (they are the safety net); add: nested same-context call executes no `SET`/`set_config` (assert via `Ecto` telemetry `[:estimate, :repo, :query]` counting queries inside the nested call); nested different-context restores the outer context.
 
@@ -129,7 +129,7 @@ Built by `EstimatorLive.Rows.build/2` (estimation, view state) — pure, unit-te
 
 **Implemented 2026-09-17:** `Grid` owns the stream (`init/reset/upsert_task/upsert_epic_header/refresh_editing`), `Sync.handle/2` is the update matrix, `Authz.reload_estimation/1` = reload + reset. Deterministic child order (`position, inserted_at, id`) added to `get_estimation!/2` so stream order is stable. Bench (100 tasks, 8 roles): cell edit −21%, reload server +67%, reload client +500% in LiveViewTest (stream reset re-inserts rows in test Floki DOM; browsers receive same rows either way).
 
-**Tests.** Full 3B characterization suite must stay green (DOM assertions are stream-agnostic). Add: `Rows.build/2` unit tests (order, kinds, ids, filter by priority, descriptions flag); `Totals.compute/2` equals the old render-time `Calculator` calls for a fixture (guards against drift); LV tests asserting after a cell edit the task row and the epic subtotal show new values while an unrelated epic's header element is byte-identical (`element/2 |> render`); PubSub `estimate_updated` from a peer updates the row; priority toggle hides/shows rows.
+**Tests.** Full 3B characterization suite must stay green (DOM assertions are stream-agnostic). Add: `Rows.build/2` unit tests (order, kinds, ids, filter by priority); `Totals.compute/2` equals the old render-time `Calculator` calls for a fixture (guards against drift); LV tests asserting after a cell edit the task row and the epic subtotal show new values while an unrelated epic's header element is byte-identical (`element/2 |> render`); PubSub `estimate_updated` from a peer updates the row; priority toggle hides/shows rows.
 
 ---
 

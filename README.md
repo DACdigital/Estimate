@@ -209,7 +209,7 @@ No CRDTs, no operational transforms — estimation grids are coarse-grained enou
 
 - Every estimation has a PubSub topic (`"estimation:" <> id`); the grid LiveView subscribes on connect.
 - Context modules broadcast **14 domain events** (`:estimate_updated`, `:epic_created`, `:tasks_reordered`, `:role_deleted`, …) *after* successful writes — from the context, so any future caller (an API, a job) broadcasts for free.
-- The editor's own cell and rate edits apply **optimistically in memory** — no round-trip re-render; everyone else reloads the estimation on broadcast.
+- The editor's own cell and rate edits apply **optimistically in memory** — no round-trip re-render; peers patch the affected rows in memory for estimate/task/epic updates and reload on structural changes.
 - Logout broadcasts a disconnect to the user's `live_socket_id`, so a stolen tab dies with the session.
 
 ### Performance notes
