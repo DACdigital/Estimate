@@ -14,7 +14,7 @@ defmodule EstimateWeb.EstimatorLive.Grid do
   import Phoenix.Component, only: [assign: 3]
   import Phoenix.LiveView, only: [stream: 4, stream_configure: 3, stream_insert: 3]
 
-  alias EstimateWeb.EstimatorLive.{Rows, Totals, ViewState}
+  alias EstimateWeb.EstimatorLive.{Rows, Totals}
 
   @doc "Configure the stream (once, in mount) and render the initial rows."
   def init(socket) do
@@ -29,7 +29,7 @@ defmodule EstimateWeb.EstimatorLive.Grid do
     view = Rows.view(socket.assigns)
     # Filtered once, shared by the row builder and the totals — the two used
     # to each filter the estimation's epics independently.
-    filtered = ViewState.filtered_epics(estimation, view.enabled_priorities)
+    filtered = Rows.filtered_epics(estimation, view.enabled_priorities)
     rows = Rows.build_from_filtered(filtered, estimation, view)
 
     socket
@@ -57,7 +57,7 @@ defmodule EstimateWeb.EstimatorLive.Grid do
   def upsert_task(socket, task_id) do
     estimation = socket.assigns.estimation
     view = Rows.view(socket.assigns)
-    filtered = ViewState.filtered_epics(estimation, view.enabled_priorities)
+    filtered = Rows.filtered_epics(estimation, view.enabled_priorities)
 
     case Rows.for_task(estimation, view, task_id) do
       [] ->
@@ -80,7 +80,11 @@ defmodule EstimateWeb.EstimatorLive.Grid do
     |> Enum.reduce(socket, &stream_insert(&2, :rows, &1))
   end
 
-  @doc "Re-insert the task rows behind the previous and the new editing key (\"<task_id>-<role_id>\")."
+  @doc """
+  Re-insert the task rows behind the previous and the new editing key
+  ("<task_id>-<role_id>"). Falls back to `reset/1` for a task that is no
+  longer visible.
+  """
   def refresh_editing(socket, old_key, new_key) do
     # editing keys are "<task_id>-<role_id>"; both are 36-char UUIDs (dashes inside), so slice, don't split
     [old_key, new_key]
@@ -91,8 +95,9 @@ defmodule EstimateWeb.EstimatorLive.Grid do
   end
 
   defp upsert_task_rows_only(socket, task_id) do
-    socket.assigns.estimation
-    |> Rows.for_task(Rows.view(socket.assigns), task_id)
-    |> Enum.reduce(socket, &stream_insert(&2, :rows, &1))
+    case Rows.for_task(socket.assigns.estimation, Rows.view(socket.assigns), task_id) do
+      [] -> reset(socket)
+      rows -> Enum.reduce(rows, socket, &stream_insert(&2, :rows, &1))
+    end
   end
 end

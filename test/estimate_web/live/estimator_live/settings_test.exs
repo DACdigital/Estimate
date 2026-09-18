@@ -80,6 +80,22 @@ defmodule EstimateWeb.EstimatorLive.SettingsTest do
     assert refetch(ctx.est, ctx.org).name == ctx.est.name
   end
 
+  test "save_settings resolves roles from the loaded estimation: a foreign-org role id is denied without a lookup",
+       ctx do
+    render_click(ctx.lv, "open_settings", %{})
+
+    html =
+      render_submit(ctx.lv, "save_settings", %{
+        "name" => "Hijack",
+        "currency_id" => ctx.est.currency_id,
+        "roles" => %{Ecto.UUID.generate() => role_params(ctx.role, %{"name" => "PWNED"})}
+      })
+
+    assert html =~ "Could not update roles"
+    assert Process.alive?(ctx.lv.pid)
+    assert refetch(ctx.est, ctx.org).name == ctx.est.name
+  end
+
   test "save_settings with an invalid estimation name flashes Could not save settings", ctx do
     render_click(ctx.lv, "open_settings", %{})
 

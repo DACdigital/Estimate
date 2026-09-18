@@ -1,6 +1,7 @@
 defmodule Estimate.EstimationEngine.EstimationsCurrentTest do
   use Estimate.DataCase, async: true
   import Estimate.{AccountsFixtures, PortfolioFixtures, EstimationEngineFixtures}
+  import EstimateWeb.EstimatorLiveHelpers, only: [by_order: 0]
   alias Estimate.EstimationEngine
   alias Estimate.EstimationEngine.Estimation
   alias Estimate.Repo
@@ -76,7 +77,7 @@ defmodule Estimate.EstimationEngine.EstimationsCurrentTest do
     # {position, inserted_at, id} order under test), so the task assertions below
     # read back the epic we attach tasks to.
     [epic | _] =
-      Enum.sort_by(epics, &{&1.position, &1.inserted_at, &1.id})
+      Enum.sort_by(epics, by_order())
 
     tasks =
       for name <- ~w(T1 T2 T3 T4 T5 T6 T7 T8) do
@@ -85,10 +86,10 @@ defmodule Estimate.EstimationEngine.EstimationsCurrentTest do
       end
 
     expected_epic_names =
-      epics |> Enum.sort_by(&{&1.position, &1.inserted_at, &1.id}) |> Enum.map(& &1.name)
+      epics |> Enum.sort_by(by_order()) |> Enum.map(& &1.name)
 
     expected_task_names =
-      tasks |> Enum.sort_by(&{&1.position, &1.inserted_at, &1.id}) |> Enum.map(& &1.name)
+      tasks |> Enum.sort_by(by_order()) |> Enum.map(& &1.name)
 
     org_id = Repo.reload!(est).organization_id
 

@@ -10,12 +10,12 @@ defmodule EstimateWeb.EstimatorLive.Export do
 
   import EstimateWeb.EstimatorLive.Authz
   import EstimateWeb.EstimatorLive.Helpers, only: [build_json_export: 4, display_roles: 2]
-  alias EstimateWeb.EstimatorLive.ViewState
+  alias EstimateWeb.EstimatorLive.Rows
 
   def copy_json(socket, _params) do
     estimation = socket.assigns.estimation
     dr = display_roles(estimation.roles, socket.assigns.show_all_in_rates)
-    filtered = ViewState.filtered_epics(estimation, socket.assigns.enabled_priorities)
+    filtered = Rows.filtered_epics(estimation, socket.assigns.enabled_priorities)
 
     json =
       build_json_export(

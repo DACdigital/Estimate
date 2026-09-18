@@ -120,6 +120,21 @@ defmodule EstimateWeb.EstimatorLive.SyncTest do
     assert reloads() == 1
   end
 
+  test "editing a cell whose task is hidden by the priority filter resets the grid instead of no-op",
+       ctx do
+    render_click(ctx.lv, "edit_task", %{"id" => ctx.task2.id})
+    render_submit(ctx.lv, "save_task", %{"task" => %{"name" => "T-two", "priority" => "wont"}})
+    render_click(ctx.lv, "toggle_priority", %{"priority" => "wont"})
+    refute render(ctx.lv) =~ ~s(id="task-#{ctx.task2.id}")
+
+    # a stale client could still send an edit key for the hidden task
+    render_click(ctx.lv, "edit_estimate", %{"key" => "#{ctx.task2.id}-#{ctx.role.id}"})
+    html = render(ctx.lv)
+    refute html =~ ~s(id="task-#{ctx.task2.id}")
+    assert html =~ ~s(id="task-#{ctx.task1.id}")
+    assert Process.alive?(ctx.lv.pid)
+  end
+
   test "editing a cell re-inserts only that task row", ctx do
     watch_reloads(ctx.lv)
     key = "#{ctx.task1.id}-#{ctx.role.id}"

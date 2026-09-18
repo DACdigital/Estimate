@@ -10,7 +10,7 @@ defmodule EstimateWeb.EstimatorLive.ViewState do
   """
   use EstimateWeb, :live_handlers
 
-  alias EstimateWeb.EstimatorLive.Grid
+  alias EstimateWeb.EstimatorLive.{Grid, Rows}
 
   @all_priorities MapSet.new(["must", "should", "could", "wont"])
 
@@ -59,20 +59,5 @@ defmodule EstimateWeb.EstimatorLive.ViewState do
       else: {:noreply, socket}
   end
 
-  @doc "Epics with tasks narrowed to the enabled priorities; epics left empty are dropped. Unfiltered when all four are enabled."
-  def filtered_epics(estimation, enabled_priorities) do
-    if MapSet.size(enabled_priorities) == 4 do
-      estimation.epics
-    else
-      estimation.epics
-      |> Enum.map(fn epic ->
-        %{
-          epic
-          | tasks:
-              Enum.filter(epic.tasks, &MapSet.member?(enabled_priorities, &1.priority || "must"))
-        }
-      end)
-      |> Enum.reject(&Enum.empty?(&1.tasks))
-    end
-  end
+  defdelegate filtered_epics(estimation, enabled_priorities), to: Rows
 end

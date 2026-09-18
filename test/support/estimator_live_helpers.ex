@@ -22,6 +22,9 @@ defmodule EstimateWeb.EstimatorLiveHelpers do
   @doc "Re-reads the estimation with roles/epics/tasks/estimates preloaded."
   def refetch(estimation, org), do: EstimationEngine.get_estimation!(estimation.id, org.id)
 
+  @doc "The read-side child order: position, then inserted_at (as an Erlang datetime tuple), then id."
+  def by_order, do: &{&1.position, NaiveDateTime.to_erl(&1.inserted_at), &1.id}
+
   def setup_estimator(%{conn: conn}) do
     %{user: owner, organization: org} = user_with_organization_fixture()
     project = project_fixture(nil, owner)

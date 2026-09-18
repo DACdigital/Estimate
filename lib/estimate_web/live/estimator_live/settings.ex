@@ -11,6 +11,7 @@ defmodule EstimateWeb.EstimatorLive.Settings do
   import EstimateWeb.EstimatorLive.Authz
   import EstimateWeb.EstimatorLive.Helpers, only: [parse_decimal: 1]
   alias Estimate.EstimationEngine
+  alias Estimate.Repo
 
   def open_settings(socket, _params) do
     with_edit_auth(socket, fn socket -> {:noreply, assign(socket, :modal, :settings)} end)
@@ -47,7 +48,6 @@ defmodule EstimateWeb.EstimatorLive.Settings do
   def save_settings(socket, params) do
     with_edit_auth(socket, fn socket ->
       estimation = socket.assigns.estimation
-      org_id = socket.assigns.org_id
 
       attrs = %{
         "name" => params["name"],
@@ -57,23 +57,23 @@ defmodule EstimateWeb.EstimatorLive.Settings do
       roles_params = params["roles"] || %{}
 
       roles_result =
-        Enum.reduce_while(roles_params, :ok, fn {role_id, role_attrs}, :ok ->
-          role = EstimationEngine.get_role!(role_id, org_id)
+        Repo.each_ok(roles_params, fn {role_id, role_attrs} ->
+          case Enum.find(estimation.roles, &(&1.id == role_id)) do
+            nil ->
+              {:error, :unauthorized_role}
 
-          if role.estimation_id != estimation.id do
-            {:halt, {:error, :unauthorized_role}}
-          else
-            case EstimationEngine.update_role(role, %{
-                   name: role_attrs["name"] || role.name,
-                   abbreviation: role_attrs["abbreviation"] || role.abbreviation,
-                   hourly_rate: parse_decimal(role_attrs["hourly_rate"]),
-                   pm_overhead: parse_decimal(role_attrs["pm_overhead"]),
-                   qa_overhead: parse_decimal(role_attrs["qa_overhead"]),
-                   risk_buffer: parse_decimal(role_attrs["risk_buffer"])
-                 }) do
-              {:ok, _} -> {:cont, :ok}
-              {:error, _} -> {:halt, {:error, :role_update_failed}}
-            end
+            role ->
+              case EstimationEngine.update_role(role, %{
+                     name: role_attrs["name"] || role.name,
+                     abbreviation: role_attrs["abbreviation"] || role.abbreviation,
+                     hourly_rate: parse_decimal(role_attrs["hourly_rate"]),
+                     pm_overhead: parse_decimal(role_attrs["pm_overhead"]),
+                     qa_overhead: parse_decimal(role_attrs["qa_overhead"]),
+                     risk_buffer: parse_decimal(role_attrs["risk_buffer"])
+                   }) do
+                {:ok, _} -> :ok
+                {:error, _} -> {:error, :role_update_failed}
+              end
           end
         end)
 
@@ -117,18 +117,18 @@ defmodule EstimateWeb.EstimatorLive.Settings do
           {:noreply, socket}
 
         role_id ->
-          role = EstimationEngine.get_role!(role_id, socket.assigns.org_id)
+          case Enum.find(socket.assigns.estimation.roles, &(&1.id == role_id)) do
+            nil ->
+              {:noreply, put_flash(socket, :error, "Not authorized")}
 
-          if role.estimation_id != socket.assigns.estimation.id do
-            {:noreply, put_flash(socket, :error, "Not authorized")}
-          else
-            EstimationEngine.delete_role(role)
+            role ->
+              EstimationEngine.delete_role(role)
 
-            {:noreply,
-             socket
-             |> reload_estimation()
-             |> assign(:deleting_role_id, nil)
-             |> put_flash(:info, "Role deleted")}
+              {:noreply,
+               socket
+               |> reload_estimation()
+               |> assign(:deleting_role_id, nil)
+               |> put_flash(:info, "Role deleted")}
           end
       end
     end)

@@ -48,7 +48,7 @@ defmodule EstimateWeb.EstimatorLive.TasksTest do
     # same order instead of assuming creation order.
     expected =
       [ctx.task1, ctx.task2, t3]
-      |> Enum.sort_by(&{&1.position, &1.inserted_at, &1.id})
+      |> Enum.sort_by(by_order())
       |> Enum.map(& &1.name)
 
     assert Enum.map(hd(a.estimation.epics).tasks, & &1.name) == expected

@@ -10,7 +10,6 @@ defmodule EstimateWeb.EstimatorLive.Rows do
   Row totals are computed here, once per build/insert, never at render.
   """
   alias Estimate.EstimationEngine.Calculator
-  alias EstimateWeb.EstimatorLive.ViewState
   import EstimateWeb.EstimatorLive.Helpers, only: [display_roles: 2]
 
   defmodule EpicHeader, do: defstruct([:id, :epic])
@@ -33,13 +32,13 @@ defmodule EstimateWeb.EstimatorLive.Rows do
   @spec build(map(), view()) :: [row()]
   def build(estimation, view) do
     estimation
-    |> ViewState.filtered_epics(view.enabled_priorities)
+    |> filtered_epics(view.enabled_priorities)
     |> build_from_filtered(estimation, view)
   end
 
   @doc """
   Same as `build/2`, but takes epics already narrowed by
-  `ViewState.filtered_epics/2` — for callers (`Grid.reset/1`) that need that
+  `filtered_epics/2` — for callers (`Grid.reset/1`) that need that
   filtered list for something else too and would otherwise filter twice.
   """
   @spec build_from_filtered([map()], map(), view()) :: [row()]
@@ -53,13 +52,31 @@ defmodule EstimateWeb.EstimatorLive.Rows do
     roles = display_roles(estimation.roles, view.show_all_in_rates)
 
     estimation
-    |> ViewState.filtered_epics(view.enabled_priorities)
+    |> filtered_epics(view.enabled_priorities)
     |> Enum.find_value([], fn epic ->
       case Enum.find(epic.tasks, &(&1.id == task_id)) do
         nil -> nil
         task -> [task_row(task, epic, roles) | subtotal_rows(epic, estimation.roles, roles)]
       end
     end)
+  end
+
+  @doc "Epics with tasks narrowed to the enabled priorities; epics left empty are dropped. Unfiltered when all four are enabled."
+  @spec filtered_epics(map(), MapSet.t()) :: [map()]
+  def filtered_epics(estimation, enabled_priorities) do
+    if MapSet.size(enabled_priorities) == 4 do
+      estimation.epics
+    else
+      estimation.epics
+      |> Enum.map(fn epic ->
+        %{
+          epic
+          | tasks:
+              Enum.filter(epic.tasks, &MapSet.member?(enabled_priorities, &1.priority || "must"))
+        }
+      end)
+      |> Enum.reject(&Enum.empty?(&1.tasks))
+    end
   end
 
   @spec for_epic_header(map(), String.t()) :: [row()]

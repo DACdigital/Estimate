@@ -35,7 +35,7 @@ defmodule EstimateWeb.EstimatorLive.EpicsTest do
     # against that same order instead of assuming creation order.
     expected =
       [ctx.epic, beta]
-      |> Enum.sort_by(&{&1.position, &1.inserted_at, &1.id})
+      |> Enum.sort_by(by_order())
       |> Enum.map(& &1.name)
 
     assert Enum.map(a.estimation.epics, & &1.name) == expected
