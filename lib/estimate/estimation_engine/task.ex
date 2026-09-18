@@ -1,6 +1,7 @@
 defmodule Estimate.EstimationEngine.Task do
   use Estimate.Schema
   import Ecto.Changeset
+  alias Estimate.ChangesetHelpers
 
   @priorities ~w(must should could wont)
 
@@ -27,8 +28,7 @@ defmodule Estimate.EstimationEngine.Task do
   def update_changeset(task, attrs) do
     task
     |> cast(attrs, [:name, :description, :position, :priority])
-    |> validate_required([:name])
-    |> validate_length(:name, min: 1, max: 500)
+    |> ChangesetHelpers.validate_name(500)
     |> validate_inclusion(:priority, @priorities)
   end
 

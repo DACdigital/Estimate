@@ -1,6 +1,7 @@
 defmodule Estimate.Templates.EstimationTemplateTask do
   use Estimate.Schema
   import Ecto.Changeset
+  alias Estimate.ChangesetHelpers
 
   @priorities ~w(must should could wont)
 
@@ -18,8 +19,8 @@ defmodule Estimate.Templates.EstimationTemplateTask do
   def changeset(task, attrs) do
     task
     |> cast(attrs, [:name, :description, :position, :priority, :estimation_template_epic_id])
-    |> validate_required([:name, :estimation_template_epic_id])
-    |> validate_length(:name, min: 1, max: 500)
+    |> validate_required([:estimation_template_epic_id])
+    |> ChangesetHelpers.validate_name(500)
     |> validate_inclusion(:priority, @priorities)
   end
 

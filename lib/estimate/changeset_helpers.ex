@@ -1,6 +1,6 @@
 defmodule Estimate.ChangesetHelpers do
   @moduledoc """
-  Cross-cutting changeset validations that need the database.
+  Cross-cutting changeset validations.
   """
 
   import Ecto.Changeset
@@ -21,5 +21,16 @@ defmodule Estimate.ChangesetHelpers do
 
       if exists?, do: [], else: [{field, "does not belong to this organization"}]
     end)
+  end
+
+  @doc """
+  The project's standard `:name` rule: required and 1..`max` characters.
+  Callers that require other fields call `validate_required/2` for those first.
+  """
+  @spec validate_name(Ecto.Changeset.t(), pos_integer()) :: Ecto.Changeset.t()
+  def validate_name(changeset, max) when is_integer(max) and max > 0 do
+    changeset
+    |> validate_required([:name])
+    |> validate_length(:name, min: 1, max: max)
   end
 end

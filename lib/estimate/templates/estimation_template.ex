@@ -1,6 +1,7 @@
 defmodule Estimate.Templates.EstimationTemplate do
   use Estimate.Schema
   import Ecto.Changeset
+  alias Estimate.ChangesetHelpers
 
   schema "estimation_templates" do
     field :name, :string
@@ -16,7 +17,7 @@ defmodule Estimate.Templates.EstimationTemplate do
   def changeset(template, attrs) do
     template
     |> cast(attrs, [:name, :description, :organization_id])
-    |> validate_required([:name, :organization_id])
-    |> validate_length(:name, min: 1, max: 200)
+    |> validate_required([:organization_id])
+    |> ChangesetHelpers.validate_name(200)
   end
 end

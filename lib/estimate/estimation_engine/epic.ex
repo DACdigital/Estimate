@@ -1,6 +1,7 @@
 defmodule Estimate.EstimationEngine.Epic do
   use Estimate.Schema
   import Ecto.Changeset
+  alias Estimate.ChangesetHelpers
 
   schema "epics" do
     field :name, :string
@@ -23,7 +24,6 @@ defmodule Estimate.EstimationEngine.Epic do
   def update_changeset(epic, attrs) do
     epic
     |> cast(attrs, [:name, :description, :position])
-    |> validate_required([:name])
-    |> validate_length(:name, min: 1, max: 200)
+    |> ChangesetHelpers.validate_name(200)
   end
 end

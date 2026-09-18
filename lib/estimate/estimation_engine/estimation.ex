@@ -1,6 +1,7 @@
 defmodule Estimate.EstimationEngine.Estimation do
   use Estimate.Schema
   import Ecto.Changeset
+  alias Estimate.ChangesetHelpers
 
   schema "estimations" do
     field :name, :string
@@ -46,8 +47,7 @@ defmodule Estimate.EstimationEngine.Estimation do
   def update_changeset(estimation, attrs) do
     estimation
     |> cast(attrs, [:name, :description, :currency_id])
-    |> validate_required([:name])
-    |> validate_length(:name, min: 1, max: 200)
+    |> ChangesetHelpers.validate_name(200)
     |> foreign_key_constraint(:currency_id)
   end
 
