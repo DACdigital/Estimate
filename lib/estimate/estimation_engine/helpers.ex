@@ -1,44 +1,9 @@
 defmodule Estimate.EstimationEngine.Helpers do
   @moduledoc false
 
-  import Ecto.Query
   alias Estimate.Repo
 
   @dialyzer :no_opaque
-
-  @doc """
-  Generic reorder for children of a parent record.
-  Validates that the number of IDs matches the actual child count.
-  """
-  def reorder_children(schema, parent_field, parent_id, ids, broadcast_event) do
-    Repo.ensure_org_context(fn ->
-      actual_count =
-        from(s in schema, where: field(s, ^parent_field) == ^parent_id)
-        |> Repo.aggregate(:count)
-
-      if length(ids) != actual_count do
-        {:error, :stale_reorder}
-      else
-        case Repo.transaction(fn ->
-               ids
-               |> Enum.with_index()
-               |> Enum.each(fn {id, position} ->
-                 from(s in schema,
-                   where: s.id == ^id and field(s, ^parent_field) == ^parent_id
-                 )
-                 |> Repo.update_all(set: [position: position])
-               end)
-             end) do
-          {:ok, _} ->
-            broadcast_event.()
-            :ok
-
-          {:error, reason} ->
-            {:error, reason}
-        end
-      end
-    end)
-  end
 
   @doc """
   Wraps a repo result with a broadcast on success.

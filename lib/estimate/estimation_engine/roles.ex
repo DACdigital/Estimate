@@ -38,11 +38,10 @@ defmodule Estimate.EstimationEngine.Roles do
   end
 
   def reorder_roles(estimation_id, role_ids) do
-    alias Estimate.EstimationEngine.Helpers
-
-    Helpers.reorder_children(EstimationRole, :estimation_id, estimation_id, role_ids, fn ->
+    with :ok <- Repo.reorder_children(EstimationRole, :estimation_id, estimation_id, role_ids) do
       Estimate.EstimationEngine.broadcast(estimation_id, {:roles_reordered, role_ids})
-    end)
+      :ok
+    end
   end
 
   def get_role!(id, org_id) do

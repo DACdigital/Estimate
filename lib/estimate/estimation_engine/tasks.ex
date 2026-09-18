@@ -112,16 +112,16 @@ defmodule Estimate.EstimationEngine.Tasks do
   end
 
   def reorder_tasks(epic_id, task_ids) do
-    alias Estimate.EstimationEngine.Helpers
-
     epic = Repo.ensure_org_context(fn -> Repo.get!(Epic, epic_id) end)
 
-    Helpers.reorder_children(Task, :epic_id, epic_id, task_ids, fn ->
+    with :ok <- Repo.reorder_children(Task, :epic_id, epic_id, task_ids) do
       Estimate.EstimationEngine.broadcast(
         epic.estimation_id,
         {:tasks_reordered, epic_id, task_ids}
       )
-    end)
+
+      :ok
+    end
   end
 
   defp get_epic_for_task!(%Task{epic_id: epic_id}) do

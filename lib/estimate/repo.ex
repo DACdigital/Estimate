@@ -267,6 +267,42 @@ defmodule Estimate.Repo do
     end
   end
 
+  @doc """
+  Rewrites `position` for the children of one parent to match `ids` order.
+
+  Guards against a stale client: when `length(ids)` differs from the number
+  of children the parent currently has, nothing is written and
+  `{:error, :stale_reorder}` is returned. Ids that do not belong to the
+  parent are ignored. Runs inside `ensure_org_context/1` and a transaction.
+  """
+  @spec reorder_children(module(), atom(), binary(), [binary()]) ::
+          :ok | {:error, :stale_reorder | term()}
+  def reorder_children(schema, parent_field, parent_id, ids) do
+    ensure_org_context(fn ->
+      actual_count =
+        from(s in schema, where: field(s, ^parent_field) == ^parent_id) |> aggregate(:count)
+
+      if length(ids) != actual_count do
+        {:error, :stale_reorder}
+      else
+        transaction(fn ->
+          ids
+          |> Enum.with_index()
+          |> Enum.each(fn {id, position} ->
+            from(s in schema, where: s.id == ^id and field(s, ^parent_field) == ^parent_id)
+            |> update_all(set: [position: position])
+          end)
+
+          :ok
+        end)
+        |> case do
+          {:ok, :ok} -> :ok
+          {:error, reason} -> {:error, reason}
+        end
+      end
+    end)
+  end
+
   @doc "Sets RLS org context on current connection. For test helper."
   def set_org_context(org_id) when is_binary(org_id) do
     query("SELECT set_config('app.current_org_id', $1, false)", [org_id])

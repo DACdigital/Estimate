@@ -50,10 +50,9 @@ defmodule Estimate.EstimationEngine.Epics do
   end
 
   def reorder_epics(estimation_id, epic_ids) do
-    alias Estimate.EstimationEngine.Helpers
-
-    Helpers.reorder_children(Epic, :estimation_id, estimation_id, epic_ids, fn ->
+    with :ok <- Repo.reorder_children(Epic, :estimation_id, estimation_id, epic_ids) do
       Estimate.EstimationEngine.broadcast(estimation_id, {:epics_reordered, epic_ids})
-    end)
+      :ok
+    end
   end
 end
