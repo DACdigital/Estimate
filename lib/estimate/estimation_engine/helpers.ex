@@ -3,8 +3,6 @@ defmodule Estimate.EstimationEngine.Helpers do
 
   alias Estimate.Repo
 
-  @dialyzer :no_opaque
-
   @doc """
   Wraps a repo result with a broadcast on success.
   """

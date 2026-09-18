@@ -595,9 +595,6 @@ defmodule EstimateWeb.TemplatesLive.Show do
       {:noreply,
        socket |> reload_template() |> put_flash(:error, "Order changed elsewhere; reloaded")}
 
-  defp after_reorder({:error, _}, socket),
-    do: {:noreply, socket |> reload_template() |> put_flash(:error, "Could not reorder")}
-
   defp reload_and_close(socket) do
     socket
     |> reload_template()

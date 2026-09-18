@@ -35,7 +35,8 @@ defmodule Estimate.RepoReorderChildrenTest do
     assert positions(est.id) == ids
   end
 
-  test "an id from another parent is ignored, not moved", %{est: est, ids: [a, b, c]} do
+  test "characterization: the guard is length-only — a foreign id consumes a slot (see Repo.reorder_children docs)",
+       %{est: est, ids: [a, b, c]} do
     %{user: other_owner} = user_with_organization_fixture()
     other = estimation_fixture(project_fixture(nil, other_owner))
     foreign = epic_fixture(other, %{name: "X", position: 0})

@@ -284,9 +284,6 @@ defmodule EstimateWeb.RolesLive.Index do
         {:error, :stale_reorder} ->
           {:noreply,
            socket |> reload_templates() |> put_flash(:error, "Order changed elsewhere; reloaded")}
-
-        {:error, _} ->
-          {:noreply, socket |> reload_templates() |> put_flash(:error, "Could not reorder")}
       end
     end)
   end

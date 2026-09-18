@@ -61,11 +61,13 @@ defmodule Estimate.TemplatesReorderTest do
     assert epic_ids(ctx.template, ctx.org) == [ctx.e1.id, ctx.e2.id]
   end
 
-  test "reorder_template_tasks/2 applies the order and rejects a stale list", ctx do
+  test "reorder_template_tasks/2 applies the order", ctx do
     assert :ok = Templates.reorder_template_tasks(ctx.e1.id, [ctx.t2.id, ctx.t1.id])
     assert task_ids(ctx.template, ctx.org, ctx.e1.id) == [ctx.t2.id, ctx.t1.id]
+  end
 
+  test "reorder_template_tasks/2 rejects a stale (partial) id list untouched", ctx do
     assert {:error, :stale_reorder} = Templates.reorder_template_tasks(ctx.e1.id, [ctx.t1.id])
-    assert task_ids(ctx.template, ctx.org, ctx.e1.id) == [ctx.t2.id, ctx.t1.id]
+    assert task_ids(ctx.template, ctx.org, ctx.e1.id) == [ctx.t1.id, ctx.t2.id]
   end
 end

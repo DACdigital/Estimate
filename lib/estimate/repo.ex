@@ -274,9 +274,13 @@ defmodule Estimate.Repo do
   of children the parent currently has, nothing is written and
   `{:error, :stale_reorder}` is returned. Ids that do not belong to the
   parent are ignored. Runs inside `ensure_org_context/1` and a transaction.
+
+  The check is on length only: an id that does not belong to the parent
+  still consumes a slot, so a padded list can reorder a subset and leave
+  duplicate positions. A set-equality guard is a possible follow-up.
   """
   @spec reorder_children(module(), atom(), binary(), [binary()]) ::
-          :ok | {:error, :stale_reorder | term()}
+          :ok | {:error, :stale_reorder}
   def reorder_children(schema, parent_field, parent_id, ids) do
     ensure_org_context(fn ->
       actual_count =
@@ -295,10 +299,7 @@ defmodule Estimate.Repo do
 
           :ok
         end)
-        |> case do
-          {:ok, :ok} -> :ok
-          {:error, reason} -> {:error, reason}
-        end
+        |> then(fn {:ok, :ok} -> :ok end)
       end
     end)
   end
