@@ -86,16 +86,22 @@ defmodule EstimateWeb.TemplatesLive.Show.Epics do
 
   def delete_epic(socket, _params) do
     require_admin(socket, fn ->
-      case Templates.delete_template_epic(socket.assigns.deleting_epic) do
-        {:ok, _} ->
-          {:noreply,
-           socket
-           |> assign(:deleting_epic, nil)
-           |> reload_template()
-           |> put_flash(:info, "Epic deleted")}
+      case socket.assigns.deleting_epic do
+        nil ->
+          not_found(socket)
 
-        {:error, _} ->
-          {:noreply, put_flash(socket, :error, "Could not delete epic")}
+        epic ->
+          case Templates.delete_template_epic(epic) do
+            {:ok, _} ->
+              {:noreply,
+               socket
+               |> assign(:deleting_epic, nil)
+               |> reload_template()
+               |> put_flash(:info, "Epic deleted")}
+
+            {:error, _} ->
+              {:noreply, put_flash(socket, :error, "Could not delete epic")}
+          end
       end
     end)
   end

@@ -492,4 +492,27 @@ defmodule EstimateWeb.TemplatesLive.ShowTest do
       assert a.deleting_epic == nil and a.deleting_task == nil
     end
   end
+
+  describe "no client payload crashes the LiveView (4C)" do
+    test "delete_epic with nothing confirmed flashes Not found", ctx do
+      assert assigns(ctx.lv).deleting_epic == nil
+      assert render_click(ctx.lv, "delete_epic", %{}) =~ "Not found"
+      assert Process.alive?(ctx.lv.pid)
+      assert length(refetch(ctx.template, ctx.org).epics) == 1
+    end
+
+    test "delete_task with nothing confirmed flashes Not found", ctx do
+      assert assigns(ctx.lv).deleting_task == nil
+      assert render_click(ctx.lv, "delete_task", %{}) =~ "Not found"
+      assert Process.alive?(ctx.lv.pid)
+      [epic] = refetch(ctx.template, ctx.org).epics
+      assert length(epic.tasks) == 2
+    end
+
+    test "add_task without an epic-id flashes Not found", ctx do
+      assert render_click(ctx.lv, "add_task", %{}) =~ "Not found"
+      assert assigns(ctx.lv).modal == nil
+      assert Process.alive?(ctx.lv.pid)
+    end
+  end
 end

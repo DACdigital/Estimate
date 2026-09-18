@@ -30,6 +30,8 @@ defmodule EstimateWeb.TemplatesLive.Show.Tasks do
     end)
   end
 
+  def add_task(socket, _params), do: require_admin(socket, fn -> not_found(socket) end)
+
   def edit_task(socket, %{"id" => id, "epic-id" => epic_id}) do
     require_admin(socket, fn ->
       case find_task(socket.assigns.template, epic_id, id) do
@@ -112,16 +114,22 @@ defmodule EstimateWeb.TemplatesLive.Show.Tasks do
 
   def delete_task(socket, _params) do
     require_admin(socket, fn ->
-      case Templates.delete_template_task(socket.assigns.deleting_task) do
-        {:ok, _} ->
-          {:noreply,
-           socket
-           |> assign(:deleting_task, nil)
-           |> reload_template()
-           |> put_flash(:info, "Task deleted")}
+      case socket.assigns.deleting_task do
+        nil ->
+          not_found(socket)
 
-        {:error, _} ->
-          {:noreply, put_flash(socket, :error, "Could not delete task")}
+        task ->
+          case Templates.delete_template_task(task) do
+            {:ok, _} ->
+              {:noreply,
+               socket
+               |> assign(:deleting_task, nil)
+               |> reload_template()
+               |> put_flash(:info, "Task deleted")}
+
+            {:error, _} ->
+              {:noreply, put_flash(socket, :error, "Could not delete task")}
+          end
       end
     end)
   end
