@@ -2,7 +2,7 @@ defmodule EstimateWeb.TemplatesLive.Show.Epics do
   @moduledoc """
   Template epic modal, delete-confirm and reorder handlers.
 
-  Reads: `:template`, `:deleting_epic`, `:current_membership` (via require_admin).
+  Reads: `:template`, `:deleting_epic`, `:current_membership` (gate, via require_admin).
   Writes: `:modal`, `:current_epic_id`, `:epic_form`, `:deleting_epic`, `:template` (reload), flash.
   """
   use EstimateWeb, :live_handlers
@@ -11,24 +11,32 @@ defmodule EstimateWeb.TemplatesLive.Show.Epics do
   alias Estimate.Templates
 
   def add_epic(socket, _params) do
-    {:noreply,
-     socket
-     |> assign(:modal, :epic)
-     |> assign(:current_epic_id, nil)
-     |> assign(:epic_form, to_form(%{"name" => "", "description" => ""}, as: "epic"))}
+    require_admin(socket, fn ->
+      {:noreply,
+       socket
+       |> assign(:modal, :epic)
+       |> assign(:current_epic_id, nil)
+       |> assign(:epic_form, to_form(%{"name" => "", "description" => ""}, as: "epic"))}
+    end)
   end
 
   def edit_epic(socket, %{"id" => id}) do
-    epic = find_epic(socket.assigns.template, id)
+    require_admin(socket, fn ->
+      case find_epic(socket.assigns.template, id) do
+        nil ->
+          not_found(socket)
 
-    {:noreply,
-     socket
-     |> assign(:modal, :epic)
-     |> assign(:current_epic_id, id)
-     |> assign(
-       :epic_form,
-       to_form(%{"name" => epic.name, "description" => epic.description || ""}, as: "epic")
-     )}
+        epic ->
+          {:noreply,
+           socket
+           |> assign(:modal, :epic)
+           |> assign(:current_epic_id, id)
+           |> assign(
+             :epic_form,
+             to_form(%{"name" => epic.name, "description" => epic.description || ""}, as: "epic")
+           )}
+      end
+    end)
   end
 
   def save_epic(socket, %{"epic_id" => "", "name" => name} = params) do
@@ -51,21 +59,29 @@ defmodule EstimateWeb.TemplatesLive.Show.Epics do
 
   def save_epic(socket, %{"epic_id" => id, "name" => name} = params) do
     require_admin(socket, fn ->
-      epic = find_epic(socket.assigns.template, id)
+      case find_epic(socket.assigns.template, id) do
+        nil ->
+          not_found(socket)
 
-      case Templates.update_template_epic(epic, %{
-             "name" => name,
-             "description" => params["description"]
-           }) do
-        {:ok, _} -> {:noreply, reload_and_close(socket)}
-        {:error, _} -> {:noreply, put_flash(socket, :error, "Could not update epic")}
+        epic ->
+          case Templates.update_template_epic(epic, %{
+                 "name" => name,
+                 "description" => params["description"]
+               }) do
+            {:ok, _} -> {:noreply, reload_and_close(socket)}
+            {:error, _} -> {:noreply, put_flash(socket, :error, "Could not update epic")}
+          end
       end
     end)
   end
 
   def confirm_delete_epic(socket, %{"id" => id}) do
-    epic = find_epic(socket.assigns.template, id)
-    {:noreply, assign(socket, :deleting_epic, epic)}
+    require_admin(socket, fn ->
+      case find_epic(socket.assigns.template, id) do
+        nil -> not_found(socket)
+        epic -> {:noreply, assign(socket, :deleting_epic, epic)}
+      end
+    end)
   end
 
   def delete_epic(socket, _params) do

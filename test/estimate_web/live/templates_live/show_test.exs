@@ -2,7 +2,6 @@ defmodule EstimateWeb.TemplatesLive.ShowTest do
   use EstimateWeb.ConnCase, async: true
 
   import Phoenix.LiveViewTest
-  import ExUnit.CaptureLog
   import EstimateWeb.TemplatesLiveHelpers
 
   alias Estimate.Repo
@@ -39,9 +38,9 @@ defmodule EstimateWeb.TemplatesLive.ShowTest do
       assert Repo.get!(EstimationTemplate, ctx.template.id).description == "New"
     end
 
-    test "an invalid name is silently ignored (characterizes today: no flash)", ctx do
+    test "an invalid name flashes Could not save template (B3)", ctx do
       html = render_change(ctx.lv, "update_template", %{"name" => "", "description" => "x"})
-      refute html =~ "Could not save template"
+      assert html =~ "Could not save template"
       assert Repo.get!(EstimationTemplate, ctx.template.id).name == "Tpl"
     end
 
@@ -132,13 +131,13 @@ defmodule EstimateWeb.TemplatesLive.ShowTest do
       assert Enum.map(assigns(ctx.lv).template.epics, & &1.name) == ["Beta", "Alpha"]
     end
 
-    test "member can open the epic modal and stage a delete (characterizes today's gap; changed in B3)",
-         ctx do
+    test "member is denied on add_epic, edit_epic and confirm_delete_epic (B3)", ctx do
       {:ok, lv, _} = mount_as_member(ctx)
-      render_click(lv, "add_epic", %{})
-      assert assigns(lv).modal == :epic
-      render_click(lv, "confirm_delete_epic", %{"id" => ctx.epic.id})
-      assert assigns(lv).deleting_epic.id == ctx.epic.id
+      assert render_click(lv, "add_epic", %{}) =~ "Not authorized"
+      assert render_click(lv, "edit_epic", %{"id" => ctx.epic.id}) =~ "Not authorized"
+      assert render_click(lv, "confirm_delete_epic", %{"id" => ctx.epic.id}) =~ "Not authorized"
+      a = assigns(lv)
+      assert a.modal == nil and a.deleting_epic == nil
     end
 
     test "member is denied on save_epic, delete_epic and reorder_epics", ctx do
@@ -154,20 +153,15 @@ defmodule EstimateWeb.TemplatesLive.ShowTest do
       assert length(refetch(ctx.template, ctx.org).epics) == 1
     end
 
-    test "edit_epic with an unknown id crashes the LiveView (characterizes today's gap; changed in B3)",
-         ctx do
-      Process.flag(:trap_exit, true)
+    test "edit_epic / confirm_delete_epic with an unknown id flash Not found (B3)", ctx do
+      assert render_click(ctx.lv, "edit_epic", %{"id" => Ecto.UUID.generate()}) =~ "Not found"
+      assert assigns(ctx.lv).modal == nil
 
-      log =
-        capture_log(fn ->
-          try do
-            render_click(ctx.lv, "edit_epic", %{"id" => Ecto.UUID.generate()})
-          catch
-            :exit, _reason -> :ok
-          end
-        end)
+      assert render_click(ctx.lv, "confirm_delete_epic", %{"id" => Ecto.UUID.generate()}) =~
+               "Not found"
 
-      assert log =~ "BadMapError"
+      assert assigns(ctx.lv).deleting_epic == nil
+      assert Process.alive?(ctx.lv.pid)
     end
   end
 
@@ -275,13 +269,20 @@ defmodule EstimateWeb.TemplatesLive.ShowTest do
       assert Enum.map(epic.tasks, & &1.name) == ["T-two", "T-one"]
     end
 
-    test "member can open the task modal and stage a delete (characterizes today's gap; changed in B3)",
-         ctx do
+    test "member is denied on add_task, edit_task and confirm_delete_task (B3)", ctx do
       {:ok, lv, _} = mount_as_member(ctx)
-      render_click(lv, "add_task", %{"epic-id" => ctx.epic.id})
-      assert assigns(lv).modal == :task
-      render_click(lv, "confirm_delete_task", %{"id" => ctx.task1.id, "epic-id" => ctx.epic.id})
-      assert assigns(lv).deleting_task.id == ctx.task1.id
+      assert render_click(lv, "add_task", %{"epic-id" => ctx.epic.id}) =~ "Not authorized"
+
+      assert render_click(lv, "edit_task", %{"id" => ctx.task1.id, "epic-id" => ctx.epic.id}) =~
+               "Not authorized"
+
+      assert render_click(lv, "confirm_delete_task", %{
+               "id" => ctx.task1.id,
+               "epic-id" => ctx.epic.id
+             }) =~ "Not authorized"
+
+      a = assigns(lv)
+      assert a.modal == nil and a.deleting_task == nil
     end
 
     test "member is denied on save_task, delete_task and reorder_tasks", ctx do
@@ -308,23 +309,50 @@ defmodule EstimateWeb.TemplatesLive.ShowTest do
       assert Enum.map(epic.tasks, & &1.name) == ["T-one", "T-two"]
     end
 
-    test "edit_task with an unknown epic id crashes the LiveView (characterizes today's gap; changed in B3)",
+    test "edit_task / confirm_delete_task with an unknown epic or task id flash Not found (B3)",
          ctx do
-      Process.flag(:trap_exit, true)
+      assert render_click(ctx.lv, "edit_task", %{
+               "id" => ctx.task1.id,
+               "epic-id" => Ecto.UUID.generate()
+             }) =~ "Not found"
 
-      log =
-        capture_log(fn ->
-          try do
-            render_click(ctx.lv, "edit_task", %{
-              "id" => ctx.task1.id,
-              "epic-id" => Ecto.UUID.generate()
-            })
-          catch
-            :exit, _reason -> :ok
-          end
-        end)
+      assert render_click(ctx.lv, "edit_task", %{
+               "id" => Ecto.UUID.generate(),
+               "epic-id" => ctx.epic.id
+             }) =~ "Not found"
 
-      assert log =~ "BadMapError"
+      assert assigns(ctx.lv).modal == nil
+
+      assert render_click(ctx.lv, "confirm_delete_task", %{
+               "id" => Ecto.UUID.generate(),
+               "epic-id" => ctx.epic.id
+             }) =~ "Not found"
+
+      assert assigns(ctx.lv).deleting_task == nil
+      assert Process.alive?(ctx.lv.pid)
+    end
+
+    test "reorder_tasks for an epic that is not in this template is rejected (B3)", ctx do
+      other = Estimate.TemplatesFixtures.template_fixture(ctx.org)
+
+      {:ok, other_epic} =
+        Estimate.Templates.create_template_epic(%{
+          "name" => "Other",
+          "position" => 0,
+          "estimation_template_id" => other.id
+        })
+
+      {:ok, ot} =
+        Estimate.Templates.create_template_task(%{
+          "name" => "OT",
+          "position" => 0,
+          "estimation_template_epic_id" => other_epic.id
+        })
+
+      assert render_click(ctx.lv, "reorder_tasks", %{"epic_id" => other_epic.id, "ids" => [ot.id]}) =~
+               "Not found"
+
+      assert Repo.get!(EstimationTemplateTask, ot.id).position == 0
     end
   end
 

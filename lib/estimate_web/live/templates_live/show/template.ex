@@ -18,7 +18,7 @@ defmodule EstimateWeb.TemplatesLive.Show.Template do
           {:noreply, assign(socket, :template, template)}
 
         {:error, _} ->
-          {:noreply, socket}
+          {:noreply, put_flash(socket, :error, "Could not save template")}
       end
     end)
   end
