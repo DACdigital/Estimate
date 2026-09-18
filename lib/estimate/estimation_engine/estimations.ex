@@ -94,16 +94,11 @@ defmodule Estimate.EstimationEngine.Estimations do
     Helpers.build_estimation_multi(attrs, fn estimation ->
       EstimationRole.default_roles()
       |> Enum.with_index()
-      |> Enum.reduce_while({:ok, []}, fn {role_attrs, idx}, {:ok, acc} ->
-        %EstimationRole{}
-        |> EstimationRole.changeset(
+      |> Repo.insert_each(fn {role_attrs, idx} ->
+        EstimationRole.changeset(
+          %EstimationRole{},
           Map.merge(role_attrs, %{estimation_id: estimation.id, position: idx})
         )
-        |> Repo.insert()
-        |> case do
-          {:ok, role} -> {:cont, {:ok, [role | acc]}}
-          {:error, changeset} -> {:halt, {:error, changeset}}
-        end
       end)
     end)
   end

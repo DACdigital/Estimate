@@ -239,6 +239,34 @@ defmodule Estimate.Repo do
     role
   end
 
+  # ---------------------------------------------------------------------------
+  # Batch persistence helpers
+  # ---------------------------------------------------------------------------
+
+  @doc """
+  Inserts one changeset per item, in order, halting on the first error.
+
+  Returns `{:ok, [struct]}` in input order, or `{:error, changeset}` for the
+  first failing changeset (items after it are not attempted). Opens no
+  transaction of its own — call it inside `transaction/1` or an
+  `Ecto.Multi.run/3` step when partial inserts must roll back.
+  """
+  @spec insert_each(Enumerable.t(), (term -> Ecto.Changeset.t())) ::
+          {:ok, [struct()]} | {:error, Ecto.Changeset.t()}
+  def insert_each(items, changeset_fun) when is_function(changeset_fun, 1) do
+    items
+    |> Enum.reduce_while({:ok, []}, fn item, {:ok, acc} ->
+      case insert(changeset_fun.(item)) do
+        {:ok, record} -> {:cont, {:ok, [record | acc]}}
+        {:error, changeset} -> {:halt, {:error, changeset}}
+      end
+    end)
+    |> case do
+      {:ok, records} -> {:ok, Enum.reverse(records)}
+      error -> error
+    end
+  end
+
   @doc "Sets RLS org context on current connection. For test helper."
   def set_org_context(org_id) when is_binary(org_id) do
     query("SELECT set_config('app.current_org_id', $1, false)", [org_id])

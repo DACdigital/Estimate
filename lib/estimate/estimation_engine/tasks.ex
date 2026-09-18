@@ -34,7 +34,7 @@ defmodule Estimate.EstimationEngine.Tasks do
         Task.changeset(%Task{}, Map.put(task_attrs, "epic_id", epic_id))
       )
       |> Ecto.Multi.run(:estimates, fn _repo, %{task: task} ->
-        Enum.reduce_while(effort_by_role_id, {:ok, []}, fn {role_id, hours}, {:ok, acc} ->
+        Repo.insert_each(effort_by_role_id, fn {role_id, hours} ->
           %TaskEstimate{}
           |> TaskEstimate.changeset(%{
             "task_id" => task.id,
@@ -42,11 +42,6 @@ defmodule Estimate.EstimationEngine.Tasks do
             "hours" => to_string(hours)
           })
           |> Ecto.Changeset.foreign_key_constraint(:estimation_role_id)
-          |> Repo.insert()
-          |> case do
-            {:ok, te} -> {:cont, {:ok, [te | acc]}}
-            {:error, cs} -> {:halt, {:error, cs}}
-          end
         end)
       end)
       |> Repo.transaction()

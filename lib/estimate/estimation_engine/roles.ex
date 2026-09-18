@@ -110,18 +110,8 @@ defmodule Estimate.EstimationEngine.Roles do
   defp insert_roles(items, attrs_fn) do
     items
     |> Enum.with_index()
-    |> Enum.reduce_while({:ok, []}, fn {item, idx}, {:ok, acc} ->
-      %EstimationRole{}
-      |> EstimationRole.changeset(attrs_fn.(item, idx))
-      |> Repo.insert()
-      |> case do
-        {:ok, role} -> {:cont, {:ok, [role | acc]}}
-        {:error, changeset} -> {:halt, {:error, changeset}}
-      end
+    |> Repo.insert_each(fn {item, idx} ->
+      EstimationRole.changeset(%EstimationRole{}, attrs_fn.(item, idx))
     end)
-    |> case do
-      {:ok, roles} -> {:ok, Enum.reverse(roles)}
-      error -> error
-    end
   end
 end

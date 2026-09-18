@@ -66,43 +66,41 @@ defmodule Estimate.EstimationEngine.Import do
   defp insert_epics_and_tasks(estimation_id, epics_data) do
     epics_data
     |> Enum.with_index()
-    |> Enum.reduce_while({:ok, []}, fn {epic_data, epic_idx}, {:ok, acc} ->
-      epic_attrs = %{
+    |> Repo.insert_each(fn {epic_data, epic_idx} ->
+      Epic.changeset(%Epic{}, %{
         name: epic_data.name,
         description: epic_data[:description],
         position: epic_data[:position] || epic_idx,
         estimation_id: estimation_id
-      }
-
-      case Repo.insert(Epic.changeset(%Epic{}, epic_attrs)) do
-        {:ok, new_epic} ->
-          case insert_tasks(new_epic.id, epic_data.tasks) do
-            {:ok, _} -> {:cont, {:ok, [new_epic | acc]}}
+      })
+    end)
+    |> case do
+      {:ok, epics} ->
+        epics
+        |> Enum.zip(epics_data)
+        |> Enum.reduce_while({:ok, epics}, fn {epic, epic_data}, acc ->
+          case insert_tasks(epic.id, epic_data.tasks) do
+            {:ok, _} -> {:cont, acc}
             {:error, changeset} -> {:halt, {:error, changeset}}
           end
+        end)
 
-        {:error, changeset} ->
-          {:halt, {:error, changeset}}
-      end
-    end)
+      error ->
+        error
+    end
   end
 
   defp insert_tasks(epic_id, tasks) do
     tasks
     |> Enum.with_index()
-    |> Enum.reduce_while({:ok, []}, fn {task_data, task_idx}, {:ok, acc} ->
-      task_attrs = %{
+    |> Repo.insert_each(fn {task_data, task_idx} ->
+      Task.changeset(%Task{}, %{
         name: task_data.name,
         description: task_data[:description],
         position: task_data[:position] || task_idx,
         priority: task_data[:priority] || "must",
         epic_id: epic_id
-      }
-
-      case Repo.insert(Task.changeset(%Task{}, task_attrs)) do
-        {:ok, task} -> {:cont, {:ok, [task | acc]}}
-        {:error, changeset} -> {:halt, {:error, changeset}}
-      end
+      })
     end)
   end
 end

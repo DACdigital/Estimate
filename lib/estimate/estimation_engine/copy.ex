@@ -21,9 +21,9 @@ defmodule Estimate.EstimationEngine.Copy do
         })
       end)
       |> Ecto.Multi.run(:roles, fn _repo, %{estimation: new_estimation} ->
-        Enum.reduce_while(estimation.roles, {:ok, %{}}, fn old_role, {:ok, acc} ->
-          %EstimationRole{}
-          |> EstimationRole.changeset(%{
+        estimation.roles
+        |> Repo.insert_each(fn old_role ->
+          EstimationRole.changeset(%EstimationRole{}, %{
             name: old_role.name,
             abbreviation: old_role.abbreviation,
             hourly_rate: old_role.hourly_rate,
@@ -33,12 +33,14 @@ defmodule Estimate.EstimationEngine.Copy do
             position: old_role.position,
             estimation_id: new_estimation.id
           })
-          |> Repo.insert()
-          |> case do
-            {:ok, new_role} -> {:cont, {:ok, Map.put(acc, old_role.id, new_role.id)}}
-            {:error, changeset} -> {:halt, {:error, changeset}}
-          end
         end)
+        |> case do
+          {:ok, new_roles} ->
+            {:ok, Map.new(Enum.zip(estimation.roles, new_roles), fn {o, n} -> {o.id, n.id} end)}
+
+          error ->
+            error
+        end
       end)
       |> Ecto.Multi.run(:epics_tasks, fn _repo,
                                          %{estimation: new_estimation, roles: role_mapping} ->
@@ -56,67 +58,57 @@ defmodule Estimate.EstimationEngine.Copy do
   end
 
   defp copy_epics_with_estimates(epics, estimation_id, role_mapping) do
-    Enum.reduce_while(epics, {:ok, []}, fn old_epic, {:ok, acc} ->
-      case Repo.insert(
+    with {:ok, new_epics} <-
+           Repo.insert_each(epics, fn old_epic ->
              Epic.changeset(%Epic{}, %{
                name: old_epic.name,
                description: old_epic.description,
                position: old_epic.position,
                estimation_id: estimation_id
              })
-           ) do
-        {:ok, new_epic} ->
-          case copy_tasks_with_estimates(old_epic.tasks, new_epic.id, role_mapping) do
-            {:ok, _} -> {:cont, {:ok, [new_epic | acc]}}
-            {:error, changeset} -> {:halt, {:error, changeset}}
-          end
-
-        {:error, changeset} ->
-          {:halt, {:error, changeset}}
-      end
-    end)
+           end) do
+      epics
+      |> Enum.zip(new_epics)
+      |> Enum.reduce_while({:ok, new_epics}, fn {old_epic, new_epic}, acc ->
+        case copy_tasks_with_estimates(old_epic.tasks, new_epic.id, role_mapping) do
+          {:ok, _} -> {:cont, acc}
+          {:error, changeset} -> {:halt, {:error, changeset}}
+        end
+      end)
+    end
   end
 
   defp copy_tasks_with_estimates(tasks, epic_id, role_mapping) do
-    Enum.reduce_while(tasks, {:ok, []}, fn old_task, {:ok, acc} ->
-      case Repo.insert(
+    with {:ok, new_tasks} <-
+           Repo.insert_each(tasks, fn old_task ->
              Task.changeset(%Task{}, %{
                name: old_task.name,
                description: old_task.description,
                position: old_task.position,
                epic_id: epic_id
              })
-           ) do
-        {:ok, new_task} ->
-          case copy_estimates(old_task.estimates, new_task.id, role_mapping) do
-            :ok -> {:cont, {:ok, [new_task | acc]}}
-            {:error, changeset} -> {:halt, {:error, changeset}}
-          end
-
-        {:error, changeset} ->
-          {:halt, {:error, changeset}}
-      end
-    end)
-  end
-
-  defp copy_estimates(estimates, new_task_id, role_mapping) do
-    Enum.reduce_while(estimates, :ok, fn old_estimate, :ok ->
-      new_role_id = Map.get(role_mapping, old_estimate.estimation_role_id)
-
-      if new_role_id do
-        case Repo.insert(
-               TaskEstimate.changeset(%TaskEstimate{}, %{
-                 hours: old_estimate.hours,
-                 task_id: new_task_id,
-                 estimation_role_id: new_role_id
-               })
-             ) do
-          {:ok, _} -> {:cont, :ok}
+           end) do
+      tasks
+      |> Enum.zip(new_tasks)
+      |> Enum.reduce_while({:ok, new_tasks}, fn {old_task, new_task}, acc ->
+        case copy_estimates(old_task.estimates, new_task.id, role_mapping) do
+          {:ok, _} -> {:cont, acc}
           {:error, changeset} -> {:halt, {:error, changeset}}
         end
-      else
-        {:cont, :ok}
-      end
+      end)
+    end
+  end
+
+  # Estimates whose role was not copied (no mapping) are skipped, as before.
+  defp copy_estimates(estimates, new_task_id, role_mapping) do
+    estimates
+    |> Enum.filter(&Map.has_key?(role_mapping, &1.estimation_role_id))
+    |> Repo.insert_each(fn old_estimate ->
+      TaskEstimate.changeset(%TaskEstimate{}, %{
+        hours: old_estimate.hours,
+        task_id: new_task_id,
+        estimation_role_id: Map.fetch!(role_mapping, old_estimate.estimation_role_id)
+      })
     end)
   end
 end
