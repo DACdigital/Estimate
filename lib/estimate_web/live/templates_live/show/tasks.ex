@@ -1,0 +1,111 @@
+defmodule EstimateWeb.TemplatesLive.Show.Tasks do
+  @moduledoc """
+  Template task modal, delete-confirm and reorder handlers.
+
+  Reads: `:template`, `:deleting_task`, `:current_membership` (via require_admin).
+  Writes: `:modal`, `:current_epic_id`, `:current_task_id`, `:task_form`, `:deleting_task`, `:template` (reload), flash.
+  """
+  use EstimateWeb, :live_handlers
+
+  import EstimateWeb.TemplatesLive.Show.Authz
+  alias Estimate.Templates
+
+  def add_task(socket, %{"epic-id" => epic_id}) do
+    {:noreply,
+     socket
+     |> assign(:modal, :task)
+     |> assign(:current_epic_id, epic_id)
+     |> assign(:current_task_id, nil)
+     |> assign(
+       :task_form,
+       to_form(%{"name" => "", "description" => "", "priority" => "must"}, as: "task")
+     )}
+  end
+
+  def edit_task(socket, %{"id" => id, "epic-id" => epic_id}) do
+    task = find_task(socket.assigns.template, epic_id, id)
+
+    {:noreply,
+     socket
+     |> assign(:modal, :task)
+     |> assign(:current_epic_id, epic_id)
+     |> assign(:current_task_id, id)
+     |> assign(
+       :task_form,
+       to_form(
+         %{
+           "name" => task.name,
+           "description" => task.description || "",
+           "priority" => task.priority
+         },
+         as: "task"
+       )
+     )}
+  end
+
+  def save_task(socket, %{"task_id" => "", "epic_id" => epic_id, "name" => name} = params) do
+    require_admin(socket, fn ->
+      epic = find_epic(socket.assigns.template, epic_id)
+      position = length(epic.tasks)
+
+      attrs = %{
+        "name" => name,
+        "description" => params["description"],
+        "priority" => params["priority"] || "must",
+        "position" => position,
+        "estimation_template_epic_id" => epic_id
+      }
+
+      case Templates.create_template_task(attrs) do
+        {:ok, _} -> {:noreply, reload_and_close(socket)}
+        {:error, _} -> {:noreply, put_flash(socket, :error, "Could not create task")}
+      end
+    end)
+  end
+
+  def save_task(socket, %{"task_id" => id, "epic_id" => epic_id, "name" => name} = params) do
+    require_admin(socket, fn ->
+      task = find_task(socket.assigns.template, epic_id, id)
+
+      attrs = %{
+        "name" => name,
+        "description" => params["description"],
+        "priority" => params["priority"] || task.priority
+      }
+
+      case Templates.update_template_task(task, attrs) do
+        {:ok, _} -> {:noreply, reload_and_close(socket)}
+        {:error, _} -> {:noreply, put_flash(socket, :error, "Could not update task")}
+      end
+    end)
+  end
+
+  def confirm_delete_task(socket, %{"id" => id, "epic-id" => epic_id}) do
+    task = find_task(socket.assigns.template, epic_id, id)
+    {:noreply, assign(socket, :deleting_task, task)}
+  end
+
+  def delete_task(socket, _params) do
+    require_admin(socket, fn ->
+      case Templates.delete_template_task(socket.assigns.deleting_task) do
+        {:ok, _} ->
+          {:noreply,
+           socket
+           |> assign(:deleting_task, nil)
+           |> reload_template()
+           |> put_flash(:info, "Task deleted")}
+
+        {:error, _} ->
+          {:noreply, put_flash(socket, :error, "Could not delete task")}
+      end
+    end)
+  end
+
+  def reorder_tasks(socket, %{"epic_id" => epic_id, "ids" => ids}) do
+    require_admin(socket, fn ->
+      epic_id
+      |> Templates.reorder_template_tasks(ids)
+      |> after_reorder(socket)
+    end)
+  end
+end

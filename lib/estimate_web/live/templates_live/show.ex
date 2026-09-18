@@ -340,273 +340,30 @@ defmodule EstimateWeb.TemplatesLive.Show do
      |> assign(:deleting_task, nil)}
   end
 
+  alias EstimateWeb.TemplatesLive.Show.{Epics, Tasks, Template}
+
   @impl true
-  def handle_event("update_template", params, socket) do
-    require_admin(socket, fn ->
-      attrs = %{
-        "name" => params["name"],
-        "description" => params["description"]
-      }
+  def handle_event("update_template", params, socket),
+    do: Template.update_template(socket, params)
 
-      case Templates.update_estimation_template(socket.assigns.template, attrs) do
-        {:ok, template} ->
-          template = Templates.get_estimation_template!(template.id, socket.assigns.org_id)
-          {:noreply, assign(socket, :template, template)}
+  def handle_event("add_epic", params, socket), do: Epics.add_epic(socket, params)
+  def handle_event("edit_epic", params, socket), do: Epics.edit_epic(socket, params)
+  def handle_event("save_epic", params, socket), do: Epics.save_epic(socket, params)
 
-        {:error, _} ->
-          {:noreply, socket}
-      end
-    end)
-  end
+  def handle_event("confirm_delete_epic", params, socket),
+    do: Epics.confirm_delete_epic(socket, params)
 
-  ## Epic events
+  def handle_event("delete_epic", params, socket), do: Epics.delete_epic(socket, params)
+  def handle_event("add_task", params, socket), do: Tasks.add_task(socket, params)
+  def handle_event("edit_task", params, socket), do: Tasks.edit_task(socket, params)
+  def handle_event("save_task", params, socket), do: Tasks.save_task(socket, params)
 
-  def handle_event("add_epic", _params, socket) do
-    {:noreply,
-     socket
-     |> assign(:modal, :epic)
-     |> assign(:current_epic_id, nil)
-     |> assign(:epic_form, to_form(%{"name" => "", "description" => ""}, as: "epic"))}
-  end
+  def handle_event("confirm_delete_task", params, socket),
+    do: Tasks.confirm_delete_task(socket, params)
 
-  def handle_event("edit_epic", %{"id" => id}, socket) do
-    epic = find_epic(socket.assigns.template, id)
-
-    {:noreply,
-     socket
-     |> assign(:modal, :epic)
-     |> assign(:current_epic_id, id)
-     |> assign(
-       :epic_form,
-       to_form(%{"name" => epic.name, "description" => epic.description || ""}, as: "epic")
-     )}
-  end
-
-  def handle_event("save_epic", %{"epic_id" => "", "name" => name} = params, socket) do
-    require_admin(socket, fn ->
-      position = length(socket.assigns.template.epics)
-
-      attrs = %{
-        "name" => name,
-        "description" => params["description"],
-        "position" => position,
-        "estimation_template_id" => socket.assigns.template.id
-      }
-
-      case Templates.create_template_epic(attrs) do
-        {:ok, _} ->
-          {:noreply, reload_and_close(socket)}
-
-        {:error, _} ->
-          {:noreply, put_flash(socket, :error, "Could not create epic")}
-      end
-    end)
-  end
-
-  def handle_event("save_epic", %{"epic_id" => id, "name" => name} = params, socket) do
-    require_admin(socket, fn ->
-      epic = find_epic(socket.assigns.template, id)
-
-      case Templates.update_template_epic(epic, %{
-             "name" => name,
-             "description" => params["description"]
-           }) do
-        {:ok, _} ->
-          {:noreply, reload_and_close(socket)}
-
-        {:error, _} ->
-          {:noreply, put_flash(socket, :error, "Could not update epic")}
-      end
-    end)
-  end
-
-  def handle_event("confirm_delete_epic", %{"id" => id}, socket) do
-    epic = find_epic(socket.assigns.template, id)
-    {:noreply, assign(socket, :deleting_epic, epic)}
-  end
-
-  def handle_event("delete_epic", _params, socket) do
-    require_admin(socket, fn ->
-      case Templates.delete_template_epic(socket.assigns.deleting_epic) do
-        {:ok, _} ->
-          {:noreply,
-           socket
-           |> assign(:deleting_epic, nil)
-           |> reload_template()
-           |> put_flash(:info, "Epic deleted")}
-
-        {:error, _} ->
-          {:noreply, put_flash(socket, :error, "Could not delete epic")}
-      end
-    end)
-  end
-
-  ## Task events
-
-  def handle_event("add_task", %{"epic-id" => epic_id}, socket) do
-    {:noreply,
-     socket
-     |> assign(:modal, :task)
-     |> assign(:current_epic_id, epic_id)
-     |> assign(:current_task_id, nil)
-     |> assign(
-       :task_form,
-       to_form(%{"name" => "", "description" => "", "priority" => "must"}, as: "task")
-     )}
-  end
-
-  def handle_event("edit_task", %{"id" => id, "epic-id" => epic_id}, socket) do
-    task = find_task(socket.assigns.template, epic_id, id)
-
-    {:noreply,
-     socket
-     |> assign(:modal, :task)
-     |> assign(:current_epic_id, epic_id)
-     |> assign(:current_task_id, id)
-     |> assign(
-       :task_form,
-       to_form(
-         %{
-           "name" => task.name,
-           "description" => task.description || "",
-           "priority" => task.priority
-         },
-         as: "task"
-       )
-     )}
-  end
-
-  def handle_event(
-        "save_task",
-        %{"task_id" => "", "epic_id" => epic_id, "name" => name} = params,
-        socket
-      ) do
-    require_admin(socket, fn ->
-      epic = find_epic(socket.assigns.template, epic_id)
-      position = length(epic.tasks)
-
-      attrs = %{
-        "name" => name,
-        "description" => params["description"],
-        "priority" => params["priority"] || "must",
-        "position" => position,
-        "estimation_template_epic_id" => epic_id
-      }
-
-      case Templates.create_template_task(attrs) do
-        {:ok, _} ->
-          {:noreply, reload_and_close(socket)}
-
-        {:error, _} ->
-          {:noreply, put_flash(socket, :error, "Could not create task")}
-      end
-    end)
-  end
-
-  def handle_event(
-        "save_task",
-        %{"task_id" => id, "epic_id" => epic_id, "name" => name} = params,
-        socket
-      ) do
-    require_admin(socket, fn ->
-      task = find_task(socket.assigns.template, epic_id, id)
-
-      attrs = %{
-        "name" => name,
-        "description" => params["description"],
-        "priority" => params["priority"] || task.priority
-      }
-
-      case Templates.update_template_task(task, attrs) do
-        {:ok, _} ->
-          {:noreply, reload_and_close(socket)}
-
-        {:error, _} ->
-          {:noreply, put_flash(socket, :error, "Could not update task")}
-      end
-    end)
-  end
-
-  def handle_event("confirm_delete_task", %{"id" => id, "epic-id" => epic_id}, socket) do
-    task = find_task(socket.assigns.template, epic_id, id)
-    {:noreply, assign(socket, :deleting_task, task)}
-  end
-
-  def handle_event("delete_task", _params, socket) do
-    require_admin(socket, fn ->
-      case Templates.delete_template_task(socket.assigns.deleting_task) do
-        {:ok, _} ->
-          {:noreply,
-           socket
-           |> assign(:deleting_task, nil)
-           |> reload_template()
-           |> put_flash(:info, "Task deleted")}
-
-        {:error, _} ->
-          {:noreply, put_flash(socket, :error, "Could not delete task")}
-      end
-    end)
-  end
-
-  ## Reorder events
-
-  def handle_event("reorder_epics", %{"ids" => ids}, socket) do
-    require_admin(socket, fn ->
-      socket.assigns.template.id
-      |> Templates.reorder_template_epics(ids)
-      |> after_reorder(socket)
-    end)
-  end
-
-  def handle_event("reorder_tasks", %{"epic_id" => epic_id, "ids" => ids}, socket) do
-    require_admin(socket, fn ->
-      epic_id
-      |> Templates.reorder_template_tasks(ids)
-      |> after_reorder(socket)
-    end)
-  end
-
-  ## Common events
-
-  def handle_event("close_modal", _params, socket) do
-    {:noreply, assign(socket, :modal, nil)}
-  end
-
-  def handle_event("cancel_delete", _params, socket) do
-    {:noreply,
-     socket
-     |> assign(:deleting_epic, nil)
-     |> assign(:deleting_task, nil)}
-  end
-
-  ## Helpers
-
-  defp reload_template(socket) do
-    template =
-      Templates.get_estimation_template!(socket.assigns.template.id, socket.assigns.org_id)
-
-    assign(socket, :template, template)
-  end
-
-  defp after_reorder(:ok, socket), do: {:noreply, reload_template(socket)}
-
-  defp after_reorder({:error, :stale_reorder}, socket),
-    do:
-      {:noreply,
-       socket |> reload_template() |> put_flash(:error, "Order changed elsewhere; reloaded")}
-
-  defp reload_and_close(socket) do
-    socket
-    |> reload_template()
-    |> assign(:modal, nil)
-  end
-
-  defp find_epic(template, id) do
-    Enum.find(template.epics, &(&1.id == id))
-  end
-
-  defp find_task(template, epic_id, task_id) do
-    epic = find_epic(template, epic_id)
-    Enum.find(epic.tasks, &(&1.id == task_id))
-  end
+  def handle_event("delete_task", params, socket), do: Tasks.delete_task(socket, params)
+  def handle_event("reorder_epics", params, socket), do: Epics.reorder_epics(socket, params)
+  def handle_event("reorder_tasks", params, socket), do: Tasks.reorder_tasks(socket, params)
+  def handle_event("close_modal", params, socket), do: Template.close_modal(socket, params)
+  def handle_event("cancel_delete", params, socket), do: Template.cancel_delete(socket, params)
 end
