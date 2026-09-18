@@ -470,26 +470,21 @@ defmodule Estimate.Accounts do
   ## Seeding (used during org creation)
 
   def seed_default_currencies(org_id) do
-    Currency.default_currencies()
-    |> Enum.reduce_while(:ok, fn attrs, :ok ->
-      %Currency{}
-      |> Currency.changeset(Map.put(attrs, :organization_id, org_id))
-      |> Repo.insert()
-      |> case do
-        {:ok, _} -> {:cont, :ok}
-        {:error, changeset} -> {:halt, {:error, changeset}}
-      end
-    end)
+    with {:ok, _} <-
+           Repo.insert_each(Currency.default_currencies(), fn attrs ->
+             Currency.changeset(%Currency{}, Map.put(attrs, :organization_id, org_id))
+           end) do
+      :ok
+    end
   end
 
   def seed_default_role_templates(org_id) do
     main_currency = Estimate.Organizations.Currencies.get_main_currency(org_id)
+    defaults = RoleTemplate.default_templates()
 
-    RoleTemplate.default_templates()
-    |> Enum.reduce_while(:ok, fn attrs, :ok ->
-      with {:ok, template} <-
-             %RoleTemplate{}
-             |> RoleTemplate.changeset(%{
+    with {:ok, templates} <-
+           Repo.insert_each(defaults, fn attrs ->
+             RoleTemplate.changeset(%RoleTemplate{}, %{
                name: attrs.name,
                abbreviation: attrs.abbreviation,
                position: attrs.position,
@@ -498,11 +493,21 @@ defmodule Estimate.Accounts do
                risk_buffer: attrs.risk_buffer,
                organization_id: org_id
              })
-             |> Repo.insert(),
-           :ok <- maybe_create_template_rate(template, main_currency, attrs.default_rate) do
-        {:cont, :ok}
-      else
-        {:error, changeset} -> {:halt, {:error, changeset}}
+           end) do
+      defaults
+      |> Enum.zip(templates)
+      |> first_error(fn {attrs, template} ->
+        maybe_create_template_rate(template, main_currency, attrs.default_rate)
+      end)
+    end
+  end
+
+  # Runs `fun` over `items` until the first non-:ok result; :ok when all pass.
+  defp first_error(items, fun) do
+    Enum.find_value(items, :ok, fn item ->
+      case fun.(item) do
+        :ok -> nil
+        error -> error
       end
     end)
   end

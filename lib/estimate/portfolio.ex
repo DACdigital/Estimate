@@ -506,27 +506,24 @@ defmodule Estimate.Portfolio do
       templates = Accounts.list_role_templates(org_id)
       currency_id = project.currency_id
 
-      Enum.reduce_while(templates, :ok, fn template, :ok ->
-        rate = Enum.find(template.rates, fn r -> r.currency_id == currency_id end)
-        hourly_rate = if rate, do: rate.hourly_rate, else: Decimal.new(0)
+      with {:ok, _} <-
+             Repo.insert_each(templates, fn template ->
+               rate = Enum.find(template.rates, fn r -> r.currency_id == currency_id end)
+               hourly_rate = if rate, do: rate.hourly_rate, else: Decimal.new(0)
 
-        %ProjectRole{}
-        |> ProjectRole.changeset(%{
-          name: template.name,
-          abbreviation: template.abbreviation,
-          position: template.position,
-          hourly_rate: hourly_rate,
-          pm_overhead: template.pm_overhead || Decimal.new(0),
-          qa_overhead: template.qa_overhead || Decimal.new(0),
-          risk_buffer: template.risk_buffer || Decimal.new(0),
-          project_id: project.id
-        })
-        |> Repo.insert()
-        |> case do
-          {:ok, _} -> {:cont, :ok}
-          {:error, changeset} -> {:halt, {:error, changeset}}
-        end
-      end)
+               ProjectRole.changeset(%ProjectRole{}, %{
+                 name: template.name,
+                 abbreviation: template.abbreviation,
+                 position: template.position,
+                 hourly_rate: hourly_rate,
+                 pm_overhead: template.pm_overhead || Decimal.new(0),
+                 qa_overhead: template.qa_overhead || Decimal.new(0),
+                 risk_buffer: template.risk_buffer || Decimal.new(0),
+                 project_id: project.id
+               })
+             end) do
+        :ok
+      end
     end)
   end
 end
