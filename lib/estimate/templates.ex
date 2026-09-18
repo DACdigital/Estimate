@@ -171,15 +171,14 @@ defmodule Estimate.Templates do
                    position: Map.get(epic, :position) || 0,
                    estimation_template_id: template.id
                  })
+               end),
+             :ok <-
+               epics
+               |> Enum.zip(new_epics)
+               |> Repo.each_ok(fn {epic, new_epic} ->
+                 insert_template_tasks(epic.tasks, new_epic.id)
                end) do
-          with :ok <-
-                 epics
-                 |> Enum.zip(new_epics)
-                 |> Repo.each_ok(fn {epic, new_epic} ->
-                   insert_template_tasks(epic.tasks, new_epic.id)
-                 end) do
-            {:ok, :done}
-          end
+          {:ok, :done}
         end
       end)
       |> Repo.transaction()

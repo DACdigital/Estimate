@@ -10,7 +10,7 @@ defmodule EstimateWeb.EstimatorLive.ViewState do
   """
   use EstimateWeb, :live_handlers
 
-  alias EstimateWeb.EstimatorLive.{Grid, Rows}
+  alias EstimateWeb.EstimatorLive.Grid
 
   @all_priorities MapSet.new(["must", "should", "could", "wont"])
 
@@ -58,6 +58,4 @@ defmodule EstimateWeb.EstimatorLive.ViewState do
       do: {:noreply, socket |> assign(:enabled_priorities, valid) |> Grid.reset()},
       else: {:noreply, socket}
   end
-
-  defdelegate filtered_epics(estimation, enabled_priorities), to: Rows
 end

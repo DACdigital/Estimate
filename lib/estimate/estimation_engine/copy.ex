@@ -66,15 +66,14 @@ defmodule Estimate.EstimationEngine.Copy do
                position: old_epic.position,
                estimation_id: estimation_id
              })
+           end),
+         :ok <-
+           epics
+           |> Enum.zip(new_epics)
+           |> Repo.each_ok(fn {old_epic, new_epic} ->
+             copy_tasks_with_estimates(old_epic.tasks, new_epic.id, role_mapping)
            end) do
-      with :ok <-
-             epics
-             |> Enum.zip(new_epics)
-             |> Repo.each_ok(fn {old_epic, new_epic} ->
-               copy_tasks_with_estimates(old_epic.tasks, new_epic.id, role_mapping)
-             end) do
-        {:ok, new_epics}
-      end
+      {:ok, new_epics}
     end
   end
 
@@ -87,15 +86,14 @@ defmodule Estimate.EstimationEngine.Copy do
                position: old_task.position,
                epic_id: epic_id
              })
+           end),
+         :ok <-
+           tasks
+           |> Enum.zip(new_tasks)
+           |> Repo.each_ok(fn {old_task, new_task} ->
+             copy_estimates(old_task.estimates, new_task.id, role_mapping)
            end) do
-      with :ok <-
-             tasks
-             |> Enum.zip(new_tasks)
-             |> Repo.each_ok(fn {old_task, new_task} ->
-               copy_estimates(old_task.estimates, new_task.id, role_mapping)
-             end) do
-        {:ok, new_tasks}
-      end
+      {:ok, new_tasks}
     end
   end
 

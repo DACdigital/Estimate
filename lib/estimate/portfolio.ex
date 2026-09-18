@@ -197,13 +197,7 @@ defmodule Estimate.Portfolio do
           Search.index_project(project)
           {:ok, project}
 
-        {:error, :project, changeset, _} ->
-          {:error, changeset}
-
-        {:error, :collaborator, changeset, _} ->
-          {:error, changeset}
-
-        {:error, :roles, changeset, _} ->
+        {:error, _op, changeset, _} ->
           {:error, changeset}
       end
     end)
