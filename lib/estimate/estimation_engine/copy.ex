@@ -67,14 +67,14 @@ defmodule Estimate.EstimationEngine.Copy do
                estimation_id: estimation_id
              })
            end) do
-      epics
-      |> Enum.zip(new_epics)
-      |> Enum.reduce_while({:ok, new_epics}, fn {old_epic, new_epic}, acc ->
-        case copy_tasks_with_estimates(old_epic.tasks, new_epic.id, role_mapping) do
-          {:ok, _} -> {:cont, acc}
-          {:error, changeset} -> {:halt, {:error, changeset}}
-        end
-      end)
+      with :ok <-
+             epics
+             |> Enum.zip(new_epics)
+             |> Repo.each_ok(fn {old_epic, new_epic} ->
+               copy_tasks_with_estimates(old_epic.tasks, new_epic.id, role_mapping)
+             end) do
+        {:ok, new_epics}
+      end
     end
   end
 
@@ -88,14 +88,14 @@ defmodule Estimate.EstimationEngine.Copy do
                epic_id: epic_id
              })
            end) do
-      tasks
-      |> Enum.zip(new_tasks)
-      |> Enum.reduce_while({:ok, new_tasks}, fn {old_task, new_task}, acc ->
-        case copy_estimates(old_task.estimates, new_task.id, role_mapping) do
-          {:ok, _} -> {:cont, acc}
-          {:error, changeset} -> {:halt, {:error, changeset}}
-        end
-      end)
+      with :ok <-
+             tasks
+             |> Enum.zip(new_tasks)
+             |> Repo.each_ok(fn {old_task, new_task} ->
+               copy_estimates(old_task.estimates, new_task.id, role_mapping)
+             end) do
+        {:ok, new_tasks}
+      end
     end
   end
 

@@ -484,20 +484,10 @@ defmodule Estimate.Accounts do
            end) do
       defaults
       |> Enum.zip(templates)
-      |> first_error(fn {attrs, template} ->
+      |> Repo.each_ok(fn {attrs, template} ->
         maybe_create_template_rate(template, main_currency, attrs.default_rate)
       end)
     end
-  end
-
-  # Runs `fun` over `items` until the first non-:ok result; :ok when all pass.
-  defp first_error(items, fun) do
-    Enum.find_value(items, :ok, fn item ->
-      case fun.(item) do
-        :ok -> nil
-        error -> error
-      end
-    end)
   end
 
   defp maybe_create_template_rate(_template, nil, _rate), do: :ok

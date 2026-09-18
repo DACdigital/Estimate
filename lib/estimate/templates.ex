@@ -172,14 +172,14 @@ defmodule Estimate.Templates do
                    estimation_template_id: template.id
                  })
                end) do
-          epics
-          |> Enum.zip(new_epics)
-          |> Enum.reduce_while({:ok, :done}, fn {epic, new_epic}, acc ->
-            case insert_template_tasks(epic.tasks, new_epic.id) do
-              {:ok, _} -> {:cont, acc}
-              {:error, changeset} -> {:halt, {:error, changeset}}
-            end
-          end)
+          with :ok <-
+                 epics
+                 |> Enum.zip(new_epics)
+                 |> Repo.each_ok(fn {epic, new_epic} ->
+                   insert_template_tasks(epic.tasks, new_epic.id)
+                 end) do
+            {:ok, :done}
+          end
         end
       end)
       |> Repo.transaction()

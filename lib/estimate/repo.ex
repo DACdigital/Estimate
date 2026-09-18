@@ -304,6 +304,24 @@ defmodule Estimate.Repo do
     end)
   end
 
+  @doc """
+  Runs `fun` over `items` in order and stops at the first `{:error, _}`.
+  Returns `:ok` when every call returned `:ok` or `{:ok, _}`. Opens no
+  transaction — use inside `transaction/1` or an `Ecto.Multi.run/3` step when
+  the calls must roll back together.
+  """
+  @spec each_ok(Enumerable.t(), (term() -> :ok | {:ok, term()} | {:error, term()})) ::
+          :ok | {:error, term()}
+  def each_ok(items, fun) when is_function(fun, 1) do
+    Enum.reduce_while(items, :ok, fn item, :ok ->
+      case fun.(item) do
+        :ok -> {:cont, :ok}
+        {:ok, _} -> {:cont, :ok}
+        {:error, _} = error -> {:halt, error}
+      end
+    end)
+  end
+
   @doc "Sets RLS org context on current connection. For test helper."
   def set_org_context(org_id) when is_binary(org_id) do
     query("SELECT set_config('app.current_org_id', $1, false)", [org_id])

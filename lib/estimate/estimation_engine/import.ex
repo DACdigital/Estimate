@@ -76,14 +76,12 @@ defmodule Estimate.EstimationEngine.Import do
     end)
     |> case do
       {:ok, epics} ->
-        epics
-        |> Enum.zip(epics_data)
-        |> Enum.reduce_while({:ok, epics}, fn {epic, epic_data}, acc ->
-          case insert_tasks(epic.id, epic_data.tasks) do
-            {:ok, _} -> {:cont, acc}
-            {:error, changeset} -> {:halt, {:error, changeset}}
-          end
-        end)
+        with :ok <-
+               epics
+               |> Enum.zip(epics_data)
+               |> Repo.each_ok(fn {epic, epic_data} -> insert_tasks(epic.id, epic_data.tasks) end) do
+          {:ok, epics}
+        end
 
       error ->
         error

@@ -202,6 +202,9 @@ defmodule Estimate.Portfolio do
 
         {:error, :collaborator, changeset, _} ->
           {:error, changeset}
+
+        {:error, :roles, changeset, _} ->
+          {:error, changeset}
       end
     end)
   end
