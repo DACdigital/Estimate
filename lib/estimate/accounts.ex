@@ -405,20 +405,8 @@ defmodule Estimate.Accounts do
     end)
   end
 
-  def reorder_role_templates(org_id, ids) do
-    Repo.ensure_org_context(fn ->
-      Repo.transaction(fn ->
-        ids
-        |> Enum.with_index()
-        |> Enum.each(fn {id, position} ->
-          from(rt in RoleTemplate, where: rt.id == ^id and rt.organization_id == ^org_id)
-          |> Repo.update_all(set: [position: position])
-        end)
-      end)
-
-      :ok
-    end)
-  end
+  def reorder_role_templates(org_id, ids),
+    do: Repo.reorder_children(RoleTemplate, :organization_id, org_id, ids)
 
   def change_role_template(%RoleTemplate{} = template, attrs \\ %{}) do
     RoleTemplate.changeset(template, attrs)

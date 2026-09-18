@@ -85,22 +85,14 @@ defmodule Estimate.Templates do
     end)
   end
 
-  def reorder_template_epics(template_id, epic_ids) do
-    Repo.ensure_org_context(fn ->
-      Repo.transaction(fn ->
+  def reorder_template_epics(template_id, epic_ids),
+    do:
+      Repo.reorder_children(
+        EstimationTemplateEpic,
+        :estimation_template_id,
+        template_id,
         epic_ids
-        |> Enum.with_index()
-        |> Enum.each(fn {id, position} ->
-          from(e in EstimationTemplateEpic,
-            where: e.id == ^id and e.estimation_template_id == ^template_id
-          )
-          |> Repo.update_all(set: [position: position])
-        end)
-      end)
-
-      :ok
-    end)
-  end
+      )
 
   ## Template Tasks
 
@@ -126,22 +118,14 @@ defmodule Estimate.Templates do
     end)
   end
 
-  def reorder_template_tasks(epic_id, task_ids) do
-    Repo.ensure_org_context(fn ->
-      Repo.transaction(fn ->
+  def reorder_template_tasks(epic_id, task_ids),
+    do:
+      Repo.reorder_children(
+        EstimationTemplateTask,
+        :estimation_template_epic_id,
+        epic_id,
         task_ids
-        |> Enum.with_index()
-        |> Enum.each(fn {id, position} ->
-          from(t in EstimationTemplateTask,
-            where: t.id == ^id and t.estimation_template_epic_id == ^epic_id
-          )
-          |> Repo.update_all(set: [position: position])
-        end)
-      end)
-
-      :ok
-    end)
-  end
+      )
 
   ## Create from JSON import
 

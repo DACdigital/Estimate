@@ -277,8 +277,17 @@ defmodule EstimateWeb.RolesLive.Index do
   @impl true
   def handle_event("reorder_roles", %{"ids" => ids}, socket) do
     require_admin(socket, fn ->
-      Accounts.reorder_role_templates(socket.assigns.org_id, ids)
-      {:noreply, reload_templates(socket)}
+      case Accounts.reorder_role_templates(socket.assigns.org_id, ids) do
+        :ok ->
+          {:noreply, reload_templates(socket)}
+
+        {:error, :stale_reorder} ->
+          {:noreply,
+           socket |> reload_templates() |> put_flash(:error, "Order changed elsewhere; reloaded")}
+
+        {:error, _} ->
+          {:noreply, socket |> reload_templates() |> put_flash(:error, "Could not reorder")}
+      end
     end)
   end
 

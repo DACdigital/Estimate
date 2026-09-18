@@ -552,15 +552,17 @@ defmodule EstimateWeb.TemplatesLive.Show do
 
   def handle_event("reorder_epics", %{"ids" => ids}, socket) do
     require_admin(socket, fn ->
-      Templates.reorder_template_epics(socket.assigns.template.id, ids)
-      {:noreply, reload_template(socket)}
+      socket.assigns.template.id
+      |> Templates.reorder_template_epics(ids)
+      |> after_reorder(socket)
     end)
   end
 
   def handle_event("reorder_tasks", %{"epic_id" => epic_id, "ids" => ids}, socket) do
     require_admin(socket, fn ->
-      Templates.reorder_template_tasks(epic_id, ids)
-      {:noreply, reload_template(socket)}
+      epic_id
+      |> Templates.reorder_template_tasks(ids)
+      |> after_reorder(socket)
     end)
   end
 
@@ -585,6 +587,16 @@ defmodule EstimateWeb.TemplatesLive.Show do
 
     assign(socket, :template, template)
   end
+
+  defp after_reorder(:ok, socket), do: {:noreply, reload_template(socket)}
+
+  defp after_reorder({:error, :stale_reorder}, socket),
+    do:
+      {:noreply,
+       socket |> reload_template() |> put_flash(:error, "Order changed elsewhere; reloaded")}
+
+  defp after_reorder({:error, _}, socket),
+    do: {:noreply, socket |> reload_template() |> put_flash(:error, "Could not reorder")}
 
   defp reload_and_close(socket) do
     socket
