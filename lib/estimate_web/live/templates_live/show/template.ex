@@ -2,7 +2,7 @@ defmodule EstimateWeb.TemplatesLive.Show.Template do
   @moduledoc """
   Template header (inline name/description) and modal/delete housekeeping.
 
-  Reads: `:template`, `:org_id`. Writes: `:template`, `:modal`, `:deleting_epic`, `:deleting_task`.
+  Reads: `:template`, `:org_id`, `:current_membership` (gate, via require_admin). Writes: `:template`, `:modal`, `:deleting_epic`, `:deleting_task`.
   """
   use EstimateWeb, :live_handlers
 

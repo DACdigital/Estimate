@@ -6,6 +6,9 @@ defmodule EstimateWeb.TemplatesLive.Show.Authz do
   Reads: `:template`, `:org_id`. Writes: `:template` (reload), `:modal` (reload_and_close), flash.
 
   `find_*` return `nil` for unknown ids; handlers flash `not_found/1`.
+
+  Every id coming from the client is resolved against the in-memory `@template` (never a bare
+  `Repo.get`/`get_*!` by id), so a foreign id can never touch another template.
   """
   import Phoenix.LiveView, only: [put_flash: 3]
   import Phoenix.Component, only: [assign: 3]

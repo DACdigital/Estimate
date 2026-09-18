@@ -1,6 +1,7 @@
 defmodule EstimateWeb.TemplatesLive.ShowTest do
   use EstimateWeb.ConnCase, async: true
 
+  import Ecto.Query, only: [from: 2]
   import Phoenix.LiveViewTest
   import EstimateWeb.TemplatesLiveHelpers
 
@@ -141,6 +142,16 @@ defmodule EstimateWeb.TemplatesLive.ShowTest do
     end
 
     test "member is denied on save_epic, delete_epic and reorder_epics", ctx do
+      render_click(ctx.lv, "add_epic", %{})
+
+      render_submit(ctx.lv, "save_epic", %{
+        "epic_id" => "",
+        "name" => "Beta",
+        "description" => ""
+      })
+
+      [alpha, beta] = assigns(ctx.lv).template.epics
+
       {:ok, lv, _} = mount_as_member(ctx)
 
       assert render_submit(lv, "save_epic", %{"epic_id" => "", "name" => "X", "description" => ""}) =~
@@ -148,9 +159,12 @@ defmodule EstimateWeb.TemplatesLive.ShowTest do
 
       render_click(lv, "confirm_delete_epic", %{"id" => ctx.epic.id})
       assert render_click(lv, "delete_epic", %{}) =~ "Not authorized"
-      assert render_click(lv, "reorder_epics", %{"ids" => [ctx.epic.id]}) =~ "Not authorized"
+
+      assert render_click(lv, "reorder_epics", %{"ids" => [beta.id, alpha.id]}) =~
+               "Not authorized"
+
       assert Repo.get(EstimationTemplateEpic, ctx.epic.id)
-      assert length(refetch(ctx.template, ctx.org).epics) == 1
+      assert Enum.map(refetch(ctx.template, ctx.org).epics, & &1.name) == ["Alpha", "Beta"]
     end
 
     test "edit_epic / confirm_delete_epic with an unknown id flash Not found (B3)", ctx do
@@ -161,6 +175,34 @@ defmodule EstimateWeb.TemplatesLive.ShowTest do
                "Not found"
 
       assert assigns(ctx.lv).deleting_epic == nil
+      assert Process.alive?(ctx.lv.pid)
+    end
+
+    test "member is denied on save_epic update (B3)", ctx do
+      {:ok, lv, _} = mount_as_member(ctx)
+
+      assert render_submit(lv, "save_epic", %{
+               "epic_id" => ctx.epic.id,
+               "name" => "Hijack",
+               "description" => ""
+             }) =~ "Not authorized"
+
+      assert Repo.get!(EstimationTemplateEpic, ctx.epic.id).name == "Alpha"
+    end
+
+    test "save_epic update with an unknown epic_id flashes Not found and keeps the modal open",
+         ctx do
+      render_click(ctx.lv, "edit_epic", %{"id" => ctx.epic.id})
+
+      html =
+        render_submit(ctx.lv, "save_epic", %{
+          "epic_id" => Ecto.UUID.generate(),
+          "name" => "X",
+          "description" => ""
+        })
+
+      assert html =~ "Not found"
+      assert assigns(ctx.lv).modal == :epic
       assert Process.alive?(ctx.lv.pid)
     end
   end
@@ -353,6 +395,74 @@ defmodule EstimateWeb.TemplatesLive.ShowTest do
                "Not found"
 
       assert Repo.get!(EstimationTemplateTask, ot.id).position == 0
+    end
+
+    test "member is denied on save_task update (B3)", ctx do
+      {:ok, lv, _} = mount_as_member(ctx)
+
+      assert render_submit(lv, "save_task", %{
+               "task_id" => ctx.task1.id,
+               "epic_id" => ctx.epic.id,
+               "name" => "Hijack",
+               "description" => "",
+               "priority" => "must"
+             }) =~ "Not authorized"
+
+      assert Repo.get!(EstimationTemplateTask, ctx.task1.id).name == "T-one"
+    end
+
+    test "save_task update with an unknown task_id flashes Not found and keeps the modal open",
+         ctx do
+      render_click(ctx.lv, "edit_task", %{"id" => ctx.task1.id, "epic-id" => ctx.epic.id})
+
+      html =
+        render_submit(ctx.lv, "save_task", %{
+          "task_id" => Ecto.UUID.generate(),
+          "epic_id" => ctx.epic.id,
+          "name" => "X",
+          "description" => "",
+          "priority" => "must"
+        })
+
+      assert html =~ "Not found"
+      assert assigns(ctx.lv).modal == :task
+      assert Process.alive?(ctx.lv.pid)
+    end
+
+    test "save_task create is rejected for an epic belonging to another template (B3)", ctx do
+      other = Estimate.TemplatesFixtures.template_fixture(ctx.org)
+
+      {:ok, other_epic} =
+        Estimate.Templates.create_template_epic(%{
+          "name" => "Other",
+          "position" => 0,
+          "estimation_template_id" => other.id
+        })
+
+      html =
+        render_submit(ctx.lv, "save_task", %{
+          "task_id" => "",
+          "epic_id" => other_epic.id,
+          "name" => "Sneak",
+          "description" => "",
+          "priority" => "must"
+        })
+
+      assert html =~ "Not found"
+
+      assert Repo.all(
+               from(t in EstimationTemplateTask,
+                 where: t.estimation_template_epic_id == ^other_epic.id
+               )
+             ) == []
+    end
+
+    test "add_task with an unknown epic id flashes Not found and does not open the modal (B3)",
+         ctx do
+      assert render_click(ctx.lv, "add_task", %{"epic-id" => Ecto.UUID.generate()}) =~
+               "Not found"
+
+      assert assigns(ctx.lv).modal == nil
     end
   end
 

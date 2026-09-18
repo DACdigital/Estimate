@@ -2,6 +2,7 @@ defmodule EstimateWeb.TemplatesLive.Show do
   use EstimateWeb, :live_view
 
   alias Estimate.Templates
+  alias EstimateWeb.TemplatesLive.Show.{Epics, Tasks, Template}
 
   import EstimateWeb.EstimatorLive.Helpers, only: [priority_label: 1, priority_class: 1]
 
@@ -339,8 +340,6 @@ defmodule EstimateWeb.TemplatesLive.Show do
      |> assign(:deleting_epic, nil)
      |> assign(:deleting_task, nil)}
   end
-
-  alias EstimateWeb.TemplatesLive.Show.{Epics, Tasks, Template}
 
   @impl true
   def handle_event("update_template", params, socket),
