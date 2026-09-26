@@ -22,7 +22,8 @@ defmodule Estimate.Repo.Migrations.CreateRoleTemplates do
       add :hourly_rate, :decimal, null: false, default: 0
 
       add :role_template_id,
-          references(:role_templates, type: :binary_id, on_delete: :delete_all), null: false
+          references(:role_templates, type: :binary_id, on_delete: :delete_all),
+          null: false
 
       add :currency_id, references(:currencies, type: :binary_id, on_delete: :delete_all),
         null: false
