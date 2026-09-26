@@ -19,7 +19,7 @@ services:
       start_period: 10s
 
   app:
-    image: ghcr.io/dacdigital/estimate:${ESTIMATE_TAG:-latest}
+    image: dacinfomotion/estimate:${ESTIMATE_TAG:-latest}
     restart: unless-stopped
     depends_on:
       db:

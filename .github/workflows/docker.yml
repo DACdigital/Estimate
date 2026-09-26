@@ -1,24 +1,23 @@
 name: Docker
 
-# Publish job holds credentials, so it triggers ONLY on events that require
-# write access to this repo: pushes to main, version tags, manual dispatch.
-# Fork PRs can never reach it.
+# Publish job holds credentials, so it triggers on push to any branch or tag
+# in this repo plus manual dispatch. Fork PRs can never reach it (no
+# pull_request trigger).
 on:
   push:
-    branches: [main]
-    tags: ["v*"]
+    branches: ["**"]
+    tags: ["*"]
   workflow_dispatch:
 
 permissions:
   contents: read
-  packages: write
 
 concurrency:
   group: docker-${{ github.ref }}
   cancel-in-progress: true
 
 env:
-  IMAGE: ghcr.io/${{ github.repository }}
+  IMAGE: docker.io/dacinfomotion/estimate
 
 jobs:
   build-push:
@@ -33,20 +32,22 @@ jobs:
 
       - uses: docker/login-action@v3
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          registry: docker.io
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      # Tag scheme (branch names slugified by metadata-action — '/' → '-', etc.):
+      #   main         → latest
+      #   git tag      → <tag-name>  (e.g. git tag "1.0.42" → image "1.0.42")
+      #   other branch → <branch-slug>
       - id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.IMAGE }}
           tags: |
-            type=sha,format=short
-            type=ref,event=branch
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable={{is_default_branch}}
+            type=ref,event=branch,enable=${{ github.ref_name != 'main' }}
+            type=ref,event=tag
 
       - uses: docker/build-push-action@v6
         with:

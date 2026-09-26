@@ -8,7 +8,7 @@ App + PostgreSQL 17, one `docker compose up`, migrations run themselves.
 
 ![Docker](https://img.shields.io/badge/Docker-Compose_v2-2496ED?logo=docker&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql&logoColor=white)
-![Image](https://img.shields.io/badge/image-ghcr.io%2Fdacdigital%2Festimate-black?logo=github)
+![Image](https://img.shields.io/badge/image-dacinfomotion%2Festimate-2496ED?logo=docker&logoColor=white)
 
 [Quickstart](#quickstart) · [Configuration](#configuration) · [Upgrade](#upgrade) · [Backup](#backup--restore) · [Reverse proxy](#reverse-proxy) · [Troubleshooting](#troubleshooting)
 
@@ -51,7 +51,7 @@ Copy `.env.example` to `.env` and set at least the three required values. Full r
 | `POSTGRES_PASSWORD` | ✅        | —          | Superuser password for the bundled Postgres. Also used by the app. |
 | `PHX_HOST`          | ✅        | `localhost`| Hostname users reach the app on. Must match the URL in the browser. |
 | `APP_PORT`          |          | `4000`     | Host port to publish the app on. |
-| `ESTIMATE_TAG`      |          | `latest`   | Image tag from `ghcr.io/dacdigital/estimate`. Pin to a version in production. |
+| `ESTIMATE_TAG`      |          | `latest`   | Image tag from [`dacinfomotion/estimate`](https://hub.docker.com/r/dacinfomotion/estimate). Pin to a version in production. |
 | `POOL_SIZE`         |          | `10`       | Ecto connection pool size. |
 | `ENCRYPTION_KEY`    |          | —          | AES-256 key encrypting per-org SMTP/OAuth secrets at rest. Without it, those features stay disabled. Generate with `openssl rand -base64 32`. |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | | — | Enables "Sign in with Google". Redirect URI: `https://<PHX_HOST>/auth/google/callback`. |
@@ -75,8 +75,10 @@ The container's entrypoint runs `bin/migrate` (with `SKIP_RLS_ROLE=true`, since 
 Pinning a version is recommended for anything that isn't a test instance:
 
 ```env
-ESTIMATE_TAG=v0.2.0
+ESTIMATE_TAG=1.0.42
 ```
+
+Published tags: `latest` from pushes to `main`; the git tag name from git-tag pushes (e.g. `git tag 1.0.42 && git push --tags` → image `1.0.42`); the slugified branch name from feature branches.
 
 ## Backup & restore
 
