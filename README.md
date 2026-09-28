@@ -315,6 +315,21 @@ Users see and revoke their connected apps under **Account → Connected apps**. 
 
 ## 🚢 Deployment
 
+### Docker Compose (self-host demo)
+
+Fastest way to your own EstiMate — Postgres + app in one command:
+
+```bash
+cd deploy/docker
+cp .env.example .env
+echo "SECRET_KEY_BASE=$(make -s secret)" >> .env
+echo "POSTGRES_PASSWORD=$(openssl rand -hex 24)" >> .env
+
+docker compose up -d
+```
+
+Open `http://localhost:4000`, register the first account, done. Full self-host guide with upgrades, backups and reverse-proxy snippets: [`deploy/docker/README.md`](deploy/docker/README.md).
+
 ### Docker
 
 The [`Dockerfile`](Dockerfile) is a cache-friendly multi-stage build (Elixir 1.18.4 / OTP 28.3.1 → Debian bookworm-slim) that installs Node 22 solely for `npm ci --prefix assets`, compiles assets, and cuts an OTP release via `mix phx.gen.release`. The runtime image:
@@ -471,6 +486,10 @@ Choices a reviewer would ask about, answered up front:
 2. Refactoring something load-bearing? **Characterize it first** — pin current behavior with exact assertions, then change it.
 3. `mix precommit` must pass: zero warnings, formatted, 288+ green.
 4. One PR per feature cluster; if you found a latent bug mid-refactor, fix it at the right layer (context, not template) and flip exactly the test that pinned it.
+
+## 📄 License
+
+MIT — see [`LICENSE`](LICENSE).
 
 ---
 

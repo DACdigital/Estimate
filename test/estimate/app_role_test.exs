@@ -1,12 +1,10 @@
 defmodule Estimate.AppRoleTest do
   use Estimate.DataCase, async: true
 
-  test "estimate_app cannot log in and cannot create schema objects" do
-    %{rows: [[can_login]]} =
-      Estimate.Repo.query!("SELECT rolcanlogin FROM pg_roles WHERE rolname = 'estimate_app'")
-
-    refute can_login
-
+  # NOLOGIN is intentionally not asserted: ALTER ROLE ... NOLOGIN needs
+  # CREATEROLE + ADMIN OPTION on PG16+, which the migrator lacks in prod,
+  # so it is an optional DBA hardening step (see HardenAppRole migration).
+  test "estimate_app cannot create schema objects" do
     %{rows: [[can_create]]} =
       Estimate.Repo.query!("SELECT has_schema_privilege('estimate_app', 'public', 'CREATE')")
 

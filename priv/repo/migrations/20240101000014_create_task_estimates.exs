@@ -9,7 +9,8 @@ defmodule Estimate.Repo.Migrations.CreateTaskEstimates do
       add :task_id, references(:tasks, type: :binary_id, on_delete: :delete_all), null: false
 
       add :estimation_role_id,
-          references(:estimation_roles, type: :binary_id, on_delete: :delete_all), null: false
+          references(:estimation_roles, type: :binary_id, on_delete: :delete_all),
+          null: false
 
       timestamps()
     end
