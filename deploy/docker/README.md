@@ -70,7 +70,7 @@ If you want to close registration after your team has signed up, set the org to 
 make upgrade   # docker compose pull && docker compose up -d
 ```
 
-The container's entrypoint runs `bin/migrate` (with `SKIP_RLS_ROLE=true`, since the role already exists) before starting the server. Nothing to do by hand.
+The container's entrypoint runs `bin/migrate` (with `SKIP_RLS_ROLE=true` so DDL runs as the login superuser, unencumbered by the `SET ROLE estimate_app` that `after_connect` would otherwise perform) before starting the server. Nothing to do by hand — the migration that creates the `estimate_app` role runs itself on first boot.
 
 Pinning a version is recommended for anything that isn't a test instance:
 
@@ -155,9 +155,9 @@ When you sit the app behind a proxy, make sure `PHX_HOST` matches the **public**
 
 **`bind: address already in use` on 4000.** Something else is on port 4000. Set `APP_PORT=8080` (or any free port) in `.env` and `docker compose up -d` again.
 
-**App restarts in a loop right after the first `up`.** Migrations connected before the Postgres role finished being created. Nuke the volume and retry: `make destroy && make up`. This is only safe on a fresh install — never on a database with real data.
+**App restarts in a loop right after the first `up`.** The Postgres container hadn't finished initializing when the app first connected. `make down && make up` usually resolves it — the `depends_on: service_healthy` gate then holds the app back until Postgres reports ready.
 
-**`role "estimate_app" does not exist`.** The bootstrap SQL in `init-db/` only runs on a *fresh* Postgres data volume. If you're bringing your own database, run [`init-db/01-create-role.sql`](init-db/01-create-role.sql) against it once, by hand, before starting the app.
+**`role "estimate_app" does not exist`.** The role is created automatically by the [`enforce_rls_with_app_role`](../../priv/repo/migrations/20260211080345_enforce_rls_with_app_role.exs) migration on first boot. If you're bringing your own external database, make sure the app's `bin/migrate` runs against it once (with the app's `DATABASE_URL` pointing at a superuser) before you route traffic to it.
 
 **Can't reach the app from another machine.** `PHX_HOST` must match the hostname in the browser, and (if you're behind a proxy) TLS must terminate there — the app itself only speaks HTTP. Also check firewall on the host.
 
@@ -167,7 +167,7 @@ When you sit the app behind a proxy, make sure `PHX_HOST` matches the **public**
 
 - **Docs & source:** [`../../README.md`](../../README.md) — the main project README covers architecture, RLS, pricing math, and dev setup.
 - **Issues:** please open one on the [GitHub repository](https://github.com/DACdigital/Estimate/issues) with the output of `docker compose ps` and the last ~50 lines of `make logs`.
-- **Contributions to the compose setup itself** — small PRs against this folder are very welcome (extra proxy examples, other init-db strategies, etc.).
+- **Contributions to the compose setup itself** — small PRs against this folder are very welcome (extra proxy examples, backup strategies, etc.).
 
 ## License
 

@@ -61,3 +61,54 @@ jobs:
           cache-to: type=gha,mode=max
           provenance: true
           sbom: true
+
+  # Publish Helm chart to OCI Docker Hub on every tag, after the image is up.
+  # Chart tarball is versioned from the git tag (leading "v" stripped so
+  # `helm package` accepts SemVer). Uses the same DOCKERHUB_* secrets as
+  # build-push above — no new credentials needed.
+  helm-publish:
+    needs: build-push
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.19.0
+
+      - id: ver
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Helm registry login
+        run: |
+          echo "${{ secrets.DOCKERHUB_TOKEN }}" \
+            | helm registry login registry-1.docker.io \
+                -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+
+      - name: Helm dependency update
+        working-directory: deploy/helm/estimate
+        run: helm dependency update
+
+      - name: Helm lint
+        working-directory: deploy/helm/estimate
+        run: |
+          helm lint . \
+            --set appSecret.secretKeyBase=lint-dummy \
+            --set appSecret.encryptionKey=lint-dummy \
+            --set appSecret.databaseRolePassword=lint-dummy \
+            --set postgres.auth.password=lint-dummy
+
+      - name: Helm package
+        working-directory: deploy/helm/estimate
+        run: |
+          helm package . \
+            --version "${{ steps.ver.outputs.version }}" \
+            --app-version "${{ steps.ver.outputs.version }}" \
+            --destination /tmp/helm-out
+
+      - name: Helm push
+        run: |
+          helm push \
+            "/tmp/helm-out/estimate-chart-${{ steps.ver.outputs.version }}.tgz" \
+            oci://registry-1.docker.io/dacinfomotion
