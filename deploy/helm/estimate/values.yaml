@@ -1,0 +1,203 @@
+# =============================================================================
+# EstiMate Helm chart values.
+#
+# Structure:
+#   1. Top-level keys (image, service, ingress, healthChecks, envVars, ...)
+#      are consumed by the helm-framework library dependency. Full reference:
+#      https://github.com/k8s-stuff/helm-framework
+#   2. `postgres:` and `externalDatabase:` are chart-owned (not helm-framework)
+#      and drive the bundled Postgres StatefulSet + composed DATABASE_URL.
+# =============================================================================
+
+# ------------------------------------------------------------- helm-framework
+
+replicaCount: 1
+
+# Deterministic naming so the app Secret and Postgres Service names in
+# `envVars` below stay stable across renders. Override alongside envVars if
+# you deploy multiple releases into one namespace.
+nameOverride: ""
+fullnameOverride: "estimate"
+
+image:
+  repository: dacinfomotion/estimate
+  # Empty → chart falls back to .Chart.AppVersion (set by CI at publish time).
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 4000
+  targetScheme: HTTP
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: estimate.example.com
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls: []
+
+healthChecks:
+  enabled: true
+  startupProbe:
+    path: /healthz
+    periodSeconds: 5
+    failureThreshold: 30
+    initialDelaySeconds: 5
+    timeoutSeconds: 3
+  livenessProbe:
+    path: /healthz
+    periodSeconds: 10
+    failureThreshold: 6
+    initialDelaySeconds: 15
+    timeoutSeconds: 3
+  readinessProbe:
+    path: /healthz
+    periodSeconds: 10
+    failureThreshold: 3
+    initialDelaySeconds: 5
+    timeoutSeconds: 3
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 200m
+    memory: 512Mi
+
+# Plain env vars. Sensitive values come from the Secret rendered by
+# templates/secret-app.yaml (name: "estimate-app" — matches fullnameOverride).
+envVars:
+  - name: PHX_HOST
+    value: "estimate.example.com"
+  - name: PORT
+    value: "4000"
+  - name: POOL_SIZE
+    value: "10"
+  - name: SECRET_KEY_BASE
+    valueFrom:
+      secretKeyRef:
+        name: estimate-app
+        key: SECRET_KEY_BASE
+  - name: ENCRYPTION_KEY
+    valueFrom:
+      secretKeyRef:
+        name: estimate-app
+        key: ENCRYPTION_KEY
+  - name: DATABASE_URL
+    valueFrom:
+      secretKeyRef:
+        name: estimate-app
+        key: DATABASE_URL
+  - name: DATABASE_ROLE_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: estimate-app
+        key: DATABASE_ROLE_PASSWORD
+  - name: GOOGLE_CLIENT_ID
+    valueFrom:
+      secretKeyRef:
+        name: estimate-app
+        key: GOOGLE_CLIENT_ID
+  - name: GOOGLE_CLIENT_SECRET
+    valueFrom:
+      secretKeyRef:
+        name: estimate-app
+        key: GOOGLE_CLIENT_SECRET
+
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+podSecurityContext: {}
+securityContext: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# ---------------------------------------------------------- app-owned secrets
+
+# Sensitive app config. When `create: true` the chart renders a Secret named
+# "estimate-app" holding these keys (plus DATABASE_URL composed from
+# `postgres.*` or `externalDatabase.*`). Set `existingSecretName` to reuse an
+# externally managed Secret instead; you're then responsible for populating
+# all seven keys referenced in `envVars` above.
+appSecret:
+  create: true
+  existingSecretName: ""
+  # WYMAGANE gdy create=true — generuj: `mix phx.gen.secret`
+  secretKeyBase: ""
+  # WYMAGANE gdy create=true — 32-byte base64: `openssl rand -base64 32`
+  encryptionKey: ""
+  # Hasło roli `estimate_app` (RLS). Migracja czyta z env DATABASE_ROLE_PASSWORD.
+  databaseRolePassword: ""
+  google:
+    clientId: ""
+    clientSecret: ""
+
+# --------------------------------------------------------- bundled Postgres
+
+# Bundled Postgres StatefulSet (chart-owned templates, not a subchart).
+# Disable and use `externalDatabase` for managed DB (recommended for prod).
+postgres:
+  enabled: true
+
+  image:
+    repository: postgres
+    tag: "17-alpine"
+    pullPolicy: IfNotPresent
+
+  auth:
+    # Superuser used by the app (RLS enforced per-connection via SET ROLE).
+    username: postgres
+    # WYMAGANE gdy enabled=true (albo existingSecretName). Losowe: `openssl rand -base64 24`
+    password: ""
+    existingSecretName: ""
+    # Baza tworzona automatycznie przez obraz Postgresa przy pierwszej inicjalizacji.
+    database: estimate
+
+  service:
+    port: 5432
+
+  persistence:
+    enabled: true
+    size: 10Gi
+    storageClass: ""
+    accessModes:
+      - ReadWriteOnce
+
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+  podSecurityContext:
+    fsGroup: 70          # official postgres:alpine runs as uid/gid 70
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 70
+    runAsGroup: 70
+
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# Zewnętrzna baza (gdy postgres.enabled=false). DATABASE_URL brany bezpośrednio
+# stąd zamiast składania.
+externalDatabase:
+  url: ""

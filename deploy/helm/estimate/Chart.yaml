@@ -1,0 +1,32 @@
+apiVersion: v2
+name: estimate-chart
+description: EstiMate — Elixir/Phoenix estimation platform (Docker + Helm self-host)
+type: application
+version: "0.0.0"
+appVersion: "0.0.0"
+kubeVersion: ">=1.25.0-0"
+home: https://github.com/DACdigital/Estimate
+sources:
+  - https://github.com/DACdigital/Estimate
+maintainers:
+  - name: DAC Digital
+    url: https://dac.digital
+icon: https://raw.githubusercontent.com/DACdigital/Estimate/main/priv/static/images/logo.svg
+annotations:
+  artifacthub.io/license: MIT
+  artifacthub.io/category: productivity
+  artifacthub.io/containsSecurityUpdates: "false"
+  artifacthub.io/images: |
+    - name: estimate
+      image: docker.io/dacinfomotion/estimate
+    - name: postgres
+      image: docker.io/library/postgres:17-alpine
+  artifacthub.io/links: |
+    - name: source
+      url: https://github.com/DACdigital/Estimate
+    - name: docker-compose
+      url: https://github.com/DACdigital/Estimate/tree/main/deploy/docker
+dependencies:
+  - name: helm-framework
+    version: "1.5.0"
+    repository: "oci://ghcr.io/k8s-stuff"
